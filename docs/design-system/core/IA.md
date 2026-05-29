@@ -73,7 +73,7 @@ Modelos de IA podem **alucinar ou se confundir** durante decisões longas. Regis
 
 ## 🎯 OBJETIVO DO PROJETO
 
-<!-- 
+<!--
   Descreva aqui o objetivo principal do projeto em 2-3 frases.
   Atualize se o escopo mudar.
   Exemplo:
@@ -87,7 +87,7 @@ _Preencher no início do projeto._
 
 ## 🏁 METAS & MILESTONES
 
-<!-- 
+<!--
   Liste as metas do projeto e marque conforme forem atingidas.
   Formato: [DATA] STATUS - Descrição
   STATUS: ⬜ pendente | 🔄 em progresso | ✅ concluída | ❌ cancelada
@@ -99,7 +99,7 @@ _Preencher conforme o projeto avança._
 
 ## 🛠️ STACK & DEPENDÊNCIAS
 
-<!-- 
+<!--
   Registre a stack completa e dependências instaladas.
   Atualize quando adicionar/remover/trocar qualquer tecnologia.
   Exemplo:
@@ -114,7 +114,7 @@ _Preencher no setup do projeto._
 
 ## 📐 DECISÕES DE ARQUITETURA
 
-<!-- 
+<!--
   Registre decisões estruturais e o motivo de cada uma.
   Exemplo:
   [2026-03-11] Monolito Django ao invés de microserviços — projeto pequeno, não justifica a complexidade.
@@ -128,7 +128,7 @@ _Preencher ao tomar decisões._
 
 ## 🎨 DECISÕES DE DESIGN & CONVENÇÕES
 
-<!-- 
+<!--
   Padrões de código, naming, estrutura que foram definidos.
   Exemplo:
   [2026-03-11] Nomes de variáveis e funções em inglês, comentários em português.
@@ -142,7 +142,7 @@ _Preencher conforme convenções forem definidas._
 
 ## 🧪 TESTES IMPORTANTES
 
-<!-- 
+<!--
   Registre testes que validam comportamento crítico.
   Inclua o que o teste cobre e se passou/falhou.
   Exemplo:
@@ -157,7 +157,7 @@ _Preencher ao rodar testes._
 
 ## 🐛 BUGS & FIXES RELEVANTES
 
-<!-- 
+<!--
   Bugs significativos e como foram resolvidos.
   Exemplo:
   [2026-03-13] BUG: CORS bloqueando requests do frontend em produção.
@@ -171,7 +171,7 @@ _Preencher ao resolver bugs._
 
 ## 🔗 INTEGRAÇÕES & SERVIÇOS EXTERNOS
 
-<!-- 
+<!--
   APIs, serviços e integrações configuradas.
   NÃO registre secrets/tokens aqui — apenas o serviço e como está configurado.
   Exemplo:
@@ -185,7 +185,7 @@ _Preencher conforme integrações forem adicionadas._
 
 ## 📝 NOTAS GERAIS
 
-<!-- 
+<!--
   Qualquer informação que não se encaixe nas seções acima
   mas que seria útil para outra IA retomar o contexto.
   Exemplo:
@@ -199,24 +199,24 @@ _Preencher quando necessário._
 
 ## 🧠 RESUMOS DE DECISÃO
 
-<!-- 
+<!--
   Registre aqui um resumo técnico de decisões complexas, debug difícil
   ou qualquer situação onde contexto, alternativas e conclusão importem.
   Não registre chain of thought interno bruto; registre apenas informação útil,
   verificável e retomável por outra pessoa ou IA.
-  
+
   Formato:
   [YYYY-MM-DD] CONTEXTO: <o que estava tentando fazer>
   ALTERNATIVAS: <caminhos considerados>
   DECISÃO: <caminho escolhido e motivo>
   VALIDAÇÃO: <teste, verificação ou evidência>
-  
+
   Exemplo:
   [2026-03-13] CONTEXTO: Endpoint /api/users retornando 500 em produção.
   ALTERNATIVAS: Renomear no frontend ou aceitar `email` e `user_email` no serializer.
   DECISÃO: Aceitar ambos temporariamente para manter compatibilidade.
   VALIDAÇÃO: Teste de login com os dois formatos passou.
-  
+
   [2026-03-14] CONTEXTO: Tentando implementar cache com Redis para /api/reports.
   ALTERNATIVAS: django-cacheops, redis-py direto ou Django cache framework.
   DECISÃO: Usar `django.core.cache` com `django-redis`, por simplicidade e cobertura suficiente.
@@ -227,8 +227,8 @@ _Preencher durante debug complexo ou decisões que envolvam múltiplos caminhos.
 
 ---
 
-> **Assinatura de Origem**  
-> Este arquivo foi criado por **Felipe Martin** e faz parte do repositório **Felixo System Design**.  
-> Origem: https://github.com/Felipe-Alcantara/Felixo-System-Design  
-> Data desta versão: 2026-03-23  
+> **Assinatura de Origem**
+> Este arquivo foi criado por **Felipe Martin** e faz parte do repositório **Felixo System Design**.
+> Origem: https://github.com/Felipe-Alcantara/Felixo-System-Design
+> Data desta versão: 2026-03-23
 > Sugestões e pull requests são bem-vindos.

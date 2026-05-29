@@ -97,7 +97,7 @@ Se o projeto tem uma demo online, feature matadora ou algo que mereça atenção
 ## 🌐 Feature Principal ⭐
 
 > **🚀 CHAMADA DE AÇÃO EM CAPS**
-> 
+>
 > **[👉 LINK GRANDE E CLARO 👈](URL)**
 
 ### 💡 Por que usar?
@@ -438,14 +438,14 @@ Nome — [@github](url)
 
 ---
 
-**Versão**: 1.0  
-**Baseado em**: README.md do projeto Cifra de César em Python  
+**Versão**: 1.0
+**Baseado em**: README.md do projeto Cifra de César em Python
 **Última Atualização**: 2026
 
 ---
 
-> **Assinatura de Origem**  
-> Este arquivo foi criado por **Felipe Martin** e faz parte do repositório **Felixo System Design**.  
-> Origem: https://github.com/Felipe-Alcantara/Felixo-System-Design  
-> Data desta versão: 2026-03-23  
+> **Assinatura de Origem**
+> Este arquivo foi criado por **Felipe Martin** e faz parte do repositório **Felixo System Design**.
+> Origem: https://github.com/Felipe-Alcantara/Felixo-System-Design
+> Data desta versão: 2026-03-23
 > Sugestões e pull requests são bem-vindos.

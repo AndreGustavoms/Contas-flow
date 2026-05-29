@@ -949,14 +949,14 @@ Adicionar Storybook ou similar para visualizar todos os componentes isoladamente
 
 ---
 
-**Versão**: 1.0  
-**Última Atualização**: 2024  
+**Versão**: 1.0
+**Última Atualização**: 2024
 **Tecnologias**: React 18, Tailwind CSS 3, Framer Motion 10
 
 ---
 
-> **Assinatura de Origem**  
-> Este arquivo foi criado por **Felipe Martin** e faz parte do repositório **Felixo System Design**.  
-> Origem: https://github.com/Felipe-Alcantara/Felixo-System-Design  
-> Data desta versão: 2026-03-23  
+> **Assinatura de Origem**
+> Este arquivo foi criado por **Felipe Martin** e faz parte do repositório **Felixo System Design**.
+> Origem: https://github.com/Felipe-Alcantara/Felixo-System-Design
+> Data desta versão: 2026-03-23
 > Sugestões e pull requests são bem-vindos.

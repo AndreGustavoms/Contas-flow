@@ -1,23 +1,153 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+.theme-dark {
+  color-scheme: dark;
+  --page-bg: #070a12;
+  --grid-line-a: rgba(34, 211, 238, 0.05);
+  --grid-line-b: rgba(167, 139, 250, 0.05);
+  --grid-base: linear-gradient(135deg, #070a12 0%, #101827 48%, #120a1f 100%);
+  --grid-sheen: rgba(34, 211, 238, 0.08);
+  --grid-top: rgba(255, 255, 255, 0.04);
+  --text: #f0f6ff;
+  --text-glow: rgba(103, 232, 249, 0.6);
+  --muted: #dbe7f5;
+  --muted-soft: #c2d2e4;
+  --panel: rgba(2, 6, 23, 0.58);
+  --panel-strong: rgba(2, 6, 23, 0.95);
+  --sidebar: rgba(2, 6, 23, 0.65);
+  --field: rgba(2, 6, 23, 0.5);
+  --field-hover: rgba(15, 23, 42, 0.7);
+  --border: rgba(255, 255, 255, 0.1);
+  --surface-soft: rgba(255, 255, 255, 0.055);
+  --accent: #22d3ee;
+  --accent-hover: #67e8f9;
+  --accent-soft: #cffafe;
+  --accent-muted: rgba(165, 243, 252, 0.72);
+  --accent-border: rgba(103, 232, 249, 0.35);
+  --accent-surface: rgba(103, 232, 249, 0.11);
+  --accent-surface-strong: rgba(103, 232, 249, 0.16);
+  --accent-foreground: #020617;
+  --accent-glow: rgba(34, 211, 238, 0.2);
+  --focus-ring: rgba(103, 232, 249, 0.16);
+  --overlay: rgba(2, 6, 23, 0.7);
+  --nav-bg: rgba(255, 255, 255, 0.035);
+  --inset-light: rgba(255, 255, 255, 0.05);
+  --field-shadow: rgba(2, 6, 23, 0.18);
+  --login-bg: linear-gradient(135deg, #050816 0%, #101827 52%, #06111f 100%);
+}
+
+.theme-white {
+  color-scheme: light;
+  --page-bg: #e9edf3;
+  --grid-line-a: rgba(15, 23, 42, 0.05);
+  --grid-line-b: rgba(15, 23, 42, 0.035);
+  --grid-base: linear-gradient(135deg, #e6eaf1 0%, #eef2f7 52%, #e9edf3 100%);
+  --grid-sheen: rgba(15, 23, 42, 0.04);
+  --grid-top: rgba(255, 255, 255, 0.5);
+  --text: #0b1220;
+  --text-glow: rgba(14, 165, 233, 0.18);
+  --muted: #475569;
+  --muted-soft: #64748b;
+  --panel: rgba(252, 253, 255, 0.92);
+  --panel-strong: rgba(255, 255, 255, 0.99);
+  --sidebar: rgba(248, 250, 253, 0.88);
+  --field: rgba(255, 255, 255, 0.9);
+  --field-hover: #ffffff;
+  --border: rgba(15, 23, 42, 0.16);
+  --surface-soft: rgba(15, 23, 42, 0.05);
+  --accent: #0ea5e9;
+  --accent-hover: #0284c7;
+  --accent-soft: #0369a1;
+  --accent-muted: rgba(3, 105, 161, 0.72);
+  --accent-border: rgba(14, 165, 233, 0.36);
+  --accent-surface: rgba(14, 165, 233, 0.1);
+  --accent-surface-strong: rgba(14, 165, 233, 0.16);
+  --accent-foreground: #ffffff;
+  --accent-glow: rgba(14, 165, 233, 0.16);
+  --focus-ring: rgba(14, 165, 233, 0.18);
+  --overlay: rgba(15, 23, 42, 0.36);
+  --nav-bg: rgba(248, 250, 253, 0.78);
+  --inset-light: rgba(255, 255, 255, 0.6);
+  --field-shadow: rgba(15, 23, 42, 0.06);
+  --login-bg: linear-gradient(135deg, #eef7ff 0%, #ffffff 45%, #f7f2ff 100%);
+}
+
+.theme-andre {
+  color-scheme: dark;
+  --page-bg: #070103;
+  --grid-line-a: rgba(225, 29, 72, 0.08);
+  --grid-line-b: rgba(244, 63, 94, 0.04);
+  --grid-base: linear-gradient(135deg, #070103 0%, #1a060c 50%, #0a0103 100%);
+  --grid-sheen: rgba(190, 18, 60, 0.18);
+  --grid-top: rgba(255, 255, 255, 0.03);
+  --text: #fff4f3;
+  --text-glow: rgba(255, 80, 70, 0.6);
+  --muted: #ffe4e0;
+  --muted-soft: #ffd4ce;
+  --panel: rgba(10, 2, 2, 0.74);
+  --panel-strong: rgba(6, 1, 1, 0.97);
+  --sidebar: rgba(8, 1, 1, 0.72);
+  --field: rgba(18, 3, 3, 0.8);
+  --field-hover: rgba(36, 6, 6, 0.9);
+  --border: rgba(248, 113, 100, 0.16);
+  --surface-soft: rgba(200, 16, 24, 0.12);
+  --accent: #d10019;
+  --accent-hover: #f01124;
+  --accent-soft: #ffd9d4;
+  --accent-muted: rgba(255, 196, 188, 0.78);
+  --accent-border: rgba(225, 16, 28, 0.42);
+  --accent-surface: rgba(164, 14, 22, 0.26);
+  --accent-surface-strong: rgba(200, 16, 24, 0.36);
+  --accent-foreground: #fff4f3;
+  --accent-glow: rgba(209, 0, 25, 0.5);
+  --focus-ring: rgba(209, 0, 25, 0.28);
+  --overlay: rgba(5, 1, 1, 0.85);
+  --nav-bg: rgba(24, 4, 5, 0.64);
+  --inset-light: rgba(255, 255, 255, 0.08);
+  --field-shadow: rgba(3, 0, 0, 0.58);
+  --vault-edge: rgba(248, 113, 100, 0.24);
+  --vault-gold: rgba(253, 224, 138, 0.24);
+  --vault-teal: rgba(225, 16, 28, 0.26);
+  --metal-sheen: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 120, 110, 0.06) 22%,
+    transparent 38%,
+    rgba(0, 0, 0, 0.22) 70%,
+    rgba(120, 6, 12, 0.16) 100%
+  );
+  --login-bg:
+    radial-gradient(ellipse at 50% 70%, rgba(164, 14, 22, 0.46) 0%, transparent 42%),
+    radial-gradient(ellipse at 70% 32%, rgba(209, 0, 25, 0.22) 0%, transparent 36%),
+    radial-gradient(ellipse at 18% 18%, rgba(36, 4, 4, 0.76) 0%, transparent 48%),
+    conic-gradient(
+      from 245deg at 54% 48%,
+      rgba(44, 4, 6, 0.82) 0deg,
+      rgba(5, 1, 1, 0.96) 78deg,
+      rgba(30, 3, 4, 0.88) 142deg,
+      rgba(140, 8, 14, 0.6) 205deg,
+      rgba(56, 4, 6, 0.16) 257deg,
+      rgba(4, 1, 1, 0.98) 318deg,
+      rgba(44, 4, 6, 0.82) 360deg
+    ),
+    linear-gradient(135deg, #060101 0%, #150303 38%, #2c0606 68%, #090101 100%);
+}
+
 body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
-  background: #09090b;
-  color: #fafafa;
+  background: var(--page-bg, #070a12);
+  color: var(--text, #e2e8f0);
 }
 
 button,
@@ -28,5 +158,597 @@ textarea {
 }
 
 ::selection {
-  background: rgba(192, 132, 252, 0.35);
+  background: var(--accent-surface-strong, rgba(56, 189, 248, 0.28));
+}
+
+.app-shell {
+  background: var(--page-bg);
+  color: var(--text);
+  font-weight: 500;
+}
+
+/*
+  Balanced line wrapping for short body copy (modal messages, descriptions).
+  text-wrap: balance makes the browser even out line lengths so a sentence
+  never ends with a single orphan word on its own line. Apply to paragraphs
+  that are at most a few lines long. Longer flowing text should NOT use this
+  (balance is capped by the browser and gets expensive); use it for blurbs.
+*/
+.balanced-text {
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+
+/*
+  Status badges. Base shadow for separation; colors come from per-theme
+  rules below. On dark themes we use a translucent tint + light text; on the
+  white theme we use a stronger tint + dark text so it never washes out.
+*/
+.badge-status {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+/* Dark + Andre (dark backgrounds): light text on translucent tint. */
+.badge-active {
+  border-color: rgba(16, 185, 129, 0.45);
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+}
+
+.badge-review {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+}
+
+.badge-inactive {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+}
+
+.badge-neutral {
+  border-color: var(--border);
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+
+/* White theme: dark, saturated text on a soft solid tint for clear contrast. */
+.theme-white .badge-active {
+  border-color: rgba(5, 150, 105, 0.5);
+  background: rgba(16, 185, 129, 0.16);
+  color: #065f46;
+}
+
+.theme-white .badge-review {
+  border-color: rgba(217, 119, 6, 0.5);
+  background: rgba(245, 158, 11, 0.18);
+  color: #92400e;
+}
+
+.theme-white .badge-inactive {
+  border-color: rgba(220, 38, 38, 0.5);
+  background: rgba(239, 68, 68, 0.14);
+  color: #991b1b;
+}
+
+.theme-white .badge-neutral {
+  border-color: rgba(15, 23, 42, 0.22);
+  background: rgba(15, 23, 42, 0.06);
+  color: #334155;
+}
+
+/* Texto mais grosso em todo o app */
+.app-shell p,
+.app-shell span,
+.app-shell button,
+.app-shell label,
+.app-shell input,
+.login-shell p,
+.login-shell span,
+.login-shell button,
+.login-shell label,
+.login-shell input {
+  font-weight: 600;
+}
+
+/* Leve neon no texto, sempre contrastando com o fundo do tema */
+.app-shell h1,
+.app-shell h2,
+.app-shell h3,
+.login-shell h1,
+.login-shell h2 {
+  text-shadow:
+    0 0 10px var(--text-glow, transparent),
+    0 0 26px var(--text-glow, transparent);
+}
+
+.login-shell {
+  position: relative;
+  overflow: hidden;
+  background: var(--login-bg);
+  background-size: cover;
+  transition: background 500ms ease;
+}
+
+.login-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      115deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.08) 44%,
+      transparent 62%
+    ),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 42%);
+  opacity: 0.52;
+}
+
+.login-shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse at 44% 69%,
+      rgba(244, 238, 255, 0.15) 0%,
+      rgba(186, 164, 231, 0.08) 16%,
+      transparent 46%
+    ),
+    radial-gradient(
+      ellipse at 57% 58%,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(147, 113, 210, 0.07) 18%,
+      transparent 48%
+    ),
+    radial-gradient(
+      ellipse at 32% 54%,
+      rgba(221, 214, 254, 0.09) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      ellipse at 67% 74%,
+      rgba(196, 181, 253, 0.1) 0%,
+      transparent 38%
+    ),
+    linear-gradient(
+      105deg,
+      transparent 15%,
+      rgba(255, 255, 255, 0.04) 34%,
+      transparent 56%
+    );
+  filter: blur(34px) contrast(1.18);
+  mask-image:
+    radial-gradient(ellipse at 50% 66%, black 0%, black 36%, transparent 72%),
+    linear-gradient(to bottom, transparent 0%, black 24%, black 76%, transparent 100%);
+  mix-blend-mode: screen;
+  opacity: 0.42;
+}
+
+.theme-andre.login-shell::before {
+  background:
+    linear-gradient(
+      120deg,
+      transparent 0%,
+      rgba(225, 29, 72, 0.14) 35%,
+      transparent 54%
+    ),
+    conic-gradient(
+      from 215deg at 50% 50%,
+      transparent 0deg,
+      rgba(190, 18, 60, 0.2) 62deg,
+      transparent 112deg,
+      rgba(244, 63, 94, 0.08) 166deg,
+      transparent 218deg,
+      rgba(253, 230, 138, 0.05) 274deg,
+      transparent 340deg
+    );
+  opacity: 0.78;
+}
+
+.login-card {
+  position: relative;
+  isolation: isolate;
+  box-shadow:
+    0 38px 120px var(--accent-glow),
+    0 14px 0 rgba(2, 0, 6, 0.26),
+    inset 0 1px 0 var(--inset-light),
+    inset 0 -26px 54px rgba(0, 0, 0, 0.22);
+}
+
+.vault-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.vault-card::before,
+.vault-card::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.vault-card::before {
+  inset: 12px;
+  border: 1px solid var(--vault-edge, var(--accent-border));
+  border-radius: 26px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 22%),
+    linear-gradient(315deg, rgba(255, 255, 255, 0.04), transparent 28%),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 34px,
+      rgba(255, 255, 255, 0.032) 35px,
+      transparent 36px
+    );
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.045),
+    inset 0 0 38px rgba(0, 0, 0, 0.34);
+  opacity: 0.84;
+}
+
+.vault-card::after {
+  right: -72px;
+  top: -82px;
+  width: 214px;
+  height: 214px;
+  border: 1px solid var(--vault-edge, var(--accent-border));
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, transparent 0 33px, var(--vault-teal, rgba(34, 211, 238, 0.16)) 34px 35px, transparent 36px 62px, var(--vault-edge, rgba(255, 255, 255, 0.14)) 63px 65px, transparent 66px),
+    conic-gradient(
+      from 45deg,
+      transparent 0deg 24deg,
+      var(--vault-gold, rgba(253, 230, 138, 0.28)) 25deg 27deg,
+      transparent 28deg 69deg,
+      var(--accent-border) 70deg 72deg,
+      transparent 73deg 114deg,
+      var(--vault-teal, rgba(34, 211, 238, 0.16)) 115deg 117deg,
+      transparent 118deg 360deg
+    );
+  box-shadow:
+    inset 0 0 45px rgba(0, 0, 0, 0.5),
+    0 0 64px var(--accent-glow);
+  opacity: 0.58;
+  transform: rotate(-12deg);
+}
+
+.theme-andre .login-card {
+  background:
+    linear-gradient(145deg, rgba(18, 3, 8, 0.96), rgba(7, 1, 3, 0.99)),
+    rgba(12, 2, 5, 0.94);
+  border-color: rgba(253, 164, 175, 0.2);
+  box-shadow:
+    0 40px 130px rgba(120, 12, 42, 0.7),
+    0 18px 0 rgba(4, 0, 2, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -30px 58px rgba(0, 0, 0, 0.46);
+}
+
+.theme-andre .login-card button[type="submit"] {
+  background-image: linear-gradient(160deg, #f01124 0%, #d10019 46%, #8c060e 100%);
+  color: #fff4f3;
+  box-shadow:
+    0 18px 46px rgba(209, 0, 25, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    inset 0 -10px 18px rgba(0, 0, 0, 0.3);
+}
+
+.theme-andre .login-card button[type="submit"]:hover {
+  background-image: linear-gradient(160deg, #ff2433 0%, #e8101f 46%, #a40e16 100%);
+}
+
+.theme-andre .brand-mark {
+  box-shadow:
+    0 0 38px rgba(190, 18, 60, 0.75),
+    inset 0 0 16px rgba(255, 255, 255, 0.06);
+}
+
+.theme-andre .brand-mark-core {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(225, 29, 72, 0.2), transparent 52%),
+    #0a0103;
+}
+
+.tech-grid {
+  background:
+    linear-gradient(var(--grid-line-a) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line-b) 1px, transparent 1px),
+    var(--grid-base);
+  background-size:
+    44px 44px,
+    44px 44px,
+    auto;
+}
+
+.tech-grid::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, var(--grid-sheen), transparent),
+    linear-gradient(180deg, var(--grid-top), transparent 34%);
+  opacity: 0.7;
+  mask-image: linear-gradient(to bottom, black, transparent 82%);
+}
+
+.app-sidebar,
+.app-panel {
+  background: var(--sidebar);
+  border-color: var(--border);
+}
+
+.app-navbar {
+  position: sticky;
+  /* Transparente com um leve veu + blur medio para boa legibilidade. */
+  background: var(--navbar-glass, transparent);
+  border-color: color-mix(in srgb, var(--border) 50%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+  box-shadow:
+    0 18px 50px -28px var(--accent-glow),
+    inset 0 1px 0 var(--inset-light);
+}
+
+/* Per-theme glass tints kept subtle so the navbar reads as near-transparent. */
+.theme-dark .app-navbar {
+  --navbar-glass: rgba(7, 10, 18, 0.08);
+}
+
+.theme-andre .app-navbar {
+  --navbar-glass: rgba(10, 2, 3, 0.1);
+}
+
+.theme-white .app-navbar {
+  --navbar-glass: rgba(248, 250, 253, 0.14);
+}
+
+.app-panel {
+  background: var(--panel);
+  box-shadow:
+    0 34px 110px -40px var(--accent-glow),
+    inset 0 1px 0 var(--inset-light);
+}
+
+.accent-pill {
+  background: var(--accent-surface);
+  border-color: var(--accent-border);
+  color: var(--accent-soft);
+  box-shadow: 0 0 30px var(--accent-glow);
+}
+
+.glass-glyph {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02)),
+    rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.28);
+}
+
+.brand-mark {
+  background: var(--panel-strong);
+  border-color: var(--accent-border);
+  box-shadow: 0 0 38px var(--accent-glow);
+}
+
+.brand-mark-core {
+  background: var(--page-bg);
+}
+
+.status-dot {
+  background: #bef264;
+  border-color: var(--page-bg);
+  box-shadow: 0 0 18px rgba(190, 242, 100, 0.65);
+}
+
+.status-dot span {
+  background: var(--page-bg);
+}
+
+.theme-toggle {
+  background: var(--nav-bg);
+  border-color: var(--border);
+  box-shadow: inset 0 1px 0 var(--inset-light);
+}
+
+.theme-toggle-active {
+  background: var(--accent-surface);
+  color: var(--accent-soft);
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+
+.theme-toggle-idle {
+  color: var(--muted);
+}
+
+.theme-toggle-idle:hover,
+.icon-soft:hover {
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.icon-soft {
+  color: var(--muted);
+}
+
+.metric-card-main {
+  background-image: linear-gradient(
+    135deg,
+    var(--accent-surface-strong),
+    var(--accent-surface)
+  );
+  color: var(--accent-soft);
+}
+
+.metric-card-warn {
+  background-image: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.15),
+    var(--surface-soft)
+  );
+  color: #fde68a;
+}
+
+.metric-card-total {
+  background-image: linear-gradient(
+    135deg,
+    var(--accent-surface),
+    var(--surface-soft)
+  );
+  color: var(--accent-soft);
+}
+
+.theme-white .metric-card-warn {
+  color: #92400e;
+}
+
+.theme-andre .metric-card-warn,
+.theme-andre .metric-card-total {
+  background-image: linear-gradient(
+    135deg,
+    var(--accent-surface-strong),
+    var(--surface-soft)
+  );
+  color: var(--accent-soft);
+}
+
+/* Metallic racing-red sheen across primary surfaces */
+.theme-andre .metric-card-main,
+.theme-andre .metric-card-warn,
+.theme-andre .metric-card-total {
+  background-image:
+    var(--metal-sheen),
+    linear-gradient(135deg, var(--accent-surface-strong), var(--surface-soft));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.theme-andre .metric-card-warn {
+  color: #fde68a;
+}
+
+.theme-andre .accent-pill,
+.theme-andre .app-panel {
+  background-image: var(--metal-sheen);
+}
+
+/* Metallic racing-red primary button (default variant uses bg-[var(--accent)]) */
+.theme-andre .bg-\[color\:var\(--accent\)\] {
+  background-image: linear-gradient(
+    160deg,
+    #f01124 0%,
+    #d10019 46%,
+    #8c060e 100%
+  );
+  box-shadow:
+    0 14px 34px -8px var(--accent-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -10px 18px rgba(0, 0, 0, 0.3);
+}
+
+/*
+  Radar: each signal arc fades in small near the dish and expands outward
+  while fading, looping continuously. transform-origin is set inline on each
+  path (the dish center) so all waves radiate from the same point.
+*/
+.radar-wave {
+  animation: radar-wave 2.4s ease-out infinite;
+}
+
+@keyframes radar-wave {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  25% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.15);
+  }
+}
+
+/* Soft, gentle blink for the small green "active" dot. */
+.radar-dot {
+  animation: radar-dot 1.8s ease-in-out infinite;
+}
+
+@keyframes radar-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 160ms ease-out;
+  transform-origin: top center;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-rise {
+  animation: rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-row {
+  animation: row-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

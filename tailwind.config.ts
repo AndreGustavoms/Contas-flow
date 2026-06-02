@@ -6,9 +6,9 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          300: "#C084FC",
-          400: "#A855F7",
-          500: "#9333EA",
+          300: "#67E8F9",
+          400: "#06B6D4",
+          500: "#0EA5E9",
         },
         flow: {
           cyan: "#06B6D4",
@@ -18,10 +18,10 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['"Space Grotesk"', "Inter", "ui-sans-serif", "system-ui"],
+        sans: ["Inter", "ui-sans-serif", "system-ui"],
       },
       boxShadow: {
-        panel: "0 20px 60px rgba(0, 0, 0, 0.28)",
+        panel: "0 14px 40px rgba(15, 23, 42, 0.06)",
       },
     },
   },

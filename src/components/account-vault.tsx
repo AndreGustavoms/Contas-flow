@@ -2236,53 +2236,12 @@ function ExitIcon({ className }: { className?: string }) {
 
 function BrandLogo() {
   return (
-    <div className="brand-mark relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border">
-      <svg
-        aria-hidden="true"
-        className="relative h-8 w-8"
-        fill="none"
-        viewBox="0 0 40 40"
-      >
-        <defs>
-          <linearGradient
-            id="brand-shield"
-            x1="20"
-            y1="3"
-            x2="20"
-            y2="37"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop stopColor="var(--accent-hover)" />
-            <stop offset="1" stopColor="var(--accent)" />
-          </linearGradient>
-        </defs>
-        {/* Corpo do escudo */}
-        <path
-          d="M20 3.5 6.5 8.2v10.4c0 8.4 5.6 14.5 13.5 17.9 7.9-3.4 13.5-9.5 13.5-17.9V8.2L20 3.5Z"
-          fill="url(#brand-shield)"
-        />
-        {/* Brilho superior */}
-        <path
-          d="M20 3.5 6.5 8.2v10.4c0 .6.03 1.2.09 1.8C8.9 13.6 13.8 10 20 10s11.1 3.6 13.41 10.4c.06-.6.09-1.2.09-1.8V8.2L20 3.5Z"
-          fill="#ffffff"
-          fillOpacity="0.14"
-        />
-        {/* Borda do escudo */}
-        <path
-          d="M20 3.5 6.5 8.2v10.4c0 8.4 5.6 14.5 13.5 17.9 7.9-3.4 13.5-9.5 13.5-17.9V8.2L20 3.5Z"
-          stroke="#ffffff"
-          strokeOpacity="0.5"
-          strokeWidth="1"
-        />
-        {/* Check */}
-        <path
-          d="m13.6 20.2 4.3 4.4 8.5-9.1"
-          stroke="#ffffff"
-          strokeWidth="3.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+    <div className="brand-mark relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border">
+      <img
+        src="/logo.png"
+        alt="Contas.exe"
+        className="h-full w-full object-cover"
+      />
       <span className="status-dot absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border">
         <span className="h-1.5 w-1.5 rounded-full" />
       </span>

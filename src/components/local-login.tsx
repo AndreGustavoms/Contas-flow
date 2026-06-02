@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from "react";
-import { Eye, EyeOff, KeyRound, Vault } from "lucide-react";
+import { Eye, EyeOff, KeyRound } from "lucide-react";
 import { type AppTheme } from "../theme";
 import { cn } from "../lib/utils";
 import { ThemeToggle } from "./theme-toggle";
@@ -51,10 +51,12 @@ export function LocalLogin({
       >
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-4">
-            <div className="brand-mark relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border">
-              <div className="absolute inset-1 rounded-xl bg-[conic-gradient(from_210deg,#f01124,#d10019,#ff5a52,#8c060e,#f01124)] opacity-80" />
-              <div className="brand-mark-core absolute inset-[5px] rounded-[14px]" />
-              <Vault className="relative h-6 w-6 text-[color:var(--accent-soft)]" />
+            <div className="brand-mark relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border">
+              <img
+                src="/logo.png"
+                alt="Contas.exe"
+                className="h-full w-full object-cover"
+              />
               <span className="status-dot absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border">
                 <span className="h-1.5 w-1.5 rounded-full" />
               </span>

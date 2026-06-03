@@ -79,7 +79,8 @@ Foi feita uma revisão de **100% dos commits e blobs** (12 commits, 137 objetos,
 todas as refs e versões deletadas). Resultado:
 
 - ✅ Nenhuma chave de API, token OAuth ou chave privada em commit algum.
-- ✅ Senha a senha que estava hardcoded removida de todo o histórico (estava hardcoded).
+- ✅ A senha de login que estava hardcoded foi removida de todo o histórico
+  (agora vem do `.env`).
 - ✅ E-mail pessoal o e-mail pessoal do autor removido dos 12 commits
   (substituído pelo e-mail privado do GitHub).
 - ✅ `initialAccounts` vazio em todas as versões; `.env.example` sempre em branco.

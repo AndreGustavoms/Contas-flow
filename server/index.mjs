@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import { createReadStream } from "node:fs";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import {
   buildAuthUrl,
@@ -13,11 +13,72 @@ import {
 } from "./youtube.mjs";
 
 const rootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const storageDir = join(rootDir, "storage");
+// In production set CONTAS_FLOW_STORAGE_DIR to a persistent volume (e.g. /data
+// on Railway) so groups.json survives restarts and deploys.
+const storageDir =
+  process.env.CONTAS_FLOW_STORAGE_DIR ?? join(rootDir, "storage");
 const dbFile = process.env.CONTAS_FLOW_DB ?? join(storageDir, "groups.json");
 const legacyDbFile =
   process.env.CONTAS_FLOW_LEGACY_DB ?? join(storageDir, "accounts.json");
 const port = Number(process.env.PORT ?? 8787);
+// Bind to 0.0.0.0 in hosted environments (Railway, etc.); stay on loopback
+// locally unless HOST is set explicitly.
+const host = process.env.HOST ?? (process.env.PORT ? "0.0.0.0" : "127.0.0.1");
+
+// ----- Basic Auth (server-side gate) -----
+// This is the real access control: the frontend "login" only hides UI and its
+// VITE_* vars ship inside the browser bundle, so it cannot protect the data.
+// When APP_AUTH_USER/APP_AUTH_PASSWORD are set, every request (API + static)
+// must present matching Basic Auth credentials. If unset (e.g. pure local dev)
+// the gate is disabled.
+const authUser = process.env.APP_AUTH_USER ?? "";
+const authPassword = process.env.APP_AUTH_PASSWORD ?? "";
+const authEnabled = Boolean(authUser && authPassword);
+
+function safeEqual(a, b) {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  // timingSafeEqual requires equal lengths; compare a fixed dummy otherwise so
+  // the comparison time does not leak whether the length matched.
+  if (bufA.length !== bufB.length) {
+    timingSafeEqual(bufA, Buffer.from(a));
+    return false;
+  }
+  return timingSafeEqual(bufA, bufB);
+}
+
+// Returns true when the request is allowed to proceed. On failure it writes a
+// 401 challenge and the caller must stop handling the request.
+function checkAuth(request, response) {
+  if (!authEnabled) {
+    return true;
+  }
+
+  const header = request.headers.authorization ?? "";
+  const [scheme, encoded] = header.split(" ");
+
+  if (scheme === "Basic" && encoded) {
+    const decoded = Buffer.from(encoded, "base64").toString("utf8");
+    const sep = decoded.indexOf(":");
+    const user = decoded.slice(0, sep);
+    const pass = decoded.slice(sep + 1);
+
+    // Evaluate both comparisons so a wrong user and a wrong password take the
+    // same path.
+    const okUser = safeEqual(user, authUser);
+    const okPass = safeEqual(pass, authPassword);
+    if (okUser && okPass) {
+      return true;
+    }
+  }
+
+  response.writeHead(401, {
+    "WWW-Authenticate": 'Basic realm="Contas_exe", charset="UTF-8"',
+    "Content-Type": "application/json; charset=utf-8",
+  });
+  response.end(JSON.stringify({ error: "unauthorized" }));
+  return false;
+}
 
 const DEFAULT_GROUP_NAME = "Vitissouls";
 const statuses = new Set(["active", "review", "archived", "inactive"]);
@@ -172,11 +233,6 @@ async function handleApi(request, response, url) {
       "Access-Control-Allow-Origin": "*",
     });
     response.end();
-    return;
-  }
-
-  if (url.pathname === "/api/health") {
-    sendJson(response, 200, { ok: true });
     return;
   }
 
@@ -480,6 +536,17 @@ const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
 
+    // Health check stays open so the host's probe works without credentials.
+    if (url.pathname === "/api/health") {
+      sendJson(response, 200, { ok: true });
+      return;
+    }
+
+    // Gate everything else (API + static UI) behind Basic Auth.
+    if (!checkAuth(request, response)) {
+      return;
+    }
+
     if (url.pathname.startsWith("/api/")) {
       await handleApi(request, response, url);
       return;
@@ -497,6 +564,11 @@ const server = createServer(async (request, response) => {
 // Ensure the DB exists (and migrate legacy data) before accepting traffic.
 await readDb();
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Contas_exe API: http://127.0.0.1:${port}`);
+server.listen(port, host, () => {
+  console.log(`Contas_exe API: listening on ${host}:${port}`);
+  if (!authEnabled) {
+    console.log(
+      "AVISO: Basic Auth desativado (defina APP_AUTH_USER e APP_AUTH_PASSWORD em producao).",
+    );
+  }
 });

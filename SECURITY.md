@@ -81,8 +81,8 @@ todas as refs e versões deletadas). Resultado:
 - ✅ Nenhuma chave de API, token OAuth ou chave privada em commit algum.
 - ✅ A senha de login que estava hardcoded foi removida de todo o histórico
   (agora vem do `.env`).
-- ✅ E-mail pessoal o e-mail pessoal do autor removido dos 12 commits
-  (substituído pelo e-mail privado do GitHub).
+- ✅ O e-mail pessoal do autor foi removido de todos os commits do histórico
+  (substituído pelo e-mail privado do GitHub `...@users.noreply.github.com`).
 - ✅ `initialAccounts` vazio em todas as versões; `.env.example` sempre em branco.
 - ✅ `.env`, `storage/*.json`, `seed-accounts.mjs`, `client_secret*.json` e backups
   **nunca** existiram no histórico.

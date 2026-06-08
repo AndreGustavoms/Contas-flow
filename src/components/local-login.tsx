@@ -6,13 +6,9 @@ import { ThemeToggle } from "./theme-toggle";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
-// Credenciais do login local NUNCA ficam hardcoded no codigo (o repo e publico).
-// Defina no arquivo .env (que esta no .gitignore) as variaveis:
-//   VITE_LOCAL_LOGIN_NAME e VITE_LOCAL_LOGIN_PASSWORD
-// Veja .env.example.
-export const LOCAL_LOGIN_NAME = import.meta.env.VITE_LOCAL_LOGIN_NAME ?? "";
-export const LOCAL_LOGIN_PASSWORD = import.meta.env.VITE_LOCAL_LOGIN_PASSWORD ?? "";
-export const LOCAL_SESSION_KEY = "contas_exe.local-session.v1";
+// O login agora e validado no SERVIDOR: enviamos as credenciais para
+// POST /api/auth/login, que confere contra APP_AUTH_USER/APP_AUTH_PASSWORD e
+// devolve um cookie de sessao HttpOnly. Nenhuma credencial fica no bundle.
 
 type LocalLoginProps = {
   onThemeChange: (theme: AppTheme) => void;
@@ -29,22 +25,31 @@ export function LocalLogin({
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setSubmitting(true);
+    setError("");
 
-    if (!LOCAL_LOGIN_NAME || !LOCAL_LOGIN_PASSWORD) {
-      setError("Login nao configurado. Defina VITE_LOCAL_LOGIN_* no .env.");
-      return;
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), password }),
+      });
+
+      if (response.ok) {
+        onUnlock();
+        return;
+      }
+
+      setError(response.status === 401 ? "Dados incorretos." : "Falha ao entrar.");
+    } catch {
+      setError("Nao foi possivel conectar ao servidor.");
+    } finally {
+      setSubmitting(false);
     }
-
-    if (name.trim() === LOCAL_LOGIN_NAME && password === LOCAL_LOGIN_PASSWORD) {
-      setError("");
-      onUnlock();
-      return;
-    }
-
-    setError("Dados incorretos.");
   }
 
   return (
@@ -126,9 +131,10 @@ export function LocalLogin({
         <Button
           className="mt-7 h-12 w-full rounded-2xl text-base"
           type="submit"
+          disabled={submitting}
         >
           <KeyRound className="h-4 w-4" />
-          Entrar
+          {submitting ? "Entrando..." : "Entrar"}
         </Button>
       </form>
     </main>

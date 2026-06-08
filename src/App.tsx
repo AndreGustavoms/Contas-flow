@@ -1,16 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AccountVault } from "./components/account-vault";
-import { LOCAL_SESSION_KEY, LocalLogin } from "./components/local-login";
+import { LocalLogin } from "./components/local-login";
 import { type AppTheme, isAppTheme, THEME_STORAGE_KEY } from "./theme";
 
 export default function App() {
-  const [unlocked, setUnlocked] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-
-    return window.sessionStorage.getItem(LOCAL_SESSION_KEY) === "true";
-  });
+  // null = still checking the server for an existing session.
+  const [unlocked, setUnlocked] = useState<boolean | null>(null);
   const [theme, setTheme] = useState<AppTheme>(() => {
     if (typeof window === "undefined") {
       return "andre";
@@ -21,19 +16,42 @@ export default function App() {
     return isAppTheme(storedTheme) ? storedTheme : "andre";
   });
 
+  // Ask the server whether the session cookie is still valid.
+  useEffect(() => {
+    let active = true;
+
+    fetch("/api/auth/status")
+      .then((response) => (response.ok ? response.json() : { authenticated: false }))
+      .then((data: { authenticated?: boolean }) => {
+        if (active) setUnlocked(Boolean(data.authenticated));
+      })
+      .catch(() => {
+        if (active) setUnlocked(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   function changeTheme(nextTheme: AppTheme) {
     window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
     setTheme(nextTheme);
   }
 
   function unlock() {
-    window.sessionStorage.setItem(LOCAL_SESSION_KEY, "true");
     setUnlocked(true);
   }
 
   function lock() {
-    window.sessionStorage.removeItem(LOCAL_SESSION_KEY);
-    setUnlocked(false);
+    // Drop the server session, then return to the login screen regardless.
+    fetch("/api/auth/logout", { method: "POST" }).finally(() => {
+      setUnlocked(false);
+    });
+  }
+
+  if (unlocked === null) {
+    return null;
   }
 
   return unlocked ? (

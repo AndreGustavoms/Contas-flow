@@ -25,15 +25,22 @@ const port = Number(process.env.PORT ?? 8787);
 // locally unless HOST is set explicitly.
 const host = process.env.HOST ?? (process.env.PORT ? "0.0.0.0" : "127.0.0.1");
 
-// ----- Basic Auth (server-side gate) -----
-// This is the real access control: the frontend "login" only hides UI and its
-// VITE_* vars ship inside the browser bundle, so it cannot protect the data.
-// When APP_AUTH_USER/APP_AUTH_PASSWORD are set, every request (API + static)
-// must present matching Basic Auth credentials. If unset (e.g. pure local dev)
-// the gate is disabled.
+// ----- Session auth (server-side gate) -----
+// The real access control. The frontend "login" only drives UX: it POSTs the
+// credentials here, the server validates them and issues an HttpOnly session
+// cookie. Every /api/* request (except /api/health and /api/auth/*) must carry
+// a valid session cookie, so the data is never reachable from the browser
+// without logging in. The static UI bundle is public (it holds no secrets); it
+// just renders the login screen until the cookie is set.
 const authUser = process.env.APP_AUTH_USER ?? "";
 const authPassword = process.env.APP_AUTH_PASSWORD ?? "";
 const authEnabled = Boolean(authUser && authPassword);
+
+const SESSION_COOKIE = "contas_session";
+const SESSION_TTL_MS = 1000 * 60 * 60 * 12; // 12h
+// In-memory session store: token -> expiry (ms epoch). Fine for a single small
+// service; sessions reset on redeploy (users re-login), which is acceptable.
+const sessions = new Map();
 
 function safeEqual(a, b) {
   const bufA = Buffer.from(a);
@@ -47,33 +54,79 @@ function safeEqual(a, b) {
   return timingSafeEqual(bufA, bufB);
 }
 
-// Returns true when the request is allowed to proceed. On failure it writes a
-// 401 challenge and the caller must stop handling the request.
+function parseCookies(request) {
+  const header = request.headers.cookie ?? "";
+  const jar = {};
+  for (const part of header.split(";")) {
+    const sep = part.indexOf("=");
+    if (sep === -1) continue;
+    const key = part.slice(0, sep).trim();
+    if (key) jar[key] = decodeURIComponent(part.slice(sep + 1).trim());
+  }
+  return jar;
+}
+
+function pruneSessions() {
+  const now = Date.now();
+  for (const [token, expiry] of sessions) {
+    if (expiry <= now) sessions.delete(token);
+  }
+}
+
+function createSession() {
+  pruneSessions();
+  const token = randomUUID() + randomUUID().replaceAll("-", "");
+  sessions.set(token, Date.now() + SESSION_TTL_MS);
+  return token;
+}
+
+function hasValidSession(request) {
+  const token = parseCookies(request)[SESSION_COOKIE];
+  if (!token) return false;
+  const expiry = sessions.get(token);
+  if (!expiry || expiry <= Date.now()) {
+    if (token) sessions.delete(token);
+    return false;
+  }
+  return true;
+}
+
+function setSessionCookie(response, token) {
+  const maxAge = Math.floor(SESSION_TTL_MS / 1000);
+  response.setHeader(
+    "Set-Cookie",
+    `${SESSION_COOKIE}=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAge}`,
+  );
+}
+
+function clearSessionCookie(response) {
+  response.setHeader(
+    "Set-Cookie",
+    `${SESSION_COOKIE}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`,
+  );
+}
+
+// /api/* paths reachable without a session: the auth endpoints themselves, and
+// the YouTube OAuth callback (Google redirects the browser here with no cookie).
+function isPublicApi(pathname) {
+  return (
+    pathname === "/api/auth/login" ||
+    pathname === "/api/auth/logout" ||
+    pathname === "/api/auth/status" ||
+    pathname === "/api/youtube/callback"
+  );
+}
+
+// Returns true when the request may proceed to a protected handler. On failure
+// it writes a 401 and the caller must stop handling the request.
 function checkAuth(request, response) {
   if (!authEnabled) {
     return true;
   }
-
-  const header = request.headers.authorization ?? "";
-  const [scheme, encoded] = header.split(" ");
-
-  if (scheme === "Basic" && encoded) {
-    const decoded = Buffer.from(encoded, "base64").toString("utf8");
-    const sep = decoded.indexOf(":");
-    const user = decoded.slice(0, sep);
-    const pass = decoded.slice(sep + 1);
-
-    // Evaluate both comparisons so a wrong user and a wrong password take the
-    // same path.
-    const okUser = safeEqual(user, authUser);
-    const okPass = safeEqual(pass, authPassword);
-    if (okUser && okPass) {
-      return true;
-    }
+  if (hasValidSession(request)) {
+    return true;
   }
-
   response.writeHead(401, {
-    "WWW-Authenticate": 'Basic realm="Contas_exe", charset="UTF-8"',
     "Content-Type": "application/json; charset=utf-8",
   });
   response.end(JSON.stringify({ error: "unauthorized" }));
@@ -233,6 +286,48 @@ async function handleApi(request, response, url) {
       "Access-Control-Allow-Origin": "*",
     });
     response.end();
+    return;
+  }
+
+  // ----- Auth (public: these gate the rest) -----
+
+  // Validate credentials and issue a session cookie. Wrong/missing creds -> 401.
+  if (url.pathname === "/api/auth/login" && request.method === "POST") {
+    if (!authEnabled) {
+      // No server credentials configured: nothing to log into.
+      sendJson(response, 200, { authenticated: true });
+      return;
+    }
+    const body = await readBody(request);
+    const name = asString(body.name);
+    const password = asString(body.password);
+    // Evaluate both comparisons so a wrong user and wrong password take the
+    // same path.
+    const okUser = safeEqual(name, authUser);
+    const okPass = safeEqual(password, authPassword);
+    if (okUser && okPass) {
+      setSessionCookie(response, createSession());
+      sendJson(response, 200, { authenticated: true });
+      return;
+    }
+    sendJson(response, 401, { error: "invalid_credentials" });
+    return;
+  }
+
+  // Drop the session.
+  if (url.pathname === "/api/auth/logout" && request.method === "POST") {
+    const token = parseCookies(request)[SESSION_COOKIE];
+    if (token) sessions.delete(token);
+    clearSessionCookie(response);
+    sendJson(response, 200, { authenticated: false });
+    return;
+  }
+
+  // Report whether the caller has a valid session (drives the login screen).
+  if (url.pathname === "/api/auth/status" && request.method === "GET") {
+    sendJson(response, 200, {
+      authenticated: !authEnabled || hasValidSession(request),
+    });
     return;
   }
 
@@ -542,12 +637,14 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    // Gate everything else (API + static UI) behind Basic Auth.
-    if (!checkAuth(request, response)) {
-      return;
-    }
-
     if (url.pathname.startsWith("/api/")) {
+      // The auth endpoints are public (they're how you obtain a session);
+      // everything else under /api/ requires a valid session cookie. The static
+      // UI bundle below is intentionally public (no secrets) so the login
+      // screen can load.
+      if (!isPublicApi(url.pathname) && !checkAuth(request, response)) {
+        return;
+      }
       await handleApi(request, response, url);
       return;
     }
@@ -568,7 +665,7 @@ server.listen(port, host, () => {
   console.log(`Contas_exe API: listening on ${host}:${port}`);
   if (!authEnabled) {
     console.log(
-      "AVISO: Basic Auth desativado (defina APP_AUTH_USER e APP_AUTH_PASSWORD em producao).",
+      "AVISO: autenticacao desativada (defina APP_AUTH_USER e APP_AUTH_PASSWORD em producao).",
     );
   }
 });

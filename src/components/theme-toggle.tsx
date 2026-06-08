@@ -4,13 +4,18 @@ import { type AppTheme, themeOptions } from "../theme";
 import { cn } from "../lib/utils";
 
 type ThemeToggleProps = {
+  menuPlacement?: "down" | "up";
   onChange: (theme: AppTheme) => void;
   value: AppTheme;
 };
 
 // Collapses the three theme choices behind a single symbol button: it shows
 // the active theme's icon and opens a small dropdown to switch.
-export function ThemeToggle({ onChange, value }: ThemeToggleProps) {
+export function ThemeToggle({
+  menuPlacement = "down",
+  onChange,
+  value,
+}: ThemeToggleProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const active = themeOptions.find((option) => option.value === value);
@@ -42,7 +47,7 @@ export function ThemeToggle({ onChange, value }: ThemeToggleProps) {
   }, [open]);
 
   return (
-    <div className="relative" ref={rootRef}>
+    <div className="relative z-50" ref={rootRef}>
       <button
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -62,7 +67,14 @@ export function ThemeToggle({ onChange, value }: ThemeToggleProps) {
       </button>
 
       {open ? (
-        <div className="theme-toggle-menu animate-pop-in absolute right-0 top-[calc(100%+8px)] z-50 w-40 overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_24px_70px_var(--accent-glow)] backdrop-blur-2xl">
+        <div
+          className={cn(
+            "theme-toggle-menu animate-pop-in absolute right-0 z-50 w-40 overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_24px_70px_var(--accent-glow)] backdrop-blur-2xl",
+            menuPlacement === "up"
+              ? "bottom-[calc(100%+8px)] origin-bottom"
+              : "top-[calc(100%+8px)] origin-top",
+          )}
+        >
           {themeOptions.map((option) => {
             const Icon = option.icon;
             const selected = option.value === value;

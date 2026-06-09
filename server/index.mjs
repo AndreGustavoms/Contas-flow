@@ -21,6 +21,7 @@ import {
   setPassword,
   verifyPassword,
 } from "./users.mjs";
+import { decryptField, encryptField, encryptionEnabled } from "./crypto.mjs";
 
 const rootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
 // In production set CONTAS_FLOW_STORAGE_DIR to a persistent volume (e.g. /data
@@ -227,7 +228,35 @@ function emptyDb() {
   return { groups: [] };
 }
 
-// Reads the database. On first run, migrates a legacy accounts.json array
+// Account fields that hold secrets / sensitive PII and are encrypted at rest.
+// Everything else (email, username, label, niche, ...) stays readable in the
+// JSON for backups and debugging. See server/crypto.mjs.
+const ENCRYPTED_ACCOUNT_FIELDS = [
+  "password",
+  "recoveryEmail",
+  "phone",
+  "notes",
+];
+
+// In-place transform of a db object's sensitive fields. `transform` is
+// encryptField (on write) or decryptField (on read). Both are idempotent, so a
+// store written before encryption was enabled migrates transparently on the next
+// write. Returns the same object for convenience.
+function transformDbSecrets(db, transform) {
+  for (const group of db.groups ?? []) {
+    for (const account of group.accounts ?? []) {
+      for (const field of ENCRYPTED_ACCOUNT_FIELDS) {
+        if (account[field] != null) {
+          account[field] = transform(account[field]);
+        }
+      }
+    }
+  }
+  return db;
+}
+
+// Reads the database, decrypting sensitive fields so the rest of the server works
+// with plaintext in memory. On first run, migrates a legacy accounts.json array
 // into a single "Vitissouls" group so existing accounts are preserved.
 async function readDb() {
   await ensureStorage();
@@ -235,7 +264,7 @@ async function readDb() {
   try {
     const raw = await readFile(dbFile, "utf8");
     const parsed = JSON.parse(raw);
-    return normalizeDb(parsed);
+    return transformDbSecrets(normalizeDb(parsed), decryptField);
   } catch {
     // No groups file yet: try to migrate the legacy accounts.json.
     const migrated = await migrateLegacy();
@@ -286,7 +315,10 @@ async function backfillOwners(adminId) {
 
 async function writeDb(db) {
   await ensureStorage();
-  await writeFile(dbFile, `${JSON.stringify(db, null, 2)}\n`, "utf8");
+  // Encrypt sensitive fields on a deep copy so the in-memory db (used by the
+  // calling handler) keeps its plaintext values.
+  const encrypted = transformDbSecrets(structuredClone(db), encryptField);
+  await writeFile(dbFile, `${JSON.stringify(encrypted, null, 2)}\n`, "utf8");
 }
 
 function groupSummary(group) {
@@ -797,12 +829,26 @@ const seededUsers = await ensureSeedAdmin(storageDir);
 const seedAdmin = seededUsers.find((item) => item.role === "admin");
 await backfillOwners(seedAdmin?.id);
 
+// If encryption is on, proactively re-write the store so any pre-existing
+// plaintext secrets get encrypted now rather than waiting for the next edit.
+// readDb()->writeDb() round-trips through decrypt/encrypt; already-encrypted
+// values are left untouched (idempotent).
+if (encryptionEnabled) {
+  await writeDb(await readDb());
+}
+
 server.listen(port, host, () => {
   console.log(`Contas_exe API: listening on ${host}:${port}`);
   if (seededUsers.length === 0) {
     console.log(
       "AVISO: nenhum usuario cadastrado. Defina APP_AUTH_USER e APP_AUTH_PASSWORD " +
         "para criar o admin inicial; depois gerencie a equipe pela UI.",
+    );
+  }
+  if (!encryptionEnabled) {
+    console.log(
+      "AVISO: criptografia em repouso DESATIVADA (senhas ficam em texto plano). " +
+        "Defina CONTAS_FLOW_ENC_KEY (32 bytes em hex/base64) em producao.",
     );
   }
 });

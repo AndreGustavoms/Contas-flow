@@ -110,11 +110,23 @@ fonte da verdade; se ela estiver fora, aparece "API offline".
 
 ## Segurança / avisos
 
-- Senhas e tokens ficam em **texto plano** nos JSON de `storage/` — prático
-  para uso local, **não é criptografia**.
+- **Criptografia em repouso (AES-256-GCM):** com `CONTAS_FLOW_ENC_KEY` definida,
+  os campos sensíveis das contas (`password`, `recoveryEmail`, `phone`, `notes`)
+  e os refresh tokens do YouTube são cifrados no disco (formato `enc:v1:...`),
+  com IV aleatório por valor e tag de autenticação (detecta adulteração). Em
+  memória e na API o servidor sempre usa texto plano; a cifragem vive só na
+  borda de I/O (`readDb`/`writeDb`, `readTokens`/`writeTokens`). Ver
+  `server/crypto.mjs`. **Sem a chave**, esses campos ficam em texto plano (uso
+  local). A migração de um arquivo antigo (texto plano) para cifrado é
+  automática e idempotente: ao subir com a chave, o servidor re-grava o store
+  cifrado no startup.
+  - A chave é a **única** forma de decifrar: se perdida, os campos cifrados são
+    irrecuperáveis. Guarde-a separada do volume de dados.
+- **Login:** multiusuário com hash **scrypt** (salt por usuário) em
+  `users.json`; sessão via cookie HttpOnly. Ver `server/users.mjs`.
 - Nunca commite `storage/`, `.env`, prints ou mensagens com dados reais.
-- Ao subir para um domínio: HTTPS obrigatório, considerar autenticação real e
-  criptografia dos segredos em repouso.
+- Em produção: HTTPS (cookie `Secure`), `CONTAS_FLOW_ENC_KEY` definida, e CORS
+  fechado (same-origin por padrão; `CONTAS_FLOW_ALLOWED_ORIGIN` só se precisar).
 
 ### O que o `.gitignore` protege (e por quê)
 

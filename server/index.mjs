@@ -87,6 +87,12 @@ function pruneSessions() {
   for (const [token, session] of sessions) {
     if (session.expiry <= now) sessions.delete(token);
   }
+  // Also drop expired login-attempt buckets so the map can't grow unbounded from
+  // one-off IPs that never return (loginAttempts is declared below; this runs at
+  // call time, after module init).
+  for (const [ip, entry] of loginAttempts) {
+    if (entry.resetAt <= now) loginAttempts.delete(ip);
+  }
 }
 
 function createSession(userId) {
@@ -152,11 +158,26 @@ const LOGIN_WINDOW_MS = 1000 * 60 * 10; // 10 min
 const loginAttempts = new Map(); // ip -> { count, resetAt }
 
 function clientIp(request) {
-  // Behind a proxy (Railway), the real IP is the first XFF entry; fall back to
-  // the socket address. XFF is set by the platform, not trusted user input.
-  const xff = request.headers["x-forwarded-for"];
-  if (typeof xff === "string" && xff.length > 0) {
-    return xff.split(",")[0].trim();
+  // The rate limiter must key off an IP the client can't forge. The socket
+  // address is always trustworthy. X-Forwarded-For is client-settable, so we only
+  // consult it when a proxy is explicitly declared via CONTAS_FLOW_TRUSTED_PROXIES
+  // (the number of trusted hops in front of us — Railway = 1). In that case the
+  // real client IP is that many entries from the RIGHT (proxies append, so the
+  // rightmost are added by infrastructure we trust). Taking the first/left entry
+  // would let an attacker rotate XFF per request and bypass the limit.
+  const trusted = Number(process.env.CONTAS_FLOW_TRUSTED_PROXIES ?? 0);
+  if (trusted > 0) {
+    const xff = request.headers["x-forwarded-for"];
+    if (typeof xff === "string" && xff.length > 0) {
+      const parts = xff
+        .split(",")
+        .map((p) => p.trim())
+        .filter(Boolean);
+      // Pick the entry `trusted` hops from the right (the IP the outermost
+      // trusted proxy observed). Clamp to the leftmost if XFF is shorter.
+      const idx = Math.max(0, parts.length - trusted);
+      if (parts[idx]) return parts[idx];
+    }
   }
   return request.socket?.remoteAddress ?? "unknown";
 }
@@ -296,18 +317,38 @@ function transformDbSecrets(db, transform) {
 // Reads the database, decrypting sensitive fields so the rest of the server works
 // with plaintext in memory. On first run, migrates a legacy accounts.json array
 // into a single "Vitissouls" group so existing accounts are preserved.
+//
+// IMPORTANT: only a *missing* file (ENOENT) triggers the migrate-and-write path.
+// Any other failure — corrupt JSON, or (critically) a decrypt error because
+// CONTAS_FLOW_ENC_KEY was changed/lost — must NOT fall through to writing an
+// empty store, which would silently destroy the real data. We rethrow instead so
+// the operator notices and can fix the key/file before anything is overwritten.
 async function readDb() {
   await ensureStorage();
 
+  let raw;
   try {
-    const raw = await readFile(dbFile, "utf8");
-    const parsed = JSON.parse(raw);
-    return transformDbSecrets(normalizeDb(parsed), decryptField);
-  } catch {
-    // No groups file yet: try to migrate the legacy accounts.json.
-    const migrated = await migrateLegacy();
-    await writeDb(migrated);
-    return migrated;
+    raw = await readFile(dbFile, "utf8");
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      // No groups file yet: migrate the legacy accounts.json (or start empty).
+      const migrated = await migrateLegacy();
+      await writeDb(migrated);
+      return migrated;
+    }
+    throw error; // permission error, etc. — don't clobber the file
+  }
+
+  // The file exists: a parse/decrypt failure here means corruption or a wrong
+  // encryption key. Surface it loudly; never overwrite the existing data.
+  try {
+    return transformDbSecrets(normalizeDb(JSON.parse(raw)), decryptField);
+  } catch (error) {
+    throw new Error(
+      `Falha ao ler ${dbFile}: dados ilegiveis (JSON corrompido ou ` +
+        `CONTAS_FLOW_ENC_KEY incorreta/ausente). O arquivo NAO foi alterado. ` +
+        `Causa: ${error instanceof Error ? error.message : "desconhecida"}`,
+    );
   }
 }
 
@@ -345,6 +386,22 @@ async function backfillOwners(adminId) {
   for (const group of db.groups) {
     if (!group.ownerId) {
       group.ownerId = adminId;
+      changed = true;
+    }
+  }
+  if (changed) await writeDb(db);
+}
+
+// Re-homes every group owned by `fromUserId` to `toUserId`. Called when a user is
+// deleted so their groups don't become orphaned (a dangling ownerId would hide
+// them from all members, leaving them reachable only via the admin bypass and
+// never reassignable). Writes only when something changed.
+async function reassignGroups(fromUserId, toUserId) {
+  const db = await readDb();
+  let changed = false;
+  for (const group of db.groups) {
+    if (group.ownerId === fromUserId) {
+      group.ownerId = toUserId;
       changed = true;
     }
   }
@@ -619,6 +676,9 @@ async function handleApi(request, response, url, user) {
           notFound(response);
           return;
         }
+        // Re-home the deleted user's groups to the acting admin so their data
+        // stays visible and manageable instead of becoming orphaned.
+        await reassignGroups(targetId, user.id);
         sendJson(response, 200, { ok: true });
       } catch (error) {
         const code = error instanceof Error ? error.message : "invalid";

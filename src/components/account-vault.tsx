@@ -3,6 +3,7 @@ import {
   type CSSProperties,
   type MouseEvent,
   type ReactNode,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -73,11 +74,18 @@ import {
 } from "./ui/card";
 import { Input } from "./ui/input";
 
-const STORAGE_KEY = "contas_exe.accounts.v1";
+// Client-side caches are namespaced PER USER so that, on a shared browser, one
+// teammate's cached accounts / selected group don't bleed into the next person's
+// session. "anon" is only used before login resolves.
+function accountsKey(username: string | undefined) {
+  return `contas_exe.accounts.v1:${username || "anon"}`;
+}
 // Which group the user last had selected. The active group is now per-browser
 // client state (the server no longer tracks it), so we persist the choice here
 // and re-validate it against the groups the user can actually see.
-const ACTIVE_GROUP_KEY = "contas_exe.activeGroup.v1";
+function activeGroupKey(username: string | undefined) {
+  return `contas_exe.activeGroup.v1:${username || "anon"}`;
+}
 const API_GROUPS = "/api/groups";
 const ALL = "all";
 
@@ -195,13 +203,13 @@ function createId() {
   return `account-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function loadAccounts() {
+function loadAccounts(storageKey: string) {
   if (typeof window === "undefined") {
     return initialAccounts;
   }
 
   try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
+    const stored = window.localStorage.getItem(storageKey);
     if (!stored) {
       return initialAccounts;
     }
@@ -385,10 +393,16 @@ export function AccountVault({
   user,
 }: AccountVaultProps) {
   const isAdmin = user?.role === "admin";
-  const [accounts, setAccounts] = useState<AccountRecord[]>(loadAccounts);
+  // Per-user cache keys (see accountsKey/activeGroupKey). Stable for this mount;
+  // a different user means a different AccountVault mount with different keys.
+  const storageKey = accountsKey(user?.username);
+  const activeGroupStorageKey = activeGroupKey(user?.username);
+  const [accounts, setAccounts] = useState<AccountRecord[]>(() =>
+    loadAccounts(storageKey),
+  );
   const [groups, setGroups] = useState<GroupSummary[]>([]);
   const [activeGroupId, setActiveGroupId] = useState<string>(
-    () => window.localStorage.getItem(ACTIVE_GROUP_KEY) ?? "",
+    () => window.localStorage.getItem(activeGroupStorageKey) ?? "",
   );
   const [draft, setDraft] = useState<AccountDraft>(emptyAccountDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -425,6 +439,10 @@ export function AccountVault({
     setToast({ text, tone });
   }
 
+  // Stable identity so the Toast's auto-dismiss timer isn't reset on every parent
+  // re-render (e.g. while typing in the search box).
+  const dismissToast = useCallback(() => setToast(null), []);
+
   const activeGroup = useMemo(
     () => groups.find((group) => group.id === activeGroupId) ?? null,
     [groups, activeGroupId],
@@ -433,11 +451,11 @@ export function AccountVault({
   // Persist the active-group choice locally whenever it changes.
   useEffect(() => {
     if (activeGroupId) {
-      window.localStorage.setItem(ACTIVE_GROUP_KEY, activeGroupId);
+      window.localStorage.setItem(activeGroupStorageKey, activeGroupId);
     } else {
-      window.localStorage.removeItem(ACTIVE_GROUP_KEY);
+      window.localStorage.removeItem(activeGroupStorageKey);
     }
-  }, [activeGroupId]);
+  }, [activeGroupId, activeGroupStorageKey]);
 
   useEffect(() => {
     let ignore = false;
@@ -468,6 +486,9 @@ export function AccountVault({
 
   useEffect(() => {
     if (!activeGroupId) {
+      // No group selected (e.g. the last group was just deleted): clear the
+      // account list and its cache so stale rows from the old group don't linger.
+      setAccountList([]);
       return;
     }
 
@@ -500,7 +521,7 @@ export function AccountVault({
     const sortedAccounts = sortAccounts(nextAccounts.map(migrateAccount));
 
     setAccounts(sortedAccounts);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sortedAccounts));
+    window.localStorage.setItem(storageKey, JSON.stringify(sortedAccounts));
   }
 
   const accountsBase = activeGroupId
@@ -1213,7 +1234,7 @@ export function AccountVault({
         <Toast
           message={toast.text}
           tone={toast.tone}
-          onDismiss={() => setToast(null)}
+          onDismiss={dismissToast}
         />
       ) : null}
     </main>

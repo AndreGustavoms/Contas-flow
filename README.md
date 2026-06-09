@@ -74,14 +74,17 @@ server/
 scripts/
   local-dev.mjs           # sobe API + Vite juntos
 storage/                  # JSON criados automaticamente, ignorados pelo git
-  groups.json             # grupos + contas
+  users.json              # usuarios (logins) + hashes scrypt
+  groups.json             # grupos + contas (campos sensiveis cifrados)
   youtube.json            # tokens OAuth dos canais
 docs/
   ARQUITETURA.md          # como o sistema funciona
+  DEPLOY.md               # subir em producao (Railway, equipe)
   YOUTUBE.md              # guia da integracao YouTube
 ```
 
-Detalhes em **[docs/ARQUITETURA.md](docs/ARQUITETURA.md)**.
+Detalhes em **[docs/ARQUITETURA.md](docs/ARQUITETURA.md)**. Para subir em
+producao com a equipe, ver **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
 ## Scripts
 

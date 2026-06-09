@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { Loader2, Shield, Trash2, UserPlus, X } from "lucide-react";
+import { Download, Loader2, Shield, Trash2, UserPlus, X } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -265,6 +265,26 @@ export function UsersDialog({ currentUsername, onClose }: UsersDialogProps) {
               );
             })
           )}
+        </div>
+
+        {/* Backup: full export of all groups/accounts (admin only). The browser
+            downloads it thanks to the server's Content-Disposition header. */}
+        <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-[color:var(--text)]">
+              Backup completo
+            </p>
+            <p className="text-xs text-[color:var(--muted)]">
+              Baixa todos os grupos e contas. Guarde em local seguro.
+            </p>
+          </div>
+          <a
+            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-3.5 text-sm font-semibold text-[color:var(--text)] transition hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)]"
+            href="/api/admin/backup"
+          >
+            <Download className="h-4 w-4" />
+            Baixar
+          </a>
         </div>
       </section>
     </div>

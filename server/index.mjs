@@ -547,6 +547,33 @@ async function handleApi(request, response, url, user) {
     return;
   }
 
+  // ----- Backup (admin only) -----
+  // Full export of all groups and accounts (decrypted plaintext, so the backup
+  // is actually usable) plus the user roster WITHOUT password hashes (restoring
+  // people means re-setting their passwords; we don't ship hashes in a download).
+  // Downloaded as a dated JSON attachment for the admin to store off-platform.
+  if (url.pathname === "/api/admin/backup" && request.method === "GET") {
+    if (user.role !== "admin") {
+      sendJson(response, 403, { error: "forbidden" });
+      return;
+    }
+    const db = await readDb();
+    const backup = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      users: await listUsers(storageDir), // id, username, role, createdAt (no hash)
+      groups: db.groups,
+    };
+    const date = new Date().toISOString().slice(0, 10);
+    response.writeHead(200, {
+      ...corsHeaders(),
+      "Content-Type": "application/json; charset=utf-8",
+      "Content-Disposition": `attachment; filename="contas-backup-${date}.json"`,
+    });
+    response.end(JSON.stringify(backup, null, 2));
+    return;
+  }
+
   // ----- Users (admin only) -----
 
   if (url.pathname === "/api/users") {

@@ -19,6 +19,7 @@ Railway.
 | `APP_AUTH_PASSWORD` | senha forte do admin inicial | sim (no 1º deploy) |
 | `CONTAS_FLOW_ENC_KEY` | chave de 32 bytes (64 hex) — ver passo 2 | **sim em prod** |
 | `CONTAS_FLOW_STORAGE_DIR` | `/data` | sim (senão os dados somem) |
+| `CONTAS_FLOW_TRUSTED_PROXIES` | `1` | **sim no Railway** (1 proxy na frente) |
 | `CONTAS_FLOW_ALLOWED_ORIGIN` | em branco | não (só se a API for consumida de outra origem) |
 
 Notas importantes:
@@ -29,6 +30,11 @@ Notas importantes:
 - **NÃO** setar `PORT`/`HOST`: o servidor vai para `0.0.0.0` sozinho quando o
   Railway injeta `PORT`. O cookie de sessão vira `Secure` automaticamente em
   produção (porque `PORT` está setado → atrás de HTTPS).
+- **`CONTAS_FLOW_TRUSTED_PROXIES=1`** é importante no Railway: sem isso, o rate
+  limit do login usa o IP do socket (o do proxy do Railway, igual para todos) e,
+  pior, se você o ativar errado um atacante poderia forjar o `X-Forwarded-For`.
+  Com `1`, o app pega o IP real que o proxy do Railway observou. Em uso local,
+  deixe em branco.
 - `YOUTUBE_*` só quando for ativar OAuth em prod (a integração está em pausa; o
   endpoint de upload está desativado por segurança).
 

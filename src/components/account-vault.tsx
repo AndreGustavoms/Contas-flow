@@ -47,6 +47,7 @@ import {
   roleOptions,
   statusLabel,
 } from "../data/credential-records";
+import type { SessionUser } from "../App";
 import { cn } from "../lib/utils";
 import { type AppTheme } from "../theme";
 import {
@@ -57,6 +58,7 @@ import {
   YouTubeIcon,
 } from "./platform-icons";
 import { Badge } from "./ui/badge";
+import { UsersDialog } from "./users-dialog";
 import { Button } from "./ui/button";
 import { ThemeToggle } from "./theme-toggle";
 import {
@@ -69,14 +71,29 @@ import {
 import { Input } from "./ui/input";
 
 const STORAGE_KEY = "contas_exe.accounts.v1";
+// Which group the user last had selected. The active group is now per-browser
+// client state (the server no longer tracks it), so we persist the choice here
+// and re-validate it against the groups the user can actually see.
+const ACTIVE_GROUP_KEY = "contas_exe.activeGroup.v1";
 const API_GROUPS = "/api/groups";
 const ALL = "all";
 
 type GroupSummary = {
   id: string;
   name: string;
+  ownerId: string;
   count: number;
 };
+
+// Picks which group to make active given the visible groups and the last choice
+// remembered in localStorage: prefer the remembered one if still visible, else
+// the first group, else "" (no groups yet).
+function pickActiveGroup(groups: GroupSummary[], preferredId: string): string {
+  if (preferredId && groups.some((group) => group.id === preferredId)) {
+    return preferredId;
+  }
+  return groups[0]?.id ?? "";
+}
 
 function slugify(value: string) {
   return (
@@ -355,16 +372,21 @@ type AccountVaultProps = {
   onLock?: () => void;
   onThemeChange: (theme: AppTheme) => void;
   theme: AppTheme;
+  user: SessionUser | null;
 };
 
 export function AccountVault({
   onLock,
   onThemeChange,
   theme,
+  user,
 }: AccountVaultProps) {
+  const isAdmin = user?.role === "admin";
   const [accounts, setAccounts] = useState<AccountRecord[]>(loadAccounts);
   const [groups, setGroups] = useState<GroupSummary[]>([]);
-  const [activeGroupId, setActiveGroupId] = useState<string>("");
+  const [activeGroupId, setActiveGroupId] = useState<string>(
+    () => window.localStorage.getItem(ACTIVE_GROUP_KEY) ?? "",
+  );
   const [draft, setDraft] = useState<AccountDraft>(emptyAccountDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -382,6 +404,7 @@ export function AccountVault({
     value: string;
   } | null>(null);
   const [confirmDeleteGroup, setConfirmDeleteGroup] = useState(false);
+  const [usersDialogOpen, setUsersDialogOpen] = useState(false);
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
   const [wizardStep, setWizardStep] = useState(0);
   const [quickViewAccount, setQuickViewAccount] =
@@ -394,22 +417,30 @@ export function AccountVault({
     [groups, activeGroupId],
   );
 
+  // Persist the active-group choice locally whenever it changes.
+  useEffect(() => {
+    if (activeGroupId) {
+      window.localStorage.setItem(ACTIVE_GROUP_KEY, activeGroupId);
+    } else {
+      window.localStorage.removeItem(ACTIVE_GROUP_KEY);
+    }
+  }, [activeGroupId]);
+
   useEffect(() => {
     let ignore = false;
 
     async function loadGroups() {
       try {
-        const data = await requestJson<{
-          groups: GroupSummary[];
-          activeGroupId: string;
-        }>(API_GROUPS);
+        const data = await requestJson<{ groups: GroupSummary[] }>(API_GROUPS);
 
         if (ignore) {
           return;
         }
 
         setGroups(data.groups);
-        setActiveGroupId(data.activeGroupId);
+        // Keep the remembered selection if it's still visible; otherwise fall
+        // back to the first group the user can see.
+        setActiveGroupId((current) => pickActiveGroup(data.groups, current));
       } catch {
         setMessage("API offline");
       }
@@ -465,10 +496,7 @@ export function AccountVault({
 
   async function refreshGroups() {
     try {
-      const data = await requestJson<{
-        groups: GroupSummary[];
-        activeGroupId: string;
-      }>(API_GROUPS);
+      const data = await requestJson<{ groups: GroupSummary[] }>(API_GROUPS);
 
       setGroups(data.groups);
       return data;
@@ -488,23 +516,16 @@ export function AccountVault({
     );
   }
 
-  async function selectGroup(id: string) {
+  function selectGroup(id: string) {
     if (id === activeGroupId) {
       return;
     }
 
+    // The active group is purely client state now; the localStorage effect
+    // above persists the choice.
     setActiveGroupId(id);
     setQuickViewAccount(null);
     setIsAccountModalOpen(false);
-
-    try {
-      await requestJson(`${API_GROUPS}/active`, {
-        method: "PUT",
-        body: JSON.stringify({ activeGroupId: id }),
-      });
-    } catch {
-      // Selection still works locally even if persisting the choice fails.
-    }
   }
 
   function createGroup() {
@@ -570,15 +591,14 @@ export function AccountVault({
     }
 
     try {
-      const data = await requestJson<{
-        groups: GroupSummary[];
-        activeGroupId: string;
-      }>(`${API_GROUPS}/${encodeURIComponent(activeGroup.id)}`, {
-        method: "DELETE",
-      });
+      const data = await requestJson<{ groups: GroupSummary[] }>(
+        `${API_GROUPS}/${encodeURIComponent(activeGroup.id)}`,
+        { method: "DELETE" },
+      );
 
       setGroups(data.groups);
-      setActiveGroupId(data.activeGroupId);
+      // The deleted group was active; pick another visible one (or none).
+      setActiveGroupId(pickActiveGroup(data.groups, ""));
       setConfirmDeleteGroup(false);
     } catch {
       setMessage("Erro ao excluir grupo");
@@ -980,8 +1000,21 @@ export function AccountVault({
             ))}
           </SidebarSection>
 
-          {onLock ? (
-            <div className="mt-auto pt-4">
+          <div className="mt-auto space-y-1.5 pt-4">
+            {isAdmin ? (
+              <button
+                className="group/team flex h-11 w-full items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-sm font-semibold text-[color:var(--muted)] transition-all duration-300 hover:translate-x-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
+                type="button"
+                onClick={() => setUsersDialogOpen(true)}
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] text-[color:var(--accent)] transition duration-300 group-hover/team:bg-[color:var(--field-hover)]">
+                  <Users className="h-5 w-5" />
+                </span>
+                <span className="truncate">Equipe</span>
+              </button>
+            ) : null}
+
+            {onLock ? (
               <button
                 className="group/exit flex h-11 w-full items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-sm font-semibold text-[color:var(--muted)] transition-all duration-300 hover:translate-x-0.5 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-200"
                 type="button"
@@ -992,8 +1025,8 @@ export function AccountVault({
                 </span>
                 <span className="truncate">Sair</span>
               </button>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </aside>
 
         <section className="min-w-0 px-4 py-6 sm:px-6 lg:px-8">
@@ -1148,6 +1181,13 @@ export function AccountVault({
           confirmLabel="Excluir"
           onCancel={() => setDeleteAccountId(null)}
           onConfirm={confirmDeleteAccountNow}
+        />
+      ) : null}
+
+      {usersDialogOpen && isAdmin ? (
+        <UsersDialog
+          currentUsername={user?.username ?? ""}
+          onClose={() => setUsersDialogOpen(false)}
         />
       ) : null}
     </main>

@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { Eye, EyeOff, KeyRound } from "lucide-react";
+import { type SessionUser } from "../App";
 import { type AppTheme } from "../theme";
 import { cn } from "../lib/utils";
 import { ThemeToggle } from "./theme-toggle";
@@ -7,12 +8,13 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
 // O login agora e validado no SERVIDOR: enviamos as credenciais para
-// POST /api/auth/login, que confere contra APP_AUTH_USER/APP_AUTH_PASSWORD e
-// devolve um cookie de sessao HttpOnly. Nenhuma credencial fica no bundle.
+// POST /api/auth/login, que confere contra a tabela de usuarios (users.json,
+// hashes scrypt) e devolve um cookie de sessao HttpOnly + os dados do usuario
+// (username + role). Nenhuma credencial fica no bundle.
 
 type LocalLoginProps = {
   onThemeChange: (theme: AppTheme) => void;
-  onUnlock: () => void;
+  onUnlock: (user: SessionUser) => void;
   theme: AppTheme;
 };
 
@@ -40,11 +42,15 @@ export function LocalLogin({
       });
 
       if (response.ok) {
-        onUnlock();
+        const data: { user?: SessionUser } = await response.json();
+        // The server always returns the user on success; fall back defensively.
+        onUnlock(data.user ?? { username: name.trim(), role: "member" });
         return;
       }
 
-      setError(response.status === 401 ? "Dados incorretos." : "Falha ao entrar.");
+      setError(
+        response.status === 401 ? "Dados incorretos." : "Falha ao entrar.",
+      );
     } catch {
       setError("Nao foi possivel conectar ao servidor.");
     } finally {

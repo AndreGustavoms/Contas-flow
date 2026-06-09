@@ -1,6 +1,7 @@
 import {
   type ChangeEvent,
   type CSSProperties,
+  type MouseEvent,
   type ReactNode,
   useEffect,
   useMemo,
@@ -58,6 +59,8 @@ import {
   YouTubeIcon,
 } from "./platform-icons";
 import { Badge } from "./ui/badge";
+import { Spinner } from "./ui/spinner";
+import { Toast } from "./ui/toast";
 import { UsersDialog } from "./users-dialog";
 import { Button } from "./ui/button";
 import { ThemeToggle } from "./theme-toggle";
@@ -410,7 +413,17 @@ export function AccountVault({
   const [quickViewAccount, setQuickViewAccount] =
     useState<AccountRecord | null>(null);
   const [message, setMessage] = useState("");
+  // Transient feedback toast (success/error), separate from the inline `message`
+  // used in some contextual spots.
+  const [toast, setToast] = useState<{
+    text: string;
+    tone: "success" | "error";
+  } | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+
+  function notify(text: string, tone: "success" | "error" = "success") {
+    setToast({ text, tone });
+  }
 
   const activeGroup = useMemo(
     () => groups.find((group) => group.id === activeGroupId) ?? null,
@@ -573,7 +586,7 @@ export function AccountVault({
 
       setGroupDialog(null);
     } catch {
-      setMessage("Erro ao salvar grupo");
+      notify("Erro ao salvar grupo", "error");
     }
   }
 
@@ -600,8 +613,9 @@ export function AccountVault({
       // The deleted group was active; pick another visible one (or none).
       setActiveGroupId(pickActiveGroup(data.groups, ""));
       setConfirmDeleteGroup(false);
+      notify("Grupo excluído");
     } catch {
-      setMessage("Erro ao excluir grupo");
+      notify("Erro ao excluir grupo", "error");
     }
   }
 
@@ -782,7 +796,7 @@ export function AccountVault({
             account.id === editingId ? updated : account,
           ),
         );
-        setMessage("Salvo");
+        notify("Conta atualizada");
         setIsAccountModalOpen(false);
         resetForm();
         return;
@@ -795,11 +809,11 @@ export function AccountVault({
 
       setAccountList([created, ...accounts]);
       bumpActiveGroupCount(1);
-      setMessage("Salvo");
+      notify("Conta adicionada");
       setIsAccountModalOpen(false);
       resetForm();
     } catch {
-      setMessage("Erro");
+      notify("Erro ao salvar a conta", "error");
     } finally {
       setIsSaving(false);
     }
@@ -832,8 +846,9 @@ export function AccountVault({
       setIsAccountModalOpen(false);
       setDeleteAccountId(null);
       resetForm();
+      notify("Conta removida");
     } catch {
-      setMessage("Erro");
+      notify("Erro ao remover a conta", "error");
     }
   }
 
@@ -910,9 +925,9 @@ export function AccountVault({
         await refreshGroups();
         setActiveGroupId(createdGroup.id);
         resetForm();
-        setMessage(`Importado para "${importedName}"`);
+        notify(`Importado para "${importedName}"`);
       } catch {
-        window.alert("Backup inválido.");
+        notify("Backup inválido", "error");
       } finally {
         event.target.value = "";
       }
@@ -1188,6 +1203,14 @@ export function AccountVault({
         <UsersDialog
           currentUsername={user?.username ?? ""}
           onClose={() => setUsersDialogOpen(false)}
+        />
+      ) : null}
+
+      {toast ? (
+        <Toast
+          message={toast.text}
+          tone={toast.tone}
+          onDismiss={() => setToast(null)}
         />
       ) : null}
     </main>
@@ -1531,10 +1554,15 @@ function AccountWizardModal({
             <Button
               disabled={isSaving || !canSave}
               type="button"
+              variant="neon"
               onClick={onSave}
             >
-              <Save className="h-4 w-4" />
-              {isSaving ? "..." : editing ? "Salvar" : "Adicionar"}
+              {isSaving ? (
+                <Spinner className="h-4 w-4" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {isSaving ? "Salvando..." : editing ? "Salvar" : "Adicionar"}
             </Button>
           ) : (
             <Button disabled={!canContinue} type="button" onClick={onNext}>
@@ -2455,15 +2483,26 @@ type AccountRowProps = {
 };
 
 function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
+  // Move a CSS variable to follow the cursor so the .spotlight-card highlight
+  // tracks the mouse over the row.
+  function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    event.currentTarget.style.setProperty("--spot-x", `${x}%`);
+    event.currentTarget.style.setProperty("--spot-y", `${y}%`);
+  }
+
   return (
     <div
       className={cn(
-        "animate-row group grid gap-3 px-4 py-3 transition-colors duration-300 sm:grid-cols-[minmax(0,1fr)_auto]",
+        "spotlight-card relative animate-row group grid gap-3 px-4 py-3 transition-colors duration-300 sm:grid-cols-[minmax(0,1fr)_auto]",
         isActive
           ? "bg-[color:var(--accent-surface)] shadow-[inset_3px_0_0_var(--accent)]"
           : "hover:bg-[color:var(--surface-soft)]",
       )}
       style={{ animationDelay: `${Math.min(index, 12) * 28}ms` }}
+      onMouseMove={handleMouseMove}
     >
       <button className="min-w-0 text-left" type="button" onClick={onSelect}>
         <div className="flex min-w-0 items-center gap-3">

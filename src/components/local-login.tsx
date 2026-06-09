@@ -6,6 +6,7 @@ import { cn } from "../lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Spinner } from "./ui/spinner";
 
 // O login agora e validado no SERVIDOR: enviamos as credenciais para
 // POST /api/auth/login, que confere contra a tabela de usuarios (users.json,
@@ -94,56 +95,59 @@ export function LocalLogin({
           />
         </div>
 
-        <div className="mt-9 space-y-5">
-          <label className="grid gap-1.5">
-            <span className="text-xs font-medium text-[color:var(--muted)]">
-              Usuário
-            </span>
+        <div className="mt-9 space-y-6">
+          <div className="float-field">
             <Input
               autoFocus
               autoComplete="username"
               className="h-12 rounded-2xl px-4 text-base"
+              id="login-user"
+              placeholder=" "
               value={name}
               onChange={(event) => setName(event.target.value)}
             />
-          </label>
+            <label htmlFor="login-user">Usuário</label>
+          </div>
 
-          <label className="grid gap-1.5">
-            <span className="text-xs font-medium text-[color:var(--muted)]">
-              Senha
-            </span>
-            <div className="relative">
-              <Input
-                autoComplete="current-password"
-                className="h-12 rounded-2xl px-4 pr-12 text-base"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-              <button
-                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                className="icon-soft absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl transition"
-                type="button"
-                onClick={() => setShowPassword((current) => !current)}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-          </label>
+          <div className="float-field">
+            <Input
+              autoComplete="current-password"
+              className="h-12 rounded-2xl px-4 pr-12 text-base"
+              id="login-password"
+              placeholder=" "
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <label htmlFor="login-password">Senha</label>
+            <button
+              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              className="icon-soft absolute right-3 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl transition"
+              type="button"
+              onClick={() => setShowPassword((current) => !current)}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
         </div>
 
         {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
 
         <Button
           className="mt-7 h-12 w-full rounded-2xl text-base"
+          variant="neon"
           type="submit"
           disabled={submitting}
         >
-          <KeyRound className="h-4 w-4" />
+          {submitting ? (
+            <Spinner className="h-5 w-5" />
+          ) : (
+            <KeyRound className="h-4 w-4" />
+          )}
           {submitting ? "Entrando..." : "Entrar"}
         </Button>
       </form>

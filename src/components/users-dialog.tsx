@@ -1,8 +1,10 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { Download, Loader2, Shield, Trash2, UserPlus, X } from "lucide-react";
+import { Download, Shield, Trash2, UserPlus, X } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Spinner } from "./ui/spinner";
+import { Switch } from "./ui/switch";
 
 // Admin-only panel to manage the people who can log in. Talks to the
 // /api/users endpoints (all admin-gated server-side). Members never see this.
@@ -185,11 +187,10 @@ export function UsersDialog({ currentUsername, onClose }: UsersDialogProps) {
           </div>
 
           <div className="flex items-center justify-between gap-3">
-            <label className="flex items-center gap-2 text-sm text-[color:var(--text)]">
-              <input
+            <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[color:var(--text)]">
+              <Switch
                 checked={newRole === "admin"}
-                className="h-4 w-4 accent-[color:var(--accent)]"
-                type="checkbox"
+                label="Tornar admin"
                 onChange={(event) =>
                   setNewRole(event.target.checked ? "admin" : "member")
                 }
@@ -198,11 +199,12 @@ export function UsersDialog({ currentUsername, onClose }: UsersDialogProps) {
             </label>
             <Button
               className="shrink-0"
+              variant="neon"
               disabled={creating || !newName.trim() || !newPassword}
               type="submit"
             >
               {creating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Spinner className="h-4 w-4" />
               ) : (
                 <UserPlus className="h-4 w-4" />
               )}

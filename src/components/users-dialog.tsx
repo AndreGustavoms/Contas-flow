@@ -10,6 +10,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -47,33 +48,28 @@ type AuditEvent = {
   ipHash: string;
 };
 
-// PT labels for audit action codes (server-side stable codes -> friendly text).
-const AUDIT_ACTION_LABELS: Record<string, string> = {
-  login_ok: "Entrou",
-  login_fail: "Falha de login",
-  logout: "Saiu",
-  reauth_ok: "Reautenticou",
-  reauth_fail: "Falha na reautenticação",
-  secret_viewed: "Viu/copiou senha",
-  backup_exported: "Exportou backup",
-  password_changed: "Trocou senha",
-  user_created: "Criou usuário",
-  user_deleted: "Removeu usuário",
-  group_deleted: "Excluiu grupo",
-  session_revoked: "Encerrou sessão",
-  sessions_revoked_all: "Encerrou todas as sessões",
-  login_2fa_ok: "Entrou (2FA)",
-  login_2fa_fail: "Falha no código 2FA",
-  recovery_code_used: "Entrou (código de recuperação)",
-  "2fa_enabled": "Ativou 2FA",
-  "2fa_disabled": "Desativou 2FA",
-  "2fa_reset_by_admin": "Resetou 2FA de um usuário",
-  recovery_codes_regenerated: "Gerou novos códigos de recuperação",
+const AUDIT_ACTION_I18N_KEYS: Record<string, string> = {
+  login_ok: "team.audit_login_ok",
+  login_fail: "team.audit_login_fail",
+  logout: "team.audit_logout",
+  reauth_ok: "team.audit_reauth_ok",
+  reauth_fail: "team.audit_reauth_fail",
+  secret_viewed: "team.audit_secret_viewed",
+  backup_exported: "team.audit_backup_exported",
+  password_changed: "team.audit_password_changed",
+  user_created: "team.audit_user_created",
+  user_deleted: "team.audit_user_deleted",
+  group_deleted: "team.audit_group_deleted",
+  session_revoked: "team.audit_session_revoked",
+  sessions_revoked_all: "team.audit_all_sessions_revoked",
+  login_2fa_ok: "team.audit_login_ok",
+  login_2fa_fail: "team.audit_login_fail",
+  recovery_code_used: "team.audit_login_ok",
+  "2fa_enabled": "team.audit_2fa_enabled",
+  "2fa_disabled": "team.audit_2fa_disabled",
+  "2fa_reset_by_admin": "team.audit_2fa_reset",
+  recovery_codes_regenerated: "team.audit_recovery_codes_regenerated",
 };
-
-function auditActionLabel(action: string): string {
-  return AUDIT_ACTION_LABELS[action] ?? action;
-}
 
 type UsersDialogProps = {
   // The current admin's username, so we can prevent self-deletion in the UI.
@@ -102,16 +98,22 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-const ERROR_LABELS: Record<string, string> = {
-  username_taken: "Esse usuário já existe.",
-  invalid: "Preencha usuário e senha.",
-  last_admin: "Não dá para remover o último admin.",
-  password_required: "Informe a nova senha.",
+const ERROR_I18N_KEYS: Record<string, string> = {
+  username_taken: "team.error_username_taken",
+  invalid: "team.error_invalid",
+  last_admin: "team.error_last_admin",
+  password_required: "team.error_password_required",
+  username_too_short: "team.error_username_too_short",
+  username_too_long: "team.error_username_too_long",
+  password_too_short: "team.error_password_too_short",
+  password_too_long: "team.error_password_too_long",
+  password_no_uppercase: "team.error_password_no_uppercase",
+  password_no_lowercase: "team.error_password_no_lowercase",
+  password_no_number: "team.error_password_no_number",
+  password_no_special: "team.error_password_no_special",
+  password_too_common: "team.error_password_too_common",
+  password_same_as_username: "team.error_password_same_as_username",
 };
-
-function labelForError(code: string): string {
-  return ERROR_LABELS[code] ?? "Algo deu errado. Tente de novo.";
-}
 
 // When the user cancels the re-auth prompt, withReauth re-throws the original
 // reauth_required error. Treat that as a silent no-op (not a real failure).
@@ -164,6 +166,7 @@ export function UsersDialog({
   onClose,
   withReauth,
 }: UsersDialogProps) {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -276,7 +279,7 @@ export function UsersDialog({
       await loadEvents();
     } catch (err) {
       if (isReauthCancelled(err)) return;
-      setError(labelForError(err instanceof Error ? err.message : "invalid"));
+      setError(t(ERROR_I18N_KEYS[err instanceof Error ? err.message : "invalid"] ?? "team.error_invalid"));
     } finally {
       setCreating(false);
     }
@@ -295,7 +298,7 @@ export function UsersDialog({
       await loadEvents();
     } catch (err) {
       if (isReauthCancelled(err)) return;
-      setError(labelForError(err instanceof Error ? err.message : "invalid"));
+      setError(t(ERROR_I18N_KEYS[err instanceof Error ? err.message : "invalid"] ?? "team.error_invalid"));
     }
   }
 
@@ -393,6 +396,8 @@ export function UsersDialog({
               </span>
               <Input
                 autoComplete="off"
+                minLength={2}
+                maxLength={80}
                 value={newName}
                 onChange={(event) => setNewName(event.target.value)}
               />
@@ -404,6 +409,8 @@ export function UsersDialog({
               <Input
                 autoComplete="new-password"
                 type="password"
+                minLength={8}
+                maxLength={128}
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.target.value)}
               />
@@ -629,7 +636,7 @@ export function UsersDialog({
                 >
                   <div className="min-w-0">
                     <p className="truncate text-xs font-medium text-[color:var(--text)]">
-                      {auditActionLabel(event.action)}
+                      {t(AUDIT_ACTION_I18N_KEYS[event.action] ?? "team.audit_login_ok", { defaultValue: event.action })}
                       {event.username ? (
                         <span className="ml-2 font-normal text-[color:var(--muted)]">
                           {event.username}

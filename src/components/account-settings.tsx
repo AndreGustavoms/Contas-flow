@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { Copy, KeyRound, ShieldCheck, ShieldOff, X } from "lucide-react";
+import { Copy, KeyRound, Mail, ShieldCheck, ShieldOff, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Spinner } from "./ui/spinner";
@@ -37,6 +38,7 @@ function isReauthCancelled(error: unknown): boolean {
 type Status = { enabled: boolean; recoveryCodesRemaining: number };
 
 export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -51,6 +53,13 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
   const [disableCode, setDisableCode] = useState("");
   const [copied, setCopied] = useState(false);
 
+  // Recovery e-mail state.
+  const [email, setEmail] = useState("");
+  const [emailLoaded, setEmailLoaded] = useState(false);
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailSuccess, setEmailSuccess] = useState(false);
+  const [emailError, setEmailError] = useState("");
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
@@ -63,14 +72,45 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
     try {
       setStatus(await requestJson<Status>(API));
     } catch {
-      setError("Não foi possível carregar o status do 2FA.");
+      setError(t("account.error_load_status"));
     }
   }
 
   useEffect(() => {
     void loadStatus();
+    // Load current e-mail.
+    fetch("/api/account/email")
+      .then((r) => (r.ok ? r.json() : { email: null }))
+      .then((d: { email: string | null }) => {
+        setEmail(d.email ?? "");
+        setEmailLoaded(true);
+      })
+      .catch(() => setEmailLoaded(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function saveEmail(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setEmailSaving(true);
+    setEmailError("");
+    setEmailSuccess(false);
+    try {
+      await requestJson("/api/account/email", {
+        method: "PUT",
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      setEmailSuccess(true);
+      window.setTimeout(() => setEmailSuccess(false), 2500);
+    } catch (err) {
+      setEmailError(
+        err instanceof Error && err.message === "invalid_email"
+          ? "E-mail inválido."
+          : "Não foi possível salvar.",
+      );
+    } finally {
+      setEmailSaving(false);
+    }
+  }
 
   async function beginSetup() {
     setError("");
@@ -85,7 +125,7 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
       setFreshCodes(null);
       setEnableCode("");
     } catch (err) {
-      if (!isReauthCancelled(err)) setError("Não foi possível iniciar a configuração.");
+      if (!isReauthCancelled(err)) setError(t("account.error_start_setup"));
     } finally {
       setBusy(false);
     }
@@ -110,8 +150,8 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
       if (isReauthCancelled(err)) return;
       setError(
         err instanceof Error && err.message === "invalid_code"
-          ? "Código inválido. Confira no app e tente de novo."
-          : "Não foi possível ativar o 2FA.",
+          ? t("account.error_invalid_code")
+          : t("account.error_enable"),
       );
     } finally {
       setBusy(false);
@@ -137,8 +177,8 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
       if (isReauthCancelled(err)) return;
       setError(
         err instanceof Error && err.message === "invalid_code"
-          ? "Código inválido."
-          : "Não foi possível desativar o 2FA.",
+          ? t("account.error_invalid_code")
+          : t("account.error_disable"),
       );
     } finally {
       setBusy(false);
@@ -157,7 +197,7 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
       setFreshCodes(result.recoveryCodes);
       await loadStatus();
     } catch (err) {
-      if (!isReauthCancelled(err)) setError("Não foi possível gerar novos códigos.");
+      if (!isReauthCancelled(err)) setError(t("account.error_new_codes"));
     } finally {
       setBusy(false);
     }
@@ -193,16 +233,50 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
           <div className="flex items-center gap-2.5">
             <ShieldCheck className="h-5 w-5 text-[color:var(--accent)]" />
             <h2 className="text-xl font-semibold tracking-normal text-[color:var(--text)]">
-              Minha conta
+              {t("account.title")}
             </h2>
           </div>
-          <Button aria-label="Fechar" size="icon" variant="ghost" onClick={onClose}>
+          <Button aria-label={t("account.close")} size="icon" variant="ghost" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         <h3 className="mt-5 text-sm font-semibold uppercase tracking-[0.16em] text-[color:var(--accent-muted)]">
-          Verificação em duas etapas (2FA)
+          E-mail de recuperação
+        </h3>
+        <p className="mt-1 text-xs text-[color:var(--muted)]">
+          Usado para redefinir sua senha caso esqueça.
+        </p>
+        {emailLoaded && (
+          <form className="mt-3 flex gap-2" onSubmit={saveEmail}>
+            <Input
+              type="email"
+              autoComplete="email"
+              className="h-10 flex-1 rounded-xl px-3 text-sm"
+              placeholder="seu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <Button
+              type="submit"
+              variant="outline"
+              disabled={emailSaving}
+              className="h-10 shrink-0"
+            >
+              {emailSaving ? <Spinner className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
+              Salvar
+            </Button>
+          </form>
+        )}
+        {emailSuccess && (
+          <p className="mt-1 text-xs text-green-400">E-mail salvo.</p>
+        )}
+        {emailError && (
+          <p className="mt-1 text-xs text-red-300">{emailError}</p>
+        )}
+
+        <h3 className="mt-6 text-sm font-semibold uppercase tracking-[0.16em] text-[color:var(--accent-muted)]">
+          {t("account.two_factor")}
         </h3>
 
         {error ? (
@@ -215,10 +289,10 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
         {freshCodes ? (
           <div className="mt-4 rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--field)] p-4">
             <p className="text-sm font-semibold text-[color:var(--text)]">
-              Salve seus códigos de recuperação
+              {t("account.two_factor_save_codes_title")}
             </p>
             <p className="mt-1 text-xs text-[color:var(--muted)]">
-              Eles aparecem só agora. Cada um serve uma vez, caso você perca o app.
+              {t("account.two_factor_save_codes_instruction")}
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-sm text-[color:var(--text)]">
               {freshCodes.map((c) => (
@@ -235,7 +309,7 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
               variant="outline"
               onClick={() => setFreshCodes(null)}
             >
-              Já salvei
+              {t("account.two_factor_saved")}
             </Button>
           </div>
         ) : null}
@@ -244,15 +318,14 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
         {setup ? (
           <form className="mt-4 grid gap-3" onSubmit={confirmEnable}>
             <p className="text-sm text-[color:var(--muted)]">
-              Adicione esta chave no seu app autenticador (Google Authenticator,
-              Authy…) usando "inserir chave manualmente":
+              {t("account.two_factor_manual_key")}
             </p>
             <div className="flex items-center gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] p-3">
               <code className="min-w-0 flex-1 break-all font-mono text-sm text-[color:var(--text)]">
                 {setup.secret}
               </code>
               <button
-                aria-label="Copiar chave"
+                aria-label={t("account.two_factor_copy_key")}
                 className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--muted)] transition hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
                 type="button"
                 onClick={copySecret}
@@ -261,11 +334,11 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
               </button>
             </div>
             {copied ? (
-              <p className="text-xs text-[color:var(--accent)]">Chave copiada.</p>
+              <p className="text-xs text-[color:var(--accent)]">{t("account.two_factor_key_copied")}</p>
             ) : null}
             <label className="grid gap-1.5">
               <span className="text-xs font-medium text-[color:var(--muted)]">
-                Digite o código gerado pelo app para confirmar
+                {t("account.two_factor_confirm_label")}
               </span>
               <Input
                 autoFocus
@@ -282,7 +355,7 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
                 variant="outline"
                 onClick={() => setSetup(null)}
               >
-                Cancelar
+                {t("account.two_factor_cancel")}
               </Button>
               <Button
                 type="submit"
@@ -290,19 +363,19 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
                 disabled={busy || !enableCode.trim()}
               >
                 {busy ? <Spinner className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
-                Ativar
+                {t("account.two_factor_activate")}
               </Button>
             </div>
           </form>
         ) : disabling ? (
           <form className="mt-4 grid gap-3" onSubmit={confirmDisable}>
             <p className="text-sm text-[color:var(--muted)]">
-              Digite um código do app (ou um código de recuperação) para desativar.
+              {t("account.two_factor_disable_instruction")}
             </p>
             <Input
               autoFocus
               className="h-11 rounded-2xl px-4 tracking-widest"
-              placeholder="Código"
+              placeholder={t("account.two_factor_code")}
               value={disableCode}
               onChange={(event) => setDisableCode(event.target.value)}
             />
@@ -312,7 +385,7 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
                 variant="outline"
                 onClick={() => setDisabling(false)}
               >
-                Cancelar
+                {t("account.two_factor_cancel")}
               </Button>
               <button
                 className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-red-500 px-4 text-sm font-semibold text-white transition hover:bg-red-400 disabled:opacity-50"
@@ -320,7 +393,7 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
                 disabled={busy || !disableCode.trim()}
               >
                 <ShieldOff className="h-4 w-4" />
-                Desativar
+                {t("account.two_factor_disable")}
               </button>
             </div>
           </form>
@@ -329,19 +402,19 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
           <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-[color:var(--text)]">
-                {status?.enabled ? "Ativado" : "Desativado"}
+                {status?.enabled ? t("account.two_factor_enabled") : t("account.two_factor_disabled")}
               </p>
               <p className="text-xs text-[color:var(--muted)]">
                 {status?.enabled
-                  ? `Pedimos um código a cada login. ${status.recoveryCodesRemaining} código(s) de recuperação restante(s).`
-                  : "Proteja seu login com um app autenticador."}
+                  ? t("account.two_factor_description", { count: status.recoveryCodesRemaining })
+                  : t("account.two_factor_cta")}
               </p>
             </div>
             {status?.enabled ? (
               <div className="flex shrink-0 flex-col gap-2">
                 <Button variant="outline" disabled={busy} onClick={regenerate}>
                   <KeyRound className="h-4 w-4" />
-                  Novos códigos
+                  {t("account.two_factor_new_codes")}
                 </Button>
                 <Button
                   variant="outline"
@@ -349,7 +422,7 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
                   onClick={() => setDisabling(true)}
                 >
                   <ShieldOff className="h-4 w-4" />
-                  Desativar
+                  {t("account.two_factor_disable")}
                 </Button>
               </div>
             ) : (
@@ -360,7 +433,7 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
                 onClick={beginSetup}
               >
                 {busy ? <Spinner className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
-                Ativar 2FA
+                {t("account.two_factor_enable")}
               </Button>
             )}
           </div>

@@ -101,4 +101,6 @@ Duas formas (use as duas):
 - [ ] Login do admin funciona; senha do admin é forte.
 - [ ] Logins dos colegas criados pela UI.
 - [ ] Backup baixado e guardado pelo menos uma vez.
+- [ ] Checklist LGPD revisado: controlador/canal, base legal, aviso interno,
+      retenção, backup e incidente. Ver [LGPD.md](./LGPD.md).
 - [ ] **Senha que vazou no histórico já foi trocada** (pendência de segurança).

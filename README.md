@@ -137,7 +137,7 @@ storage/                  # JSON gerados automaticamente, ignorados pelo git
   users.json              # usuários (logins) + hashes scrypt
   groups.json             # grupos + contas (campos sensíveis cifrados)
   youtube.json            # tokens OAuth dos canais (cifrados)
-docs/                     # ARQUITETURA.md, DEPLOY.md, YOUTUBE.md
+docs/                     # ARQUITETURA.md, DEPLOY.md, LGPD.md, YOUTUBE.md
 ```
 
 ## Scripts
@@ -155,6 +155,7 @@ npm run format   # formatar com prettier
 
 - **[docs/ARQUITETURA.md](docs/ARQUITETURA.md)** — como o sistema funciona por dentro.
 - **[docs/DEPLOY.md](docs/DEPLOY.md)** — subir em produção com a equipe.
+- **[docs/LGPD.md](docs/LGPD.md)** — controles operacionais de privacidade e LGPD.
 - **[docs/YOUTUBE.md](docs/YOUTUBE.md)** — integração YouTube (em pausa).
 
 > Os dados ficam em `storage/` (git-ignored). Nunca commite `storage/`, `.env`,

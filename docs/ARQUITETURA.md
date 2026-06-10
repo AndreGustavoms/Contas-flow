@@ -180,17 +180,28 @@ próximo. A API é a fonte da verdade; se ela estiver fora, aparece "API offline
 - **Login:** multiusuário com hash **scrypt** (salt por usuário) em
   `users.json`; sessão via cookie HttpOnly + `SameSite=Strict` (+ `Secure` em
   HTTPS). Ver `server/users.mjs`.
-- **Endurecimento:** rate limit no login (por IP; usa o IP real do socket ou,
-  atrás de proxy, o entry confiável do `X-Forwarded-For` via
-  `CONTAS_FLOW_TRUSTED_PROXIES`), headers de segurança (CSP, HSTS, X-Frame-Options,
-  nosniff), limite de tamanho de requisição, e erros que não vazam detalhes
-  internos.
-- **Proteção de dados:** `readDb` nunca sobrescreve `groups.json` em caso de erro
-  de leitura/decifragem — só um arquivo inexistente dispara a migração. Uma chave
-  de criptografia errada faz o servidor **falhar alto** em vez de apagar dados.
+- **Endurecimento HTTP/API:** login rate-limited em memória por IP
+  (10 tentativas/10 min; sucesso limpa o contador). O IP vem do socket por padrão;
+  `X-Forwarded-For` só é aceito quando `CONTAS_FLOW_TRUSTED_PROXIES` informa
+  quantos proxies confiáveis existem na frente do app (Railway = `1`). Todas as
+  respostas recebem headers de segurança (`Content-Security-Policy`,
+  `Strict-Transport-Security` quando o cookie é `Secure`, `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`). Corpos de
+  requisição são limitados a **1 MB**; excesso responde `413 payload_too_large`.
+  Erros internos são logados no servidor e viram apenas `{ error: "server_error" }`
+  para o cliente.
+- **Proteção contra perda de dados:** `readDb` nunca sobrescreve `groups.json` em
+  caso de erro de leitura, JSON corrompido ou falha de decifragem. Só `ENOENT`
+  (arquivo inexistente) dispara a migração/criação inicial. Uma
+  `CONTAS_FLOW_ENC_KEY` errada, ausente ou perdida faz o servidor **falhar alto**
+  e preservar o arquivo no disco em vez de gravar um store vazio por cima.
 - Nunca commite `storage/`, `.env`, prints ou mensagens com dados reais.
 - Em produção: HTTPS (cookie `Secure`), `CONTAS_FLOW_ENC_KEY` definida,
   `CONTAS_FLOW_TRUSTED_PROXIES` correto, e CORS fechado (same-origin por padrão).
+- **LGPD:** o sistema aplica controles técnicos de minimização, segregação por
+  usuário/grupo, criptografia, cache local namespaceado e proteção de backups, mas
+  a base legal, aviso de privacidade, canal do titular, retenção e resposta a
+  incidentes dependem do controlador. Ver **[docs/LGPD.md](./LGPD.md)**.
 
 ### O que o `.gitignore` protege (e por quê)
 

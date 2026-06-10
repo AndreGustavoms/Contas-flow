@@ -48,6 +48,14 @@ git grep -nIE "(senha|password|secret|token|AIza|GOCSPX-|ya29\.|-----BEGIN)" -- 
 
 Se aparecer qualquer credencial real no resultado, **não comite** — mova o valor para o `.env`.
 
+## LGPD e dados pessoais
+
+Dados reais de contas (email, usuário, telefone, email de recuperação, notas,
+senhas, tokens e backups) também são dados pessoais ou segredos associados a
+pessoas identificáveis. Além de não versionar, opere o app conforme
+[docs/LGPD.md](docs/LGPD.md): colete só o necessário, restrinja admins, proteja
+backups, defina retenção e tenha fluxo para direitos do titular e incidentes.
+
 ## Se um segredo vazar mesmo assim
 
 1. **Considere o segredo comprometido** e **troque/revogue imediatamente**

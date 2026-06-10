@@ -1,15 +1,33 @@
 import { useEffect, useState } from "react";
 import { AccountVault } from "./components/account-vault";
+import { ForgotPassword } from "./components/forgot-password";
 import { LocalLogin } from "./components/local-login";
+import { Register } from "./components/register";
+import { ResetPassword } from "./components/reset-password";
+import { ThemeToggle } from "./components/theme-toggle";
 import { type AppTheme, isAppTheme, THEME_STORAGE_KEY } from "./theme";
 
 // The logged-in user, as reported by /api/auth. role drives admin-only UI.
 export type SessionUser = { username: string; role: "admin" | "member" };
 
+type View = "login" | "forgot" | "reset" | "register";
+
+function getInitialView(): { view: View; resetToken: string } {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("token");
+  if (token && window.location.pathname === "/reset-password") {
+    return { view: "reset", resetToken: token };
+  }
+  return { view: "login", resetToken: "" };
+}
+
 export default function App() {
   // null = still checking the server for an existing session.
   const [unlocked, setUnlocked] = useState<boolean | null>(null);
   const [user, setUser] = useState<SessionUser | null>(null);
+  const initial = getInitialView();
+  const [view, setView] = useState<View>(initial.view);
+  const [resetToken] = useState(initial.resetToken);
   const [theme, setTheme] = useState<AppTheme>(() => {
     if (typeof window === "undefined") {
       return "andre";
@@ -60,8 +78,54 @@ export default function App() {
     });
   }
 
-  if (unlocked === null) {
+  if (unlocked === null && view !== "reset") {
     return null;
+  }
+
+  const floatingToggle = (
+    <div className="fixed right-4 top-4 z-[100]">
+      <ThemeToggle value={theme} onChange={changeTheme} />
+    </div>
+  );
+
+  if (view === "reset") {
+    return (
+      <>
+        {floatingToggle}
+        <ResetPassword
+          token={resetToken}
+          theme={theme}
+          onThemeChange={changeTheme}
+          onDone={() => setView("login")}
+        />
+      </>
+    );
+  }
+
+  if (view === "forgot") {
+    return (
+      <>
+        {floatingToggle}
+        <ForgotPassword
+          theme={theme}
+          onThemeChange={changeTheme}
+          onBack={() => setView("login")}
+        />
+      </>
+    );
+  }
+
+  if (view === "register") {
+    return (
+      <>
+        {floatingToggle}
+        <Register
+          theme={theme}
+          onBack={() => setView("login")}
+          onDone={() => setView("login")}
+        />
+      </>
+    );
   }
 
   return unlocked ? (
@@ -72,6 +136,14 @@ export default function App() {
       onThemeChange={changeTheme}
     />
   ) : (
-    <LocalLogin theme={theme} onThemeChange={changeTheme} onUnlock={unlock} />
+    <>
+      {floatingToggle}
+      <LocalLogin
+        theme={theme}
+        onUnlock={unlock}
+        onForgotPassword={() => setView("forgot")}
+        onRegister={() => setView("register")}
+      />
+    </>
   );
 }

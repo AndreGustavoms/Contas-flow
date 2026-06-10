@@ -19,17 +19,28 @@ import {
   disableTwoFactor,
   enableTwoFactor,
   ensureSeedAdmin,
+  findByEmail,
   findById,
   findByUsername,
   listUsers,
   recoveryCodesRemaining,
   regenerateRecoveryCodes,
   resetTwoFactor,
+  setEmail,
   setPassword,
   startTwoFactorSetup,
+  validatePassword,
+  validateUsername,
   verifyPassword,
   verifyUserTotp,
 } from "./users.mjs";
+import { sendEmail } from "./email.mjs";
+import {
+  consumeResetToken,
+  createResetToken,
+  pruneResetTokens,
+  validateResetToken,
+} from "./password-reset.mjs";
 import { decryptField, encryptField, encryptionEnabled } from "./crypto.mjs";
 import {
   createSession,
@@ -232,6 +243,8 @@ function isPublicApi(pathname) {
     pathname === "/api/auth/logout" ||
     pathname === "/api/auth/status" ||
     pathname === "/api/auth/reauth" ||
+    pathname === "/api/auth/forgot-password" ||
+    pathname === "/api/auth/reset-password" ||
     pathname === "/api/youtube/callback"
   );
 }
@@ -775,6 +788,83 @@ async function handleApi(request, response, url, user, session) {
     return;
   }
 
+  // Request a password-reset link. Always returns 200 to avoid username/email
+  // enumeration — the caller can't tell whether an account was found.
+  if (url.pathname === "/api/auth/forgot-password" && request.method === "POST") {
+    const body = await readBody(request);
+    const email = asString(body.email).trim().toLowerCase();
+
+    if (email) {
+      const account = await findByEmail(storageDir, email);
+      if (account) {
+        const raw = await createResetToken(storageDir, account.id);
+        const base = process.env.CONTAS_FLOW_BASE_URL?.replace(/\/$/, "") ?? "";
+        const link = `${base}/reset-password?token=${raw}`;
+        await sendEmail({
+          to: email,
+          subject: "Redefinir sua senha — Contas_exe",
+          html: `
+<p>Olá, <strong>${account.username}</strong>.</p>
+<p>Clique no link abaixo para redefinir sua senha. O link expira em 15 minutos.</p>
+<p><a href="${link}">${link}</a></p>
+<p>Se você não solicitou isso, ignore este e-mail.</p>
+          `.trim(),
+        });
+        void logEvent(storageDir, {
+          userId: account.id,
+          username: account.username,
+          action: "password_reset_requested",
+          target: null,
+          ip: clientIp(request),
+        });
+      }
+    }
+
+    sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  // Consume a reset token and set a new password.
+  if (url.pathname === "/api/auth/reset-password" && request.method === "POST") {
+    const body = await readBody(request);
+    const token = asString(body.token).trim();
+    const password = asString(body.password);
+
+    if (!token || !password) {
+      badRequest(response, "missing_fields");
+      return;
+    }
+
+    const pwErr = validatePassword(password);
+    if (pwErr) {
+      badRequest(response, pwErr);
+      return;
+    }
+
+    const userId = await validateResetToken(storageDir, token);
+    if (!userId) {
+      sendJson(response, 400, { error: "invalid_or_expired_token" });
+      return;
+    }
+
+    await setPassword(storageDir, userId, password);
+    await consumeResetToken(storageDir, token);
+    // Revoke all active sessions so old sessions can't linger after a reset.
+    await revokeAllForUser(storageDir, userId);
+
+    const account = await findById(storageDir, userId);
+    void logEvent(storageDir, {
+      userId,
+      username: account?.username ?? null,
+      action: "password_reset_completed",
+      target: null,
+      ip: clientIp(request),
+    });
+
+    sendJson(response, 200, { ok: true });
+    return;
+  }
+
   // Drop the session: revoke it server-side AND clear the cookie.
   if (url.pathname === "/api/auth/logout" && request.method === "POST") {
     const token = sessionToken(request);
@@ -797,6 +887,30 @@ async function handleApi(request, response, url, user, session) {
       authenticated: Boolean(current),
       user: current ? { username: current.username, role: current.role } : null,
     });
+    return;
+  }
+
+  // ----- Account settings (authenticated user, self-service) -----
+
+  // GET returns the current e-mail; PUT sets/clears it.
+  if (url.pathname === "/api/account/email") {
+    if (request.method === "GET") {
+      sendJson(response, 200, { email: user.email ?? null });
+      return;
+    }
+    if (request.method === "PUT") {
+      const body = await readBody(request);
+      const email = asString(body.email).trim();
+      // Basic format check — a full RFC-5322 validator isn't worth the complexity here.
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        badRequest(response, "invalid_email");
+        return;
+      }
+      await setEmail(storageDir, user.id, email || null);
+      sendJson(response, 200, { ok: true, email: email || null });
+      return;
+    }
+    notFound(response);
     return;
   }
 
@@ -947,6 +1061,8 @@ async function handleApi(request, response, url, user, session) {
           username: body.username,
           password: body.password,
           role,
+          email: body.email,
+          fullName: body.fullName,
         });
         void logEvent(storageDir, {
           userId: user.id,
@@ -1019,6 +1135,11 @@ async function handleApi(request, response, url, user, session) {
     const password = asString(body.password);
     if (!password) {
       badRequest(response, "password_required");
+      return;
+    }
+    const pwErr = validatePassword(password);
+    if (pwErr) {
+      badRequest(response, pwErr);
       return;
     }
     const targetId = decodeURIComponent(userPwMatch[1]);
@@ -1514,6 +1635,7 @@ if (encryptionEnabled) {
 // Drop revoked/expired sessions at startup, then periodically, so sessions.json
 // doesn't accumulate dead records. unref() keeps the timer from holding the
 // process open.
+await pruneResetTokens(storageDir);
 await pruneSessions(storageDir);
 setInterval(() => {
   void pruneSessions(storageDir);

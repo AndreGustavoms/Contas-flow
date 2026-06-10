@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -122,17 +123,8 @@ function slugify(value: string) {
   );
 }
 
-const WIZARD_STEPS = [
-  "Nome",
-  "Rede",
-  "Função",
-  "Email",
-  "Usuário",
-  "Senha",
-  "2FA",
-  "Confirmar",
-];
-const CONFIRM_STEP = WIZARD_STEPS.length - 1;
+const WIZARD_STEP_COUNT = 8;
+const CONFIRM_STEP = WIZARD_STEP_COUNT - 1;
 
 const selectTriggerClass =
   "group flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-3 text-sm font-medium text-[color:var(--text)] shadow-[inset_0_1px_0_var(--inset-light),0_16px_34px_var(--field-shadow)] outline-none backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] focus:border-[color:var(--accent)] focus:ring-4 focus:ring-[color:var(--focus-ring)]";
@@ -396,6 +388,7 @@ export function AccountVault({
   theme,
   user,
 }: AccountVaultProps) {
+  const { t } = useTranslation();
   const isAdmin = user?.role === "admin";
   // Per-user key for the (non-secret) selected group. Stable for this mount; a
   // different user means a different AccountVault mount with a different key.
@@ -518,7 +511,7 @@ export function AccountVault({
         // back to the first group the user can see.
         setActiveGroupId((current) => pickActiveGroup(data.groups, current));
       } catch {
-        setMessage("API offline");
+        setMessage(t("vault.api_offline"));
       }
     }
 
@@ -551,7 +544,7 @@ export function AccountVault({
 
         setAccountList(loaded.filter(isAccountRecord));
       } catch {
-        setMessage("API offline");
+        setMessage(t("vault.api_offline"));
       }
     }
 
@@ -579,7 +572,7 @@ export function AccountVault({
       setGroups(data.groups);
       return data;
     } catch {
-      setMessage("API offline");
+      setMessage(t("vault.api_offline"));
       return null;
     }
   }
@@ -651,7 +644,7 @@ export function AccountVault({
 
       setGroupDialog(null);
     } catch {
-      notify("Erro ao salvar grupo", "error");
+      notify(t("vault.toast_group_save_error"), "error");
     }
   }
 
@@ -683,10 +676,10 @@ export function AccountVault({
       // The deleted group was active; pick another visible one (or none).
       setActiveGroupId(pickActiveGroup(data.groups, ""));
       setConfirmDeleteGroup(false);
-      notify("Grupo excluído");
+      notify(t("vault.toast_group_deleted"));
     } catch (error) {
       if (isReauthRequired(error)) return; // user cancelled re-auth
-      notify("Erro ao excluir grupo", "error");
+      notify(t("vault.toast_group_delete_error"), "error");
     }
   }
 
@@ -770,11 +763,11 @@ export function AccountVault({
     (account) => account.status === "inactive",
   ).length;
   const statusTabs = [
-    { value: "archived", label: "Arquivadas", count: archivedCount },
-    { value: "active", label: "Ativas", count: activeCount },
-    { value: "review", label: "Revisar", count: reviewCount },
-    { value: "inactive", label: "Desativadas", count: inactiveCount },
-    { value: ALL, label: "Todas", count: accounts.length },
+    { value: "archived", label: t("vault.tab_archived"), count: archivedCount },
+    { value: "active", label: t("vault.tab_active"), count: activeCount },
+    { value: "review", label: t("vault.tab_review"), count: reviewCount },
+    { value: "inactive", label: t("vault.tab_disabled"), count: inactiveCount },
+    { value: ALL, label: t("vault.tab_all"), count: accounts.length },
   ] satisfies Array<{
     count: number;
     label: string;
@@ -867,7 +860,7 @@ export function AccountVault({
             account.id === editingId ? updated : account,
           ),
         );
-        notify("Conta atualizada");
+        notify(t("vault.toast_account_updated"));
         setIsAccountModalOpen(false);
         resetForm();
         return;
@@ -880,11 +873,11 @@ export function AccountVault({
 
       setAccountList([created, ...accounts]);
       bumpActiveGroupCount(1);
-      notify("Conta adicionada");
+      notify(t("vault.toast_account_added"));
       setIsAccountModalOpen(false);
       resetForm();
     } catch {
-      notify("Erro ao salvar a conta", "error");
+      notify(t("vault.toast_account_save_error"), "error");
     } finally {
       setIsSaving(false);
     }
@@ -917,9 +910,9 @@ export function AccountVault({
       setIsAccountModalOpen(false);
       setDeleteAccountId(null);
       resetForm();
-      notify("Conta removida");
+      notify(t("vault.toast_account_removed"));
     } catch {
-      notify("Erro ao remover a conta", "error");
+      notify(t("vault.toast_account_remove_error"), "error");
     }
   }
 
@@ -1004,7 +997,7 @@ export function AccountVault({
       });
       settleReauth(true);
     } catch {
-      setReauthError("Senha incorreta.");
+      setReauthError(t("vault.reauth_error"));
     }
   }
 
@@ -1021,7 +1014,7 @@ export function AccountVault({
       );
       return data.password ?? "";
     } catch {
-      notify("Não foi possível obter a senha", "error");
+      notify(t("vault.error_get_password"), "error");
       return "";
     }
   }
@@ -1076,7 +1069,7 @@ export function AccountVault({
       link.click();
       URL.revokeObjectURL(url);
     } catch {
-      notify("Não foi possível exportar", "error");
+      notify(t("vault.error_export"), "error");
     }
   }
 
@@ -1093,14 +1086,14 @@ export function AccountVault({
         const imported = Array.isArray(parsed) ? parsed : parsed.accounts;
 
         if (!Array.isArray(imported)) {
-          throw new Error("Formato inválido");
+          throw new Error(t("vault.error_import_format"));
         }
 
         // Imported backups always land in a brand-new group so they never
         // mix with the current (e.g. Vitissouls) accounts.
         const importedName =
           (typeof parsed?.group === "string" && parsed.group.trim()) ||
-          `Contas importadas ${new Date().toLocaleDateString("pt-BR")}`;
+          t("vault.import_group_name", { date: new Date().toLocaleDateString("pt-BR") });
 
         const createdGroup = await requestJson<GroupSummary>(API_GROUPS, {
           method: "POST",
@@ -1118,9 +1111,9 @@ export function AccountVault({
         await refreshGroups();
         setActiveGroupId(createdGroup.id);
         resetForm();
-        notify(`Importado para "${importedName}"`);
+        notify(t("vault.toast_imported", { group: importedName }));
       } catch {
-        notify("Backup inválido", "error");
+        notify(t("vault.error_backup_invalid"), "error");
       } finally {
         event.target.value = "";
       }
@@ -1158,12 +1151,12 @@ export function AccountVault({
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <NavAction
               icon={Download}
-              label="Exportar"
+              label={t("vault.export")}
               onClick={exportBackup}
             />
             <NavAction
               icon={Upload}
-              label="Importar"
+              label={t("vault.import")}
               onClick={() => importInputRef.current?.click()}
             />
 
@@ -1176,7 +1169,7 @@ export function AccountVault({
 
       <div className="grid grid-cols-1 xl:grid-cols-[228px_minmax(0,1fr)]">
         <aside className="app-sidebar relative flex flex-col gap-5 border-b py-5 pl-5 pr-4 backdrop-blur-2xl xl:sticky xl:top-[73px] xl:h-[calc(100vh-73px)] xl:border-b-0 xl:border-r xl:pl-6">
-          <SidebarSection label="Grupo">
+          <SidebarSection label={t("vault.group_section")}>
             <GroupSwitcher
               activeGroup={activeGroup}
               groups={groups}
@@ -1187,12 +1180,12 @@ export function AccountVault({
             />
           </SidebarSection>
 
-          <SidebarSection label="Redes">
+          <SidebarSection label={t("vault.networks_section")}>
             <SidebarButton
               active={platformFilter === ALL}
               count={accounts.length}
               icon={Layers}
-              label="Todas"
+              label={t("vault.all_filter")}
               onClick={() => setPlatformFilter(ALL)}
             />
             {sidebarPlatforms.map((platform) => (
@@ -1218,7 +1211,7 @@ export function AccountVault({
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] text-[color:var(--accent)] transition duration-300 group-hover/team:bg-[color:var(--field-hover)]">
                   <Users className="h-5 w-5" />
                 </span>
-                <span className="truncate">Equipe</span>
+                <span className="truncate">{t("vault.team")}</span>
               </button>
             ) : null}
 
@@ -1230,7 +1223,7 @@ export function AccountVault({
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] text-[color:var(--accent)] transition duration-300 group-hover/acct:bg-[color:var(--field-hover)]">
                 <UserCog className="h-5 w-5" />
               </span>
-              <span className="truncate">Minha conta</span>
+              <span className="truncate">{t("vault.my_account")}</span>
             </button>
 
             {onLock ? (
@@ -1242,7 +1235,7 @@ export function AccountVault({
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/15 text-red-300 transition duration-300 group-hover/exit:bg-red-500/25 group-hover/exit:text-red-200">
                   <ExitIcon className="h-5 w-5" />
                 </span>
-                <span className="truncate">Sair</span>
+                <span className="truncate">{t("vault.logout")}</span>
               </button>
             ) : null}
           </div>
@@ -1252,7 +1245,7 @@ export function AccountVault({
           <header className="flex flex-col gap-2">
             <div className="accent-pill inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium">
               <RadarTowerIcon className="h-4 w-4" />
-              Social access hub
+              {t("vault.badge")}
               <span className="radar-dot ml-0.5 h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
             </div>
           </header>
@@ -1269,7 +1262,7 @@ export function AccountVault({
           >
             <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="shrink-0">
-                <CardTitle>Registros</CardTitle>
+                <CardTitle>{t("vault.records")}</CardTitle>
                 <CardDescription>
                   {filteredAccounts.length} / {accounts.length}
                 </CardDescription>
@@ -1283,18 +1276,18 @@ export function AccountVault({
                 <div className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--muted)]" />
                   <Input
-                    aria-label="Buscar"
+                    aria-label={t("vault.search_label")}
                     className="pl-9"
-                    placeholder="Buscar"
+                    placeholder={t("vault.search_placeholder")}
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                   />
                 </div>
                 <FilterSelect
                   icon={Filter}
-                  label="Função"
+                  label={t("vault.role_label")}
                   options={[
-                    { value: ALL, label: "Funções" },
+                    { value: ALL, label: t("vault.roles_default") },
                     ...accountRoles.map((value) => ({ value })),
                   ]}
                   value={roleFilter}
@@ -1302,7 +1295,7 @@ export function AccountVault({
                 />
                 <Button size="sm" onClick={openCreateModal}>
                   <Plus className="h-4 w-4" />
-                  Nova conta
+                  {t("vault.new_account")}
                 </Button>
               </div>
             </CardHeader>
@@ -1325,7 +1318,7 @@ export function AccountVault({
                 </div>
               ) : (
                 <div className="flex min-h-[360px] items-center justify-center p-8 text-sm text-[color:var(--muted)]">
-                  Nenhuma conta.
+                  {t("vault.no_accounts")}
                 </div>
               )}
             </CardContent>
@@ -1392,10 +1385,10 @@ export function AccountVault({
 
       {confirmDeleteGroup && activeGroup ? (
         <ConfirmDialog
-          title="Excluir grupo"
-          message={`Excluir o grupo "${activeGroup.name}" e todas as suas contas?`}
-          note="Esta ação não pode ser desfeita."
-          confirmLabel="Excluir grupo"
+          title={t("vault.delete_group_title")}
+          message={t("vault.delete_group_confirm", { name: activeGroup.name })}
+          note={t("vault.delete_irreversible")}
+          confirmLabel={t("vault.delete_group_btn")}
           onCancel={() => setConfirmDeleteGroup(false)}
           onConfirm={confirmDeleteGroupNow}
         />
@@ -1403,13 +1396,13 @@ export function AccountVault({
 
       {deleteAccountId ? (
         <ConfirmDialog
-          title="Excluir conta"
-          message={`Remover "${titleFor(
+          title={t("vault.delete_account_title")}
+          message={t("vault.delete_account_confirm", { name: titleFor(
             accounts.find((account) => account.id === deleteAccountId) ??
               ({ label: "esta conta" } as AccountRecord),
-          )}" deste grupo?`}
-          note="Esta ação não pode ser desfeita."
-          confirmLabel="Excluir"
+          ) })}
+          note={t("vault.delete_irreversible")}
+          confirmLabel={t("vault.delete")}
           onCancel={() => setDeleteAccountId(null)}
           onConfirm={confirmDeleteAccountNow}
         />
@@ -1461,6 +1454,8 @@ function ModalShell({
   size = "sm",
   title,
 }: ModalShellProps) {
+  const { t } = useTranslation();
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -1475,7 +1470,7 @@ function ModalShell({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto px-4 py-6">
       <button
-        aria-label="Fechar"
+        aria-label={t("vault.close")}
         className="absolute inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
         type="button"
         onClick={onClose}
@@ -1495,7 +1490,7 @@ function ModalShell({
               {title}
             </h2>
             <Button
-              aria-label="Fechar"
+              aria-label={t("vault.close")}
               size="icon"
               variant="ghost"
               onClick={onClose}
@@ -1525,10 +1520,12 @@ function GroupDialog({
   onSubmit,
   value,
 }: GroupDialogProps) {
+  const { t } = useTranslation();
+
   return (
     <ModalShell
       onClose={onClose}
-      title={mode === "create" ? "Novo grupo" : "Renomear grupo"}
+      title={mode === "create" ? t("vault.modal_new_group") : t("vault.modal_rename_group")}
     >
       <form
         className="mt-5"
@@ -1537,21 +1534,21 @@ function GroupDialog({
           onSubmit();
         }}
       >
-        <Field label="Nome do grupo">
+        <Field label={t("vault.group_name_label")}>
           <Input
             autoFocus
             value={value}
-            placeholder="Ex: Vitissouls"
+            placeholder={t("vault.group_name_placeholder")}
             onChange={(event) => onChange(event.target.value)}
           />
         </Field>
         <div className="mt-6 flex items-center justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancelar
+            {t("vault.cancel")}
           </Button>
           <Button type="submit" disabled={!value.trim()}>
             <Save className="h-4 w-4" />
-            {mode === "create" ? "Criar" : "Salvar"}
+            {mode === "create" ? t("vault.create") : t("vault.save")}
           </Button>
         </div>
       </form>
@@ -1579,6 +1576,8 @@ function ConfirmDialog({
   onConfirm,
   title,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation();
+
   return (
     // Empty title => ModalShell skips its header; we render a fully centered,
     // symmetric layout instead (radar on top, title + message centered, two
@@ -1605,7 +1604,7 @@ function ConfirmDialog({
       </div>
       <div className="mt-7 grid grid-cols-2 gap-3">
         <Button type="button" variant="outline" onClick={onCancel}>
-          Cancelar
+          {t("vault.cancel")}
         </Button>
         <button
           className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-red-500 px-4 text-sm font-semibold text-white shadow-[0_10px_28px_-8px_rgba(239,68,68,0.7)] transition duration-300 hover:bg-red-400"
@@ -1670,6 +1669,17 @@ function AccountWizardModal({
   showPassword,
   step,
 }: AccountWizardModalProps) {
+  const { t } = useTranslation();
+  const wizardSteps = [
+    t("vault.wizard_step_name"),
+    t("vault.wizard_step_network"),
+    t("vault.wizard_step_role"),
+    t("vault.wizard_step_email"),
+    t("vault.wizard_step_username"),
+    t("vault.wizard_step_password"),
+    t("vault.wizard_step_2fa"),
+    t("vault.wizard_step_confirm"),
+  ];
   const isConfirmStep = step === CONFIRM_STEP;
 
   useEffect(() => {
@@ -1687,7 +1697,7 @@ function AccountWizardModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto px-4 py-6">
       <button
-        aria-label="Fechar"
+        aria-label={t("vault.close")}
         className="absolute inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
         type="button"
         onClick={onClose}
@@ -1704,17 +1714,17 @@ function AccountWizardModal({
         <div className="relative flex items-start justify-between gap-4">
           <div>
             <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--accent-muted)]">
-              {editing ? "Editar" : "Nova conta"}
+              {editing ? t("vault.wizard_edit") : t("vault.wizard_new")}
             </p>
             <h2
               className="mt-2 text-3xl font-semibold tracking-normal text-[color:var(--text)]"
               id="account-wizard-title"
             >
-              {WIZARD_STEPS[step]}
+              {wizardSteps[step]}
             </h2>
           </div>
           <Button
-            aria-label="Fechar"
+            aria-label={t("vault.close")}
             size="icon"
             variant="ghost"
             onClick={onClose}
@@ -1724,7 +1734,7 @@ function AccountWizardModal({
         </div>
 
         <div className="mt-5 grid grid-cols-8 gap-1.5">
-          {WIZARD_STEPS.map((label, index) => (
+          {wizardSteps.map((label, index) => (
             <span
               aria-label={label}
               className={cn(
@@ -1769,7 +1779,7 @@ function AccountWizardModal({
             {step > 0 ? (
               <Button type="button" variant="outline" onClick={onBack}>
                 <ArrowLeft className="h-4 w-4" />
-                Voltar
+                {t("vault.wizard_back")}
               </Button>
             ) : null}
           </div>
@@ -1786,7 +1796,7 @@ function AccountWizardModal({
               ) : (
                 <Save className="h-4 w-4" />
               )}
-              {isSaving ? "Salvando..." : editing ? "Salvar" : "Adicionar"}
+              {isSaving ? t("vault.wizard_saving") : editing ? t("vault.wizard_save") : t("vault.wizard_add")}
             </Button>
           ) : (
             <Button disabled={!canContinue} type="button" onClick={onNext}>
@@ -1814,13 +1824,15 @@ function WizardStepContent({
   showPassword,
   step,
 }: WizardStepContentProps) {
+  const { t } = useTranslation();
+
   if (step === 0) {
     return (
-      <Field label="Nome">
+      <Field label={t("vault.wizard_step_name")}>
         <Input
           autoFocus
           value={draft.label}
-          placeholder="YouTube principal"
+          placeholder={t("vault.wizard_name_placeholder")}
           onChange={(event) => onUpdate("label", event.target.value)}
         />
       </Field>
@@ -1862,13 +1874,13 @@ function WizardStepContent({
 
   if (step === 3) {
     return (
-      <Field label="Email">
+      <Field label={t("vault.field_email")}>
         <Input
           autoFocus
           autoComplete="username"
           inputMode="email"
           value={draft.email}
-          placeholder="email@dominio.com"
+          placeholder={t("vault.wizard_email_placeholder")}
           onChange={(event) => onUpdate("email", event.target.value)}
         />
       </Field>
@@ -1877,11 +1889,11 @@ function WizardStepContent({
 
   if (step === 4) {
     return (
-      <Field label="Usuário">
+      <Field label={t("vault.field_username")}>
         <Input
           autoFocus
           value={draft.username}
-          placeholder="@usuario"
+          placeholder={t("vault.wizard_username_placeholder")}
           onChange={(event) => onUpdate("username", event.target.value)}
         />
       </Field>
@@ -1890,7 +1902,7 @@ function WizardStepContent({
 
   if (step === 5) {
     return (
-      <Field label="Senha">
+      <Field label={t("vault.field_password")}>
         <div className="relative">
           <Input
             autoFocus
@@ -1898,11 +1910,11 @@ function WizardStepContent({
             className="pr-11"
             type={showPassword ? "text" : "password"}
             value={draft.password}
-            placeholder="Senha"
+            placeholder={t("vault.field_password")}
             onChange={(event) => onUpdate("password", event.target.value)}
           />
           <button
-            aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+            aria-label={showPassword ? t("vault.hide_password") : t("vault.show_password")}
             className="icon-soft absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg transition"
             type="button"
             onClick={onTogglePassword}
@@ -1926,13 +1938,13 @@ function WizardStepContent({
           onClick={() => onUpdate("twoFactor", true)}
         >
           <ShieldCheck className="h-4 w-4" />
-          Ativo
+          {t("vault.wizard_2fa_active")}
         </ChoiceButton>
         <ChoiceButton
           selected={!draft.twoFactor}
           onClick={() => onUpdate("twoFactor", false)}
         >
-          Não
+          {t("vault.wizard_2fa_no")}
         </ChoiceButton>
       </ChoiceGrid>
     );
@@ -1944,7 +1956,7 @@ function WizardStepContent({
         <PlatformGlyph platform={draft.platform} />
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-[color:var(--text)]">
-            {draft.label || "Sem nome"}
+            {draft.label || t("vault.wizard_no_name")}
           </p>
           <p className="mt-1 text-xs text-[color:var(--muted)]">
             {draft.platform} / {draft.role}
@@ -1953,10 +1965,10 @@ function WizardStepContent({
         <CheckCircle2 className="ml-auto h-5 w-5 text-[color:var(--accent-soft)]" />
       </div>
       <div className="grid gap-2 text-sm">
-        <SummaryRow label="Email" value={draft.email || "-"} />
-        <SummaryRow label="Usuário" value={draft.username || "-"} />
-        <SummaryRow label="Senha" value={draft.password ? "********" : "-"} />
-        <SummaryRow label="2FA" value={draft.twoFactor ? "Ativo" : "Não"} />
+        <SummaryRow label={t("vault.field_email")} value={draft.email || "-"} />
+        <SummaryRow label={t("vault.field_username")} value={draft.username || "-"} />
+        <SummaryRow label={t("vault.field_password")} value={draft.password ? "********" : "-"} />
+        <SummaryRow label={t("vault.wizard_step_2fa")} value={draft.twoFactor ? t("vault.wizard_2fa_active") : t("vault.wizard_2fa_no")} />
       </div>
     </div>
   );
@@ -2093,6 +2105,7 @@ function GroupSwitcher({
   onRename,
   onSelect,
 }: GroupSwitcherProps) {
+  const { t } = useTranslation();
   // Two independent popovers: the group list (left) and the compact actions
   // menu behind the "⋯" symbol (right). Only one is open at a time.
   const [open, setOpen] = useState<"list" | "actions" | null>(null);
@@ -2137,7 +2150,7 @@ function GroupSwitcher({
           </span>
           <span className="min-w-0 flex-1 truncate">
             {activeGroup?.name ??
-              (groups.length === 0 ? "Nenhum grupo" : "Carregando...")}
+              (groups.length === 0 ? t("vault.no_groups") : t("vault.loading"))}
           </span>
           <ChevronDown
             className={cn(
@@ -2150,8 +2163,8 @@ function GroupSwitcher({
         <button
           aria-expanded={open === "actions"}
           aria-haspopup="menu"
-          aria-label="Gerenciar grupos"
-          title="Gerenciar grupos"
+          aria-label={t("vault.manage_groups")}
+          title={t("vault.manage_groups")}
           className={cn(
             "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition duration-300",
             open === "actions"
@@ -2207,11 +2220,11 @@ function GroupSwitcher({
       {open === "actions" ? (
         <div className="animate-pop-in absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_24px_70px_var(--accent-glow)] backdrop-blur-2xl">
           <p className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
-            Gerenciar grupos
+            {t("vault.manage_groups")}
           </p>
           <GroupMenuItem
             icon={FolderPlus}
-            label="Criar novo grupo"
+            label={t("vault.new_group")}
             onClick={() => {
               setOpen(null);
               onCreate();
@@ -2219,7 +2232,7 @@ function GroupSwitcher({
           />
           <GroupMenuItem
             icon={Pencil}
-            label={`Renomear "${activeGroup?.name ?? "grupo"}"`}
+            label={t("vault.rename_group", { name: activeGroup?.name ?? "grupo" })}
             disabled={!activeGroup}
             onClick={() => {
               setOpen(null);
@@ -2229,7 +2242,7 @@ function GroupSwitcher({
           <GroupMenuItem
             danger
             icon={Trash}
-            label={`Excluir "${activeGroup?.name ?? "grupo"}"`}
+            label={t("vault.delete_group", { name: activeGroup?.name ?? "grupo" })}
             disabled={!activeGroup}
             onClick={() => {
               setOpen(null);
@@ -2802,6 +2815,7 @@ function ReauthModal({
   onCancel: () => void;
   onSubmit: (password: string) => void;
 }) {
+  const { t } = useTranslation();
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -2814,16 +2828,16 @@ function ReauthModal({
   }
 
   return (
-    <ModalShell onClose={onCancel} size="sm" title="Confirme sua senha">
+    <ModalShell onClose={onCancel} size="sm" title={t("vault.reauth_title")}>
       <p className="mt-1 text-sm text-[color:var(--muted)]">
-        Esta ação é sensível. Digite sua senha para continuar.
+        {t("vault.reauth_instruction")}
       </p>
       <form className="mt-5 grid gap-4" onSubmit={handleSubmit}>
         <Input
           autoFocus
           autoComplete="current-password"
           className="h-11 rounded-2xl px-4"
-          placeholder="Senha"
+          placeholder={t("vault.reauth_password")}
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -2831,11 +2845,11 @@ function ReauthModal({
         {error ? <p className="text-sm text-red-300">{error}</p> : null}
         <div className="grid grid-cols-2 gap-3">
           <Button type="button" variant="outline" onClick={onCancel}>
-            Cancelar
+            {t("vault.reauth_cancel")}
           </Button>
           <Button type="submit" variant="neon" disabled={!password || submitting}>
             {submitting ? <Spinner className="h-4 w-4" /> : <KeyRound className="h-4 w-4" />}
-            Confirmar
+            {t("vault.reauth_confirm")}
           </Button>
         </div>
       </form>
@@ -2869,6 +2883,8 @@ function QuickViewModal({
   revealedPassword,
   onTogglePassword,
 }: QuickViewModalProps) {
+  const { t } = useTranslation();
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -2884,7 +2900,7 @@ function QuickViewModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto px-4 py-6">
       <button
-        aria-label="Fechar"
+        aria-label={t("vault.close")}
         className="absolute inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
         type="button"
         onClick={onClose}
@@ -2914,7 +2930,7 @@ function QuickViewModal({
             </div>
           </div>
           <Button
-            aria-label="Fechar"
+            aria-label={t("vault.close")}
             size="icon"
             variant="ghost"
             onClick={onClose}
@@ -2927,7 +2943,8 @@ function QuickViewModal({
           <QuickField
             copied={copiedKey === `${account.id}:email`}
             icon={Mail}
-            label="Email"
+            label={t("vault.field_email")}
+            copyLabel={t("vault.copy_email")}
             value={account.email}
             onCopy={() => onCopy(account.email, `${account.id}:email`)}
           />
@@ -2943,7 +2960,10 @@ function QuickViewModal({
                   ? "set"
                   : ""
             }
-            label="Senha"
+            label={t("vault.field_password")}
+            copyLabel={t("vault.copy_password")}
+            showLabel={t("vault.show_password")}
+            hideLabel={t("vault.hide_password")}
             secret
             revealed={passwordRevealed}
             onToggleReveal={onTogglePassword}
@@ -2958,11 +2978,11 @@ function QuickViewModal({
             onClick={onDelete}
           >
             <Trash2 className="h-4 w-4" />
-            Excluir
+            {t("vault.delete")}
           </button>
           <Button size="sm" variant="outline" onClick={onEdit}>
             <Pencil className="h-4 w-4" />
-            Editar
+            {t("vault.edit")}
           </Button>
         </div>
       </section>
@@ -2976,6 +2996,10 @@ type QuickFieldProps = {
   label: string;
   value: string;
   onCopy: () => void;
+  // Optional translated labels for copy/show/hide buttons.
+  copyLabel?: string;
+  showLabel?: string;
+  hideLabel?: string;
   // When set, the value is treated as a secret: masked until revealed, with a
   // reveal toggle. `revealed`/`onToggleReveal` are controlled by the parent so
   // the reveal can auto-hide on a timer.
@@ -2990,6 +3014,9 @@ function QuickField({
   label,
   value,
   onCopy,
+  copyLabel,
+  showLabel,
+  hideLabel,
   secret = false,
   revealed = false,
   onToggleReveal,
@@ -3009,7 +3036,7 @@ function QuickField({
           <IconButton
             disabled={!value}
             icon={revealed ? EyeOff : Eye}
-            label={revealed ? "Ocultar senha" : "Mostrar senha"}
+            label={revealed ? (hideLabel ?? "Ocultar senha") : (showLabel ?? "Mostrar senha")}
             onClick={() => onToggleReveal?.()}
             selected={revealed}
           />
@@ -3017,7 +3044,7 @@ function QuickField({
         <IconButton
           disabled={!value}
           icon={Copy}
-          label={`Copiar ${label.toLowerCase()}`}
+          label={copyLabel ?? `Copiar ${label.toLowerCase()}`}
           onClick={onCopy}
           selected={copied}
         />

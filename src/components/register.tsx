@@ -143,7 +143,7 @@ export function Register({ onBack, onDone, theme }: RegisterProps) {
                     onChange={(e) => setUsername(e.target.value)}
                   />
                   <label htmlFor="reg-username">
-                    {"Username".split("").map((char, i) => (
+                    {"Usuário".split("").map((char, i) => (
                       <span key={i} style={{ transitionDelay: `${i * 50}ms` }}>{char}</span>
                     ))}
                   </label>

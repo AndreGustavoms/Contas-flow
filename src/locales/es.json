@@ -27,7 +27,8 @@
     "or": "o",
     "create_account": "Crear cuenta",
     "continue_google": "Continuar con Google",
-    "continue_github": "Continuar con GitHub"
+    "continue_github": "Continuar con GitHub",
+    "error_field_required": "Campo obligatorio."
   },
   "account": {
     "title": "Mi cuenta",

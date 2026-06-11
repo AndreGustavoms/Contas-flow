@@ -40,14 +40,6 @@ export function ForgotPassword({ onBack, theme }: ForgotPasswordProps) {
   return (
     <main className={cn(`theme-${theme}`, "app-shell login-shell min-h-screen")}>
       <div className="login-layout">
-        <section className="login-brand-panel">
-          <div className="login-brand-content">
-            <div className="login-brand-copy">
-              <img src="/login-brand-hero.png" alt="" className="login-brand-hero-logo" />
-            </div>
-          </div>
-        </section>
-
         <section className="login-form-panel">
           <LangTerminal />
 

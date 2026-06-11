@@ -82,9 +82,18 @@
 }
 
 
+html {
+  /* iOS Safari: don't inflate text after orientation changes. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   min-width: 320px;
+  /* 100dvh tracks the real visible viewport on mobile (address bar shows/
+     hides); browsers without dvh keep the 100vh fallback. */
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   background: var(--page-bg, #070a12);
   color: var(--text, #e2e8f0);
@@ -95,6 +104,33 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+/* Touch hygiene: no gray flash on tap, no 300ms double-tap-zoom delay on
+   controls. scoped to interactive elements so page pinch-zoom keeps working. */
+button,
+[role="button"],
+a,
+label,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+[role="button"],
+a {
+  touch-action: manipulation;
+}
+
+/* Media never overflows its container. Hero/logo classes that need to bleed
+   set their own max-width and win by specificity. */
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
 }
 
 ::selection {
@@ -204,6 +240,7 @@ textarea {
 .login-shell {
   position: relative;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
   background: var(--login-page-bg, #f6f8fb);
   color: var(--login-form-text, #0f172a);
@@ -265,6 +302,7 @@ textarea {
 .login-layout {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--login-page-bg);
 }
 
@@ -602,6 +640,7 @@ textarea {
   display: flex;
   flex: 1;
   min-height: 100vh;
+  min-height: 100dvh;
   min-width: 0;
   align-items: center;
   justify-content: center;
@@ -934,8 +973,33 @@ textarea {
   line-height: 1.55;
 }
 
+/* Marca compacta usada apenas no mobile (ver media query de 900px): logo +
+   nome centralizados acima do título do formulário. */
 .login-mobile-brand {
   display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-bottom: 1.5rem;
+  color: var(--login-form-text);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.login-mobile-mark {
+  display: flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--login-border);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .login-label {
@@ -992,11 +1056,16 @@ textarea {
   border-radius: 8px;
   background: rgba(185, 28, 28, 0.12);
   border: 1px solid rgba(185, 28, 28, 0.35);
-  color: #f87171;
+  /* Vermelho escuro no tema claro (contraste AA); o dark clareia abaixo. */
+  color: #b91c1c;
   font-size: 0.85rem;
   font-weight: 500;
   letter-spacing: 0.01em;
   animation: login-error-in 0.25s ease;
+}
+
+.theme-dark .login-error {
+  color: #f87171;
 }
 
 .login-error::before {
@@ -1022,13 +1091,18 @@ textarea {
   position: absolute;
   top: 100%;
   left: 0;
+  max-width: 100%;
   margin-top: 0.25rem;
-  color: #e05252;
+  color: #b91c1c;
   font-size: 0.72rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.01em;
-  opacity: 0.85;
-  white-space: nowrap;
+  /* Quebra normal: nowrap estourava a largura em telas de 320px. */
+  white-space: normal;
+}
+
+.theme-dark .login-field-error {
+  color: #f87171;
 }
 
 /* ── form-alert ── */
@@ -1112,45 +1186,28 @@ textarea {
 }
 
 @media (max-width: 900px) {
+  /* Empilha o layout: o painel de marca some (o formulário é a tela inteira)
+     e o formulário ancora no topo, melhor convivência com o teclado mobile. */
   .login-layout {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 
-  .login-brand-panel {
-    min-height: auto;
-    padding: 1rem 1.25rem;
-  }
-
-  .login-brand-content {
-    position: static;
-    inset: auto;
-    height: auto;
-    width: 100%;
-    margin: 0;
-  }
-
-  .login-brand-lockup {
-    position: static;
-    left: auto;
-    top: auto;
-    margin-bottom: 0;
-  }
-
-  .login-brand-mark {
-    height: 2.75rem;
-    width: 2.75rem;
-    border-radius: 0.625rem;
-  }
-
-  .login-brand-copy,
+  .login-brand-panel,
   .login-footer {
     display: none;
   }
 
   .login-form-panel {
-    min-height: calc(100vh - 4.75rem);
+    min-height: 100vh;
+    min-height: 100dvh;
     align-items: flex-start;
-    padding: 2rem 1.25rem 2.5rem;
+    /* Topo livre para o toggle de tema fixo (top-4 + 32px de altura);
+       laterais/base respeitam notch e home indicator. */
+    padding:
+      calc(4.25rem + env(safe-area-inset-top, 0px))
+      max(1.25rem, env(safe-area-inset-right, 0px))
+      calc(2.5rem + env(safe-area-inset-bottom, 0px))
+      max(1.25rem, env(safe-area-inset-left, 0px));
     border-left: 0;
     border-radius: 0;
     box-shadow: none;
@@ -1159,16 +1216,38 @@ textarea {
   .login-theme-row {
     margin-bottom: 2.5rem;
   }
+
+  /* Marca compacta no topo das telas sem o selo circular (cadastro,
+     recuperação e redefinição de senha). */
+  .login-shell:not(:has(.login-brand-circle)) .login-mobile-brand {
+    display: flex;
+  }
+
+  /* Terminal de idiomas: no mobile vai para o canto superior esquerdo (o
+     toggle de tema ocupa o direito) e expande para baixo, em vez de ficar
+     ancorado embaixo cobrindo os botões do formulário. */
+  .login-terminal {
+    top: calc(0.75rem + env(safe-area-inset-top, 0px));
+    left: calc(0.75rem + env(safe-area-inset-left, 0px));
+    right: auto;
+    bottom: auto;
+  }
 }
 
 @media (max-width: 600px) {
-  .login-form-panel {
-    justify-content: flex-start;
+  .login-form-shell {
+    width: 100%;
+    max-width: 23.5rem;
+    margin-inline: auto;
   }
 
-  .login-form-shell {
-    width: min(100%, 21.75rem);
-    max-width: calc(100vw - 2.5rem);
+  /* Selo circular menor e sem o deslocamento de -40px que cortava o topo
+     em telas pequenas. */
+  .login-brand-circle {
+    width: 220px;
+    height: 220px;
+    transform: none;
+    margin-bottom: 1.25rem;
   }
 }
 
@@ -1938,6 +2017,108 @@ textarea {
   color: var(--muted-soft);
   font-size: 0.875rem;
   animation: rise 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ============================================================================
+   Mobile, toque e safe-area
+   ========================================================================= */
+
+/* Campos de senha com toggle ganham folga à direita para o texto digitado
+   não passar por baixo do botão de mostrar/ocultar. */
+.animated-field:has(.animated-field-toggle) input {
+  padding-right: 3rem;
+}
+
+/* Foco visível por teclado nos botões customizados (os componentes Button já
+   têm focus-visible próprio). */
+.vault-btn-primary:focus-visible,
+.vault-nav-btn:focus-visible,
+.login-btn-primary:focus-visible,
+.login-btn-ghost:focus-visible,
+.login-btn-animated:focus-visible,
+.login-oauth-btn:focus-visible,
+.login-terminal-lang:focus-visible,
+.login-terminal-header:focus-visible {
+  outline: 2px solid var(--accent, #22c55e);
+  outline-offset: 2px;
+}
+
+/* Alvos de toque ≥44px em dispositivos de toque, sem mudar o visual desktop. */
+@media (pointer: coarse) {
+  .animated-field-toggle,
+  .login-password-toggle {
+    height: 2.75rem;
+    width: 2.75rem;
+    justify-content: center;
+  }
+
+  .login-oauth-btn,
+  .vault-btn-primary,
+  .vault-nav-btn {
+    height: 2.75rem;
+  }
+
+  .login-btn-ghost {
+    min-height: 2.75rem;
+  }
+
+  .login-terminal-header {
+    min-height: 2.75rem;
+  }
+
+  .login-terminal-lang {
+    min-height: 2.5rem;
+  }
+}
+
+/* Navbar do vault em telas pequenas: padding compacto + respeito ao notch. */
+@media (max-width: 640px) {
+  .vault-navbar {
+    gap: 0.75rem;
+    padding:
+      calc(0.6rem + env(safe-area-inset-top, 0px))
+      max(0.875rem, env(safe-area-inset-right, 0px))
+      0.6rem
+      max(0.875rem, env(safe-area-inset-left, 0px));
+  }
+
+  /* Blur mais leve em telas pequenas: backdrop-filter alto é caro em GPU
+     mobile e custa scroll fps. */
+  .vault-navbar,
+  .vault-sidebar,
+  .vault-card {
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    backdrop-filter: blur(10px) saturate(140%);
+  }
+}
+
+/* Toggle de tema compacto em telas estreitas (a versão de 120px + ícones
+   ocupava metade da navbar e era cortada em 320–360px). */
+@media (max-width: 480px) {
+  .theme-switch-icon {
+    display: none;
+  }
+
+  .theme-switch-inner {
+    width: 96px;
+  }
+
+  .theme-switch-inner::after {
+    width: 46px;
+  }
+
+  .theme-switch input[type="checkbox"]:checked + .theme-switch-inner::after {
+    left: calc(100% - 49px);
+  }
+
+  .theme-switch-inner::before {
+    right: 10px;
+  }
+
+  .theme-switch input[type="checkbox"]:checked + .theme-switch-inner::before {
+    right: auto;
+    left: 10px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

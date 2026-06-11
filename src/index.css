@@ -314,11 +314,18 @@ textarea {
   --login-border: #2d3447;
   --login-input-bg: #1e2435;
   --login-input-border: #2d3447;
-  --login-primary: #22d3ee;
-  --login-primary-hover: #38bdf8;
+  --login-primary: #e2e8f0;
+  --login-primary-hover: #f1f5f9;
   --login-focus: rgba(34, 211, 238, 0.14);
   --muted: #94a3b8;
   --text: #e2e8f0;
+  --panel-strong: #1e2435;
+  --field: #1e2435;
+  --field-hover: #252d40;
+  --border: #2d3447;
+  --surface-soft: rgba(255,255,255,0.04);
+  --inset-light: rgba(255,255,255,0.06);
+  --field-shadow: rgba(0,0,0,0.3);
 }
 
 .theme-white.login-shell {
@@ -335,9 +342,8 @@ textarea {
 }
 
 .login-layout {
-  display: grid;
+  display: flex;
   min-height: 100vh;
-  grid-template-columns: minmax(320px, 48vw) minmax(0, 1fr);
   background: var(--login-page-bg);
 }
 
@@ -434,9 +440,21 @@ textarea {
   max-height: none;
   aspect-ratio: auto;
   object-fit: cover;
-  object-position: center center;
+  object-position: center 20%;
   border-radius: 0;
   transform: none;
+}
+
+/* Overlay que esconde texto genérico da imagem hero e melhora profundidade */
+.login-brand-copy::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.18) 30%, transparent 60%),
+    linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, transparent 20%);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .login-terminal {
@@ -661,17 +679,17 @@ textarea {
 .login-form-panel {
   position: relative;
   display: flex;
+  flex: 1;
   min-height: 100vh;
   min-width: 0;
   align-items: center;
   justify-content: center;
   padding: clamp(2rem, 6vw, 5rem);
-  border-left: 1px solid rgba(15, 23, 42, 0.06);
-  border-top-left-radius: 3rem;
-  border-bottom-left-radius: 3rem;
-  background: var(--login-form-bg);
+  border-left: none;
+  border-radius: 0;
+  background: var(--login-page-bg);
   color: var(--login-form-text);
-  box-shadow: -18px 0 45px rgba(15, 23, 42, 0.08);
+  box-shadow: none;
   --page-bg: var(--login-form-bg);
   --text: var(--login-form-text);
   --muted: var(--login-form-muted);
@@ -707,29 +725,80 @@ textarea {
   width: 100%;
 }
 
-.login-btn-animated {
+/* base compartilhado dos botões de login */
+.login-btn-animated,
+.login-btn-primary,
+.login-btn-ghost {
   position: relative;
-  overflow: hidden;
-  font-size: 17px;
-  text-transform: uppercase;
-  padding: 1em 2.5em;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5em;
   width: 100%;
-  cursor: pointer;
-  border-radius: 6em;
-  border: 2px solid #111;
+  padding: 0.85em 2em;
   font-family: inherit;
-  font-weight: 500;
-  color: #111;
-  background-color: white;
-  transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, transform 0.15s ease, box-shadow 0.15s ease;
-  z-index: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 6em;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.login-btn-animated:hover {
+/* ── Botão primário (Entrar) — destaque sólido ── */
+.login-btn-primary {
+  background-color: var(--login-form-text, #0f172a);
+  border: 2px solid var(--login-form-text, #0f172a);
+  color: var(--login-form-bg, #ffffff);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+.login-btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.26);
+  opacity: 0.9;
+}
+
+.login-btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* ── Botão ghost (Criar conta) — discreto ── */
+.login-btn-ghost {
+  background-color: transparent;
+  border: 1.5px solid color-mix(in srgb, var(--login-form-text, #0f172a) 30%, transparent);
+  color: var(--login-form-muted, #64748b);
+  padding: 0.55em 1.5em;
+  font-size: 0.8rem;
+  width: auto;
+  align-self: center;
+}
+
+.login-btn-ghost:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--login-form-text, #0f172a) 55%, transparent);
+  color: var(--login-form-text, #0f172a);
+  transform: translateY(-1px);
+}
+
+.login-btn-primary:disabled,
+.login-btn-ghost:disabled,
+.login-btn-animated:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* legado — mantido para reset-password / forgot-password */
+.login-btn-animated {
+  background-color: white;
+  border: 2px solid #111;
+  color: #111;
+}
+
+.login-btn-animated:hover:not(:disabled) {
   background-color: #111;
   border-color: #111;
   color: white;
@@ -742,43 +811,42 @@ textarea {
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
 }
 
-.login-btn-animated:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
+/* ── Divisor "ou" ── */
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.6rem 0;
+}
+
+.login-divider span:first-child,
+.login-divider span:last-child {
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--login-form-muted, #94a3b8) 30%, transparent);
+}
+
+.login-divider span:nth-child(2) {
+  font-size: 0.72rem;
+  color: var(--login-form-muted, #94a3b8);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .theme-dark .login-form-panel {
-  border-left-color: rgba(255,255,255,0.06);
-  box-shadow: -18px 0 45px rgba(0,0,0,0.35);
-  --panel-strong: #1e2435;
-  --field: #1e2435;
-  --field-hover: #252d40;
-  --border: #2d3447;
-  --surface-soft: rgba(255,255,255,0.04);
-  --inset-light: rgba(255,255,255,0.06);
-  --field-shadow: rgba(0,0,0,0.3);
+  border-left-color: transparent;
+  box-shadow: none;
 }
 
-.theme-dark .login-btn-animated {
-  background-color: #1e2435;
-  border-color: #94a3b8;
-  color: #e2e8f0;
+.theme-dark .login-btn-primary {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
-.theme-dark .login-btn-animated:hover {
-  background-color: #e2e8f0;
-  border-color: #e2e8f0;
-  color: #0f1117;
+.theme-dark .login-btn-primary:hover:not(:disabled) {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
-.theme-dark .animated-field input:-webkit-autofill,
-.theme-dark .animated-field input:-webkit-autofill:hover,
-.theme-dark .animated-field input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px #1e2435 inset;
-  -webkit-text-fill-color: #e2e8f0;
-}
 
 .theme-dark .animated-field input:focus,
 .theme-dark .animated-field input:valid {
@@ -792,7 +860,7 @@ textarea {
 
 .animated-field {
   position: relative;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2.25rem;
   width: 100%;
 }
 
@@ -837,8 +905,19 @@ textarea {
 .login-input:-webkit-autofill,
 .login-input:-webkit-autofill:hover,
 .login-input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px transparent inset;
-  -webkit-text-fill-color: var(--login-form-text, #1a1a1a);
+  -webkit-box-shadow: 0 0 0 1000px #f8fafc inset;
+  -webkit-text-fill-color: #0f172a;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.theme-dark .animated-field input:-webkit-autofill,
+.theme-dark .animated-field input:-webkit-autofill:hover,
+.theme-dark .animated-field input:-webkit-autofill:focus,
+.theme-dark .login-input:-webkit-autofill,
+.theme-dark .login-input:-webkit-autofill:hover,
+.theme-dark .login-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #181c27 inset;
+  -webkit-text-fill-color: #e2e8f0;
   transition: background-color 5000s ease-in-out 0s;
 }
 
@@ -873,6 +952,7 @@ textarea {
 
 .login-heading {
   margin-bottom: 2.75rem;
+  text-align: center;
 }
 
 .login-heading h2 {
@@ -883,6 +963,46 @@ textarea {
   letter-spacing: 0;
   line-height: 1.12;
   text-shadow: none;
+}
+
+.login-brand-circle {
+  position: relative;
+  width: 210px;
+  height: 210px;
+  margin: 0 auto 1.75rem;
+  transform: translateY(-40px);
+}
+
+.login-brand-circle-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  animation: login-brand-spin 18s linear infinite;
+}
+
+.login-brand-circle-text {
+  fill: var(--login-form-text);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+
+.login-brand-logo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 10px;
+}
+
+@keyframes login-brand-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 .login-heading p {
@@ -945,6 +1065,19 @@ textarea {
   margin-top: 1rem;
   color: #b91c1c;
   font-size: 0.875rem;
+}
+
+.login-field-error {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.25rem;
+  color: #e05252;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  opacity: 0.85;
+  white-space: nowrap;
 }
 
 /* ── form-alert ── */

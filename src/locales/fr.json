@@ -27,7 +27,8 @@
     "or": "ou",
     "create_account": "Créer un compte",
     "continue_google": "Continuer avec Google",
-    "continue_github": "Continuer avec GitHub"
+    "continue_github": "Continuer avec GitHub",
+    "error_field_required": "Champ obligatoire."
   },
   "account": {
     "title": "Mon compte",

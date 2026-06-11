@@ -24,10 +24,13 @@
     "forgot_sent": "Se esse e-mail estiver cadastrado, você receberá um link em instantes. Verifique também a pasta de spam.",
     "back_to_login": "Voltar para o login",
     "email_label": "E-mail",
+    "welcome_title": "Bem-vindo de volta",
+    "welcome_subtitle": "Entre com suas credenciais para acessar sua conta.",
     "or": "ou",
     "create_account": "Criar conta",
     "continue_google": "Continuar com Google",
-    "continue_github": "Continuar com GitHub"
+    "continue_github": "Continuar com GitHub",
+    "error_field_required": "Campo obrigatório."
   },
   "account": {
     "title": "Minha conta",

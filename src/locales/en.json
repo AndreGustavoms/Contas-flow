@@ -24,10 +24,13 @@
     "forgot_sent": "If that e-mail is registered, you'll receive a link shortly. Check your spam folder too.",
     "back_to_login": "Back to login",
     "email_label": "E-mail",
+    "welcome_title": "Welcome back",
+    "welcome_subtitle": "Sign in with your credentials to access your account.",
     "or": "or",
     "create_account": "Create account",
     "continue_google": "Continue with Google",
-    "continue_github": "Continue with GitHub"
+    "continue_github": "Continue with GitHub",
+    "error_field_required": "This field is required."
   },
   "account": {
     "title": "My account",

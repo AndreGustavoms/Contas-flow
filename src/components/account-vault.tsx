@@ -120,7 +120,7 @@ const WIZARD_STEP_COUNT = 8;
 const CONFIRM_STEP = WIZARD_STEP_COUNT - 1;
 
 const selectTriggerClass =
-  "group flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-3 text-sm font-medium text-[color:var(--text)] shadow-[inset_0_1px_0_var(--inset-light),0_16px_34px_var(--field-shadow)] outline-none backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] focus:border-[color:var(--accent)] focus:ring-4 focus:ring-[color:var(--focus-ring)]";
+  "group flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-3 text-sm font-medium text-[color:var(--text)] shadow-[inset_0_1px_0_var(--inset-light),0_16px_34px_var(--field-shadow)] outline-none backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] focus:border-[color:var(--accent)] focus:ring-4 focus:ring-[color:var(--focus-ring)] sm:h-10";
 
 const textCollator = new Intl.Collator("pt-BR", {
   numeric: true,
@@ -1138,29 +1138,34 @@ export function AccountVault({
       <nav className="vault-navbar">
         <div className="flex min-w-0 items-center gap-3">
           <BrandLogo />
-          <div className="min-w-0">
+          {/* O nome some abaixo de 420px para a navbar caber em uma linha. */}
+          <div className="hidden min-w-0 min-[420px]:block">
             <p className="truncate font-mono text-sm font-semibold tracking-wide text-[color:var(--text)]">
               Contas_exe
             </p>
           </div>
         </div>
 
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <button
+            aria-label={t("vault.export")}
             className="vault-nav-btn"
+            title={t("vault.export")}
             type="button"
             onClick={exportBackup}
           >
             <Download className="h-4 w-4" />
-            {t("vault.export")}
+            <span className="hidden sm:inline">{t("vault.export")}</span>
           </button>
           <button
+            aria-label={t("vault.import")}
             className="vault-nav-btn"
+            title={t("vault.import")}
             type="button"
             onClick={() => importInputRef.current?.click()}
           >
             <Upload className="h-4 w-4" />
-            {t("vault.import")}
+            <span className="hidden sm:inline">{t("vault.import")}</span>
           </button>
 
           <span className="mx-1 hidden h-7 w-px bg-[color:var(--border)] lg:block" />
@@ -1169,8 +1174,14 @@ export function AccountVault({
         </div>
       </nav>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[228px_minmax(0,1fr)]">
-        <aside className="vault-sidebar relative flex flex-col gap-5 border-b py-5 pl-5 pr-4 xl:sticky xl:top-[73px] xl:h-[calc(100vh-73px)] xl:border-b-0 xl:pl-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[228px_minmax(0,1fr)]">
+        {/*
+          Sidebar: coluna fixa a partir de lg (1024px). Abaixo disso vira um
+          cabeçalho compacto: grupo em cima, plataformas em fileira horizontal
+          rolável e ações (equipe/conta/sair) lado a lado — em vez de uma
+          pilha de ~600px empurrando o conteúdo para fora da primeira dobra.
+        */}
+        <aside className="vault-sidebar relative flex flex-col gap-4 border-b px-4 py-4 lg:sticky lg:top-[73px] lg:h-[calc(100vh-73px)] lg:gap-5 lg:overflow-y-auto lg:border-b-0 lg:py-5 lg:pl-6 lg:pr-4">
           <SidebarSection label={t("vault.group_section")}>
             <GroupSwitcher
               activeGroup={activeGroup}
@@ -1182,7 +1193,10 @@ export function AccountVault({
             />
           </SidebarSection>
 
-          <SidebarSection label={t("vault.networks_section")}>
+          <SidebarSection
+            itemsClassName="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 lg:mx-0 lg:block lg:gap-0 lg:space-y-1 lg:overflow-visible lg:px-0 lg:pb-0"
+            label={t("vault.networks_section")}
+          >
             <SidebarButton
               active={platformFilter === ALL}
               count={accounts.length}
@@ -1203,10 +1217,10 @@ export function AccountVault({
             ))}
           </SidebarSection>
 
-          <div className="mt-auto space-y-1.5 pt-4">
+          <div className="mt-1 flex gap-2 lg:mt-auto lg:flex-col lg:gap-1.5 lg:pt-4">
             {isAdmin ? (
               <button
-                className="group/team flex h-11 w-full items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-sm font-semibold text-[color:var(--muted)] transition-all duration-300 hover:translate-x-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
+                className="group/team flex h-11 w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-sm font-semibold text-[color:var(--muted)] transition-all duration-300 hover:translate-x-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
                 type="button"
                 onClick={() => setUsersDialogOpen(true)}
               >
@@ -1218,7 +1232,7 @@ export function AccountVault({
             ) : null}
 
             <button
-              className="group/acct flex h-11 w-full items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-sm font-semibold text-[color:var(--muted)] transition-all duration-300 hover:translate-x-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
+              className="group/acct flex h-11 w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-sm font-semibold text-[color:var(--muted)] transition-all duration-300 hover:translate-x-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
               type="button"
               onClick={() => setAccountSettingsOpen(true)}
             >
@@ -1230,7 +1244,7 @@ export function AccountVault({
 
             {onLock ? (
               <button
-                className="group/exit flex h-11 w-full items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-sm font-semibold text-[color:var(--muted)] transition-all duration-300 hover:translate-x-0.5 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-200"
+                className="group/exit flex h-11 w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-sm font-semibold text-[color:var(--muted)] transition-all duration-300 hover:translate-x-0.5 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-200"
                 type="button"
                 onClick={onLock}
               >
@@ -1275,7 +1289,7 @@ export function AccountVault({
                     {message}
                   </span>
                 ) : null}
-                <div className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
+                <div className="relative min-w-0 flex-1 basis-full sm:w-56 sm:flex-none sm:basis-auto">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--muted)]" />
                   <Input
                     aria-label={t("vault.search_label")}
@@ -1482,22 +1496,26 @@ function ModalShell({
   }, [onClose]);
 
   return (
+    // Wrapper rolável + painel com m-auto: centraliza quando cabe e permite
+    // rolar até o TOPO quando o modal é mais alto que a tela (items-center
+    // cortava o início do modal no mobile). O backdrop é fixed para cobrir o
+    // viewport inteiro mesmo com o wrapper rolado.
     <div
       className={cn(
-        "fixed inset-0 flex items-center justify-center overflow-y-auto px-4 py-6",
+        "fixed inset-0 flex overflow-y-auto overscroll-contain px-4 py-6",
         modalLayerClass[layer],
       )}
     >
       <button
         aria-label={t("vault.close")}
-        className="absolute inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
+        className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
         type="button"
         onClick={onClose}
       />
       <section
         aria-modal="true"
         className={cn(
-          "app-panel animate-pop-in relative w-full overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6",
+          "app-panel animate-pop-in relative m-auto w-full overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6",
           size === "lg" ? "max-w-lg" : size === "md" ? "max-w-md" : "max-w-sm",
         )}
         role="dialog"
@@ -1714,10 +1732,10 @@ function AccountWizardModal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto px-4 py-6">
+    <div className="fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
       <button
         aria-label={t("vault.close")}
-        className="absolute inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
+        className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
         type="button"
         onClick={onClose}
       />
@@ -1725,7 +1743,7 @@ function AccountWizardModal({
       <section
         aria-labelledby="account-wizard-title"
         aria-modal="true"
-        className="app-panel animate-pop-in relative w-full max-w-xl overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6"
+        className="app-panel animate-pop-in relative m-auto w-full max-w-xl overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6"
         role="dialog"
       >
         <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />
@@ -1736,7 +1754,7 @@ function AccountWizardModal({
               {editing ? t("vault.wizard_edit") : t("vault.wizard_new")}
             </p>
             <h2
-              className="mt-2 text-3xl font-semibold tracking-normal text-[color:var(--text)]"
+              className="mt-2 text-2xl font-semibold tracking-normal text-[color:var(--text)] sm:text-3xl"
               id="account-wizard-title"
             >
               {wizardSteps[step]}
@@ -1934,7 +1952,7 @@ function WizardStepContent({
           />
           <button
             aria-label={showPassword ? t("vault.hide_password") : t("vault.show_password")}
-            className="icon-soft absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg transition"
+            className="icon-soft absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg transition"
             type="button"
             onClick={onTogglePassword}
           >
@@ -2080,7 +2098,8 @@ function StatusTabs({ onChange, tabs, value }: StatusTabsProps) {
         return (
           <button
             className={cn(
-              "flex h-8 shrink-0 items-center gap-2 rounded-xl px-3 text-xs font-semibold transition duration-300",
+              // h-10 no mobile (alvo de toque); compacta para h-8 no desktop.
+              "flex h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-xs font-semibold transition duration-300 sm:h-8",
               active
                 ? "bg-[color:var(--accent-surface)] text-[color:var(--accent-soft)] shadow-[0_0_24px_var(--accent-glow)]"
                 : "text-[color:var(--muted)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]",
@@ -2214,7 +2233,7 @@ function GroupSwitcher({
                 <button
                   key={group.id}
                   className={cn(
-                    "flex h-9 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm font-medium transition duration-150",
+                    "flex h-10 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm font-medium transition duration-150 sm:h-9",
                     selected
                       ? "bg-[color:var(--accent-surface)] text-[color:var(--accent-soft)]"
                       : "text-[color:var(--muted)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]",
@@ -2292,7 +2311,7 @@ function GroupMenuItem({
   return (
     <button
       className={cn(
-        "flex h-9 w-full items-center gap-2.5 rounded-xl px-3 text-left text-sm font-medium transition duration-150",
+        "flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-sm font-medium transition duration-150 sm:h-9",
         danger
           ? "text-red-300/90 hover:bg-red-500/10 hover:text-red-200"
           : "text-[color:var(--muted)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]",
@@ -2311,15 +2330,18 @@ function GroupMenuItem({
 type SidebarSectionProps = {
   label: string;
   children: ReactNode;
+  // Substitui o layout padrão (lista vertical) do wrapper dos itens — usado
+  // para a fileira horizontal rolável de plataformas no mobile.
+  itemsClassName?: string;
 };
 
-function SidebarSection({ label, children }: SidebarSectionProps) {
+function SidebarSection({ label, children, itemsClassName }: SidebarSectionProps) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
         {label}
       </p>
-      <div className="mt-3 space-y-1">{children}</div>
+      <div className={cn("mt-3", itemsClassName ?? "space-y-1")}>{children}</div>
     </div>
   );
 }
@@ -2345,9 +2367,11 @@ function SidebarButton({
   const meta = platform ? metaForPlatform(platform) : null;
 
   return (
+    // Abaixo de lg o botão vira um "chip" (largura do conteúdo, sem encolher)
+    // dentro da fileira horizontal rolável; em lg+ volta a ser linha cheia.
     <button
       className={cn(
-        "group relative flex h-11 w-full items-center justify-between gap-2 overflow-hidden rounded-xl px-2 text-left text-sm font-semibold transition-all duration-300 ease-out",
+        "group relative flex h-11 w-auto shrink-0 items-center justify-start gap-2 overflow-hidden rounded-xl px-2 text-left text-sm font-semibold transition-all duration-300 ease-out lg:w-full lg:shrink lg:justify-between",
         active
           ? "bg-[color:var(--accent-surface)] text-[color:var(--accent-soft)] shadow-[inset_0_0_0_1px_var(--accent-border)]"
           : "text-[color:var(--muted)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]",
@@ -2357,7 +2381,7 @@ function SidebarButton({
     >
       <span
         className={cn(
-          "absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-[color:var(--accent)] transition-all duration-300",
+          "absolute left-0 top-1/2 hidden h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-[color:var(--accent)] transition-all duration-300 lg:block",
           active ? "opacity-100" : "opacity-0 group-hover:opacity-50",
         )}
       />
@@ -2642,7 +2666,7 @@ function CustomSelect({
         aria-label={label}
         className={cn(
           compact
-            ? "flex h-10 w-full items-center justify-between gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--field)] pl-9 pr-3 text-sm font-medium text-[color:var(--text)] shadow-[inset_0_1px_0_var(--inset-light),0_16px_34px_var(--field-shadow)] outline-none backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] focus:border-[color:var(--accent)] focus:ring-4 focus:ring-[color:var(--focus-ring)]"
+            ? "flex h-11 w-full items-center justify-between gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--field)] pl-9 pr-3 text-sm font-medium text-[color:var(--text)] shadow-[inset_0_1px_0_var(--inset-light),0_16px_34px_var(--field-shadow)] outline-none backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] focus:border-[color:var(--accent)] focus:ring-4 focus:ring-[color:var(--focus-ring)] sm:h-10"
             : selectTriggerClass,
         )}
         type="button"
@@ -2677,7 +2701,7 @@ function CustomSelect({
                 <button
                   key={option.value}
                   className={cn(
-                    "flex h-9 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm font-medium transition duration-150",
+                    "flex h-10 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm font-medium transition duration-150 sm:h-9",
                     selected
                       ? "bg-[color:var(--accent-surface)] text-[color:var(--accent-soft)]"
                       : "text-[color:var(--muted)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]",
@@ -2782,7 +2806,8 @@ function IconButton({
     <button
       aria-label={label}
       className={cn(
-        "flex h-9 w-9 items-center justify-center rounded-xl border transition duration-300",
+        // 44px no mobile (alvo de toque confortável), 36px no desktop.
+        "flex h-11 w-11 items-center justify-center rounded-xl border transition duration-300 sm:h-9 sm:w-9",
         selected
           ? "border-emerald-300/30 bg-emerald-300/12 text-emerald-100"
           : "border-[color:var(--border)] bg-[color:var(--surface-soft)] text-[color:var(--muted)] hover:-translate-y-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)] hover:text-[color:var(--accent-soft)]",
@@ -2898,10 +2923,10 @@ function QuickViewModal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto px-4 py-6">
+    <div className="fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
       <button
         aria-label={t("vault.close")}
-        className="absolute inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
+        className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
         type="button"
         onClick={onClose}
       />
@@ -2909,7 +2934,7 @@ function QuickViewModal({
       <section
         aria-labelledby="account-quickview-title"
         aria-modal="true"
-        className="app-panel animate-pop-in relative w-full max-w-md overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6"
+        className="app-panel animate-pop-in relative m-auto w-full max-w-md overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6"
         role="dialog"
       >
         <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />

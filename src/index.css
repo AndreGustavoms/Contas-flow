@@ -12,11 +12,11 @@
 .theme-dark {
   color-scheme: dark;
   --page-bg: #070a12;
-  --grid-line-a: rgba(34, 197, 94, 0.05);
-  --grid-line-b: rgba(167, 139, 250, 0.05);
-  --grid-base: linear-gradient(135deg, #070a12 0%, #101827 48%, #120a1f 100%);
-  --grid-sheen: rgba(34, 197, 94, 0.08);
-  --grid-top: rgba(255, 255, 255, 0.04);
+  --grid-line-a: transparent;
+  --grid-line-b: transparent;
+  --grid-base: #070a12;
+  --grid-sheen: transparent;
+  --grid-top: transparent;
   --text: #f0f6ff;
   --text-glow: rgba(74, 222, 128, 0.6);
   --muted: #dbe7f5;
@@ -42,17 +42,17 @@
   --nav-bg: rgba(255, 255, 255, 0.035);
   --inset-light: rgba(255, 255, 255, 0.05);
   --field-shadow: rgba(2, 6, 23, 0.18);
-  --login-bg: linear-gradient(135deg, #050816 0%, #101827 52%, #06111f 100%);
+  --login-bg: #070a12;
 }
 
 .theme-white {
   color-scheme: light;
   --page-bg: #e9edf3;
-  --grid-line-a: rgba(15, 23, 42, 0.05);
-  --grid-line-b: rgba(15, 23, 42, 0.035);
-  --grid-base: linear-gradient(135deg, #e6eaf1 0%, #eef2f7 52%, #e9edf3 100%);
-  --grid-sheen: rgba(15, 23, 42, 0.04);
-  --grid-top: rgba(255, 255, 255, 0.5);
+  --grid-line-a: transparent;
+  --grid-line-b: transparent;
+  --grid-base: #e9edf3;
+  --grid-sheen: transparent;
+  --grid-top: transparent;
   --text: #0b1220;
   --text-glow: rgba(34, 197, 94, 0.18);
   --muted: #475569;
@@ -78,7 +78,7 @@
   --nav-bg: rgba(248, 250, 253, 0.78);
   --inset-light: rgba(255, 255, 255, 0.6);
   --field-shadow: rgba(15, 23, 42, 0.06);
-  --login-bg: linear-gradient(135deg, #eef7ff 0%, #ffffff 45%, #f7f2ff 100%);
+  --login-bg: #e9edf3;
 }
 
 

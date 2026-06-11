@@ -30,12 +30,12 @@ export default function App() {
   const [resetToken] = useState(initial.resetToken);
   const [theme, setTheme] = useState<AppTheme>(() => {
     if (typeof window === "undefined") {
-      return "andre";
+      return "white";
     }
 
     const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
 
-    return isAppTheme(storedTheme) ? storedTheme : "andre";
+    return isAppTheme(storedTheme) ? storedTheme : "white";
   });
 
   // Ask the server whether the session cookie is still valid, and who we are.

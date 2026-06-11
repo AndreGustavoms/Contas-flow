@@ -137,7 +137,7 @@ export function LocalLogin({
                       <path id="circleArc" d="M 100,20 A 80,80 0 0,1 180,100 A 80,80 0 0,1 100,180 A 80,80 0 0,1 20,100 A 80,80 0 0,1 100,20 Z" />
                     </defs>
                     <text className="login-brand-circle-text">
-                      <textPath href="#circleArc" startOffset="0%" textLength="503" lengthAdjust="spacing">CONTAS_EXE · CONTAS_EXE · CONTAS_EXE · CONTAS_EXE ·</textPath>
+                      <textPath href="#circleArc" startOffset="0%" textLength="503" lengthAdjust="spacing" dy="-5">CONTAS_EXE · CONTAS_EXE · CONTAS_EXE · CONTAS_EXE ·</textPath>
                     </text>
                   </svg>
                   <img src="/logo-square.png" alt="Contas_exe" className="login-brand-logo" />
@@ -212,8 +212,9 @@ export function LocalLogin({
 
                 <div className="animated-field" style={{ marginBottom: 0 }}>
                   <input
-                    autoComplete="current-password"
+                    autoComplete="off"
                     id="login-password"
+                    name="cx_secret"
                     required
                     maxLength={128}
                     type={showPassword ? "text" : "password"}

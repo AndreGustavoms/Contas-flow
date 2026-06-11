@@ -245,6 +245,7 @@ function isPublicApi(pathname) {
     pathname === "/api/auth/reauth" ||
     pathname === "/api/auth/forgot-password" ||
     pathname === "/api/auth/reset-password" ||
+    pathname === "/api/auth/register" ||
     pathname === "/api/youtube/callback"
   );
 }
@@ -790,7 +791,15 @@ async function handleApi(request, response, url, user, session) {
 
   // Request a password-reset link. Always returns 200 to avoid username/email
   // enumeration — the caller can't tell whether an account was found.
+  // Rate-limited to prevent e-mail flood and Resend cost abuse.
   if (url.pathname === "/api/auth/forgot-password" && request.method === "POST") {
+    pruneLoginAttempts();
+    const ip = clientIp(request);
+    if (loginRateLimited(ip)) {
+      await drainBody(request);
+      sendJson(response, 429, { error: "too_many_attempts" });
+      return;
+    }
     const body = await readBody(request);
     const email = asString(body.email).trim().toLowerCase();
 
@@ -821,6 +830,70 @@ async function handleApi(request, response, url, user, session) {
     }
 
     sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  // Public self-registration. Creates a member account without requiring a session.
+  // Rate-limited (same window as login) to prevent account-spam and brute-force
+  // enumeration of existing usernames/emails via repeated register attempts.
+  if (url.pathname === "/api/auth/register" && request.method === "POST") {
+    pruneLoginAttempts();
+    const ip = clientIp(request);
+    if (loginRateLimited(ip)) {
+      await drainBody(request);
+      sendJson(response, 429, { error: "too_many_attempts" });
+      return;
+    }
+
+    const body = await readBody(request);
+
+    // Sanitize all inputs through asString so non-string values become "".
+    const username = asString(body.username).trim();
+    const password = asString(body.password);
+    const email    = asString(body.email).trim();
+    const fullName = asString(body.fullName).trim();
+
+    // Whitelist of error codes the client may receive. Any internal/unexpected
+    // error is collapsed to "register_failed" so stack traces and unexpected
+    // internal states never leak to the caller.
+    const REGISTER_ALLOWED_ERRORS = new Set([
+      "invalid",
+      "username_taken",
+      "email_taken",
+      "username_too_short",
+      "username_too_long",
+      "invalid_username",
+      "password_too_short",
+      "password_too_long",
+      "password_no_uppercase",
+      "password_no_lowercase",
+      "password_no_number",
+      "password_no_special",
+      "password_too_common",
+      "password_same_as_username",
+    ]);
+
+    try {
+      const created = await createUser(storageDir, {
+        username,
+        password,
+        role: "member",
+        email: email || undefined,
+        fullName: fullName || undefined,
+      });
+      void logEvent(storageDir, {
+        userId: created.id,
+        username: created.username,
+        action: "account_created",
+        target: null,
+        ip,
+      });
+      sendJson(response, 201, { user: created });
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : "";
+      const code = REGISTER_ALLOWED_ERRORS.has(raw) ? raw : "register_failed";
+      sendJson(response, 400, { error: code });
+    }
     return;
   }
 

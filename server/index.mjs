@@ -3,8 +3,13 @@ import { createServer } from "node:http";
 import { createReadStream } from "node:fs";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import {
+  buildGoogleAuthUrl,
+  exchangeGoogleAuthCode,
+  googleAuthConfigured,
+} from "./google-auth.mjs";
 import {
   buildAuthUrl,
   handleOAuthCallback,
@@ -19,6 +24,7 @@ import {
   disableTwoFactor,
   enableTwoFactor,
   ensureSeedAdmin,
+  findOrCreateGoogleUser,
   findByEmail,
   findById,
   findByUsername,
@@ -162,6 +168,18 @@ const cookieSecure =
     ? process.env.CONTAS_FLOW_COOKIE_SECURE === "1"
     : Boolean(process.env.PORT);
 
+function appendSetCookie(response, cookie) {
+  const existing = response.getHeader("Set-Cookie");
+  if (!existing) {
+    response.setHeader("Set-Cookie", cookie);
+    return;
+  }
+  response.setHeader(
+    "Set-Cookie",
+    Array.isArray(existing) ? [...existing, cookie] : [existing, cookie],
+  );
+}
+
 function sessionCookie(value, maxAge) {
   const flags = ["HttpOnly", "SameSite=Strict", "Path=/", `Max-Age=${maxAge}`];
   if (cookieSecure) flags.splice(1, 0, "Secure");
@@ -172,14 +190,68 @@ function setSessionCookie(response, token) {
   // Cookie lifetime tracks the absolute session ceiling (3 days). The server still
   // enforces the 3h idle timeout independently, so the cookie outliving an idle
   // session is fine — the token just stops validating server-side.
-  response.setHeader(
-    "Set-Cookie",
+  appendSetCookie(
+    response,
     sessionCookie(token, Math.floor(SESSION_ABSOLUTE_MS / 1000)),
   );
 }
 
 function clearSessionCookie(response) {
-  response.setHeader("Set-Cookie", sessionCookie("", 0));
+  appendSetCookie(response, sessionCookie("", 0));
+}
+
+const GOOGLE_OAUTH_STATE_COOKIE = "contas_google_oauth_state";
+
+function googleOAuthStateCookie(value, maxAge) {
+  const flags = [
+    "HttpOnly",
+    "SameSite=Lax",
+    "Path=/api/auth/google/callback",
+    `Max-Age=${maxAge}`,
+  ];
+  if (cookieSecure) flags.splice(1, 0, "Secure");
+  return `${GOOGLE_OAUTH_STATE_COOKIE}=${encodeURIComponent(value)}; ${flags.join("; ")}`;
+}
+
+function setGoogleOAuthStateCookie(response, state) {
+  appendSetCookie(response, googleOAuthStateCookie(state, 10 * 60));
+}
+
+function clearGoogleOAuthStateCookie(response) {
+  appendSetCookie(response, googleOAuthStateCookie("", 0));
+}
+
+function stateMatches(actual, expected) {
+  const actualBuffer = Buffer.from(String(actual ?? ""));
+  const expectedBuffer = Buffer.from(String(expected ?? ""));
+  return (
+    actualBuffer.length > 0 &&
+    actualBuffer.length === expectedBuffer.length &&
+    timingSafeEqual(actualBuffer, expectedBuffer)
+  );
+}
+
+function requestOrigin(request) {
+  const forwardedProto = request.headers["x-forwarded-proto"];
+  const proto =
+    typeof forwardedProto === "string"
+      ? forwardedProto.split(",")[0].trim()
+      : cookieSecure
+        ? "https"
+        : "http";
+  return `${proto}://${request.headers.host}`;
+}
+
+function googleRedirectUri(request) {
+  return (
+    process.env.GOOGLE_AUTH_REDIRECT_URI ||
+    `${requestOrigin(request)}/api/auth/google/callback`
+  );
+}
+
+function redirect(response, location) {
+  response.writeHead(302, { Location: location });
+  response.end();
 }
 
 // ----- Login rate limiting -----
@@ -242,6 +314,9 @@ function isPublicApi(pathname) {
     pathname === "/api/auth/login/totp" ||
     pathname === "/api/auth/logout" ||
     pathname === "/api/auth/status" ||
+    pathname === "/api/auth/providers" ||
+    pathname === "/api/auth/google" ||
+    pathname === "/api/auth/google/callback" ||
     pathname === "/api/auth/reauth" ||
     pathname === "/api/auth/forgot-password" ||
     pathname === "/api/auth/reset-password" ||
@@ -608,6 +683,102 @@ async function handleApi(request, response, url, user, session) {
   }
 
   // ----- Auth (public: these gate the rest) -----
+
+  if (url.pathname === "/api/auth/providers" && request.method === "GET") {
+    sendJson(response, 200, {
+      google: googleAuthConfigured(),
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/auth/google" && request.method === "GET") {
+    if (!googleAuthConfigured()) {
+      redirect(response, "/?auth=google_error");
+      return;
+    }
+
+    const state = randomBytes(32).toString("base64url");
+    setGoogleOAuthStateCookie(response, state);
+    try {
+      redirect(
+        response,
+        buildGoogleAuthUrl({
+          redirectUri: googleRedirectUri(request),
+          state,
+        }),
+      );
+    } catch (error) {
+      clearGoogleOAuthStateCookie(response);
+      redirect(response, "/?auth=google_error");
+    }
+    return;
+  }
+
+  if (
+    url.pathname === "/api/auth/google/callback" &&
+    request.method === "GET"
+  ) {
+    const expectedState = parseCookies(request)[GOOGLE_OAUTH_STATE_COOKIE];
+    const actualState = url.searchParams.get("state");
+    clearGoogleOAuthStateCookie(response);
+
+    if (url.searchParams.get("error")) {
+      redirect(response, "/?auth=google_error");
+      return;
+    }
+
+    if (!stateMatches(actualState, expectedState)) {
+      redirect(response, "/?auth=google_error");
+      return;
+    }
+
+    const code = url.searchParams.get("code");
+    if (!code) {
+      redirect(response, "/?auth=google_error");
+      return;
+    }
+
+    try {
+      const profile = await exchangeGoogleAuthCode({
+        code,
+        redirectUri: googleRedirectUri(request),
+      });
+      const result = await findOrCreateGoogleUser(storageDir, profile);
+      const ip = clientIp(request);
+      const token = await createSession(storageDir, {
+        userId: result.user.id,
+        ip,
+        userAgent: request.headers["user-agent"],
+      });
+
+      await markReauth(storageDir, token);
+      setSessionCookie(response, token);
+      void logEvent(storageDir, {
+        userId: result.user.id,
+        username: result.user.username,
+        action: "login_google_ok",
+        target: result.created ? "google:new_user" : "google",
+        ip,
+      });
+      redirect(response, "/");
+    } catch (error) {
+      void logEvent(storageDir, {
+        userId: null,
+        username: null,
+        action: "login_google_fail",
+        target: null,
+        ip: clientIp(request),
+      });
+      redirect(
+        response,
+        error instanceof Error &&
+          error.message === "google_email_already_registered"
+          ? "/?auth=google_email_exists"
+          : "/?auth=google_error",
+      );
+    }
+    return;
+  }
 
   // Validate credentials against the user store and issue a session cookie.
   // Wrong user or wrong password -> the same 401 (no account enumeration).

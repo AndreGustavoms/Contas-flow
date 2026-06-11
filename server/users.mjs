@@ -182,6 +182,42 @@ function normalizeUsername(name) {
   return typeof name === "string" ? name.trim().toLowerCase() : "";
 }
 
+function normalizeEmail(email) {
+  return typeof email === "string" ? email.trim().toLowerCase() : "";
+}
+
+function googleUsernameBase(profile) {
+  const emailLocal = normalizeEmail(profile.email).split("@")[0] ?? "";
+  const nameBase = normalizeUsername(profile.fullName)
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const emailBase = emailLocal
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const base = emailBase || nameBase || "google";
+  return base.slice(0, USERNAME_MAX);
+}
+
+function uniqueGoogleUsername(users, profile) {
+  const base = googleUsernameBase(profile);
+  const taken = new Set(users.map((user) => user.username));
+
+  if (!taken.has(base) && !validateUsername(base)) {
+    return base;
+  }
+
+  for (let i = 2; i < 1000; i += 1) {
+    const suffix = `-${i}`;
+    const candidate = `${base.slice(0, USERNAME_MAX - suffix.length)}${suffix}`;
+    if (!taken.has(candidate) && !validateUsername(candidate)) {
+      return candidate;
+    }
+  }
+
+  return `google-${randomUUID()}`.slice(0, USERNAME_MAX);
+}
+
 // Public view of a user (never leaks the password hash, the 2FA secret, or the
 // recovery-code hashes — only whether 2FA is on).
 export function publicUser(user) {
@@ -197,6 +233,70 @@ export function publicUser(user) {
 }
 
 // --- High-level operations ---
+
+export function findOrCreateGoogleUser(storageDir, profile) {
+  return withLock(async () => {
+    const sub = typeof profile?.sub === "string" ? profile.sub.trim() : "";
+    const email = normalizeEmail(profile?.email);
+
+    if (!sub || !email) {
+      throw new Error("invalid_google_profile");
+    }
+
+    const users = await readUsersFile(storageDir);
+    const linkedUser = users.find((item) => item.google?.sub === sub);
+    const existingEmailUser = users.find(
+      (item) => item.email?.toLowerCase() === email,
+    );
+    const now = new Date().toISOString();
+
+    if (!linkedUser && existingEmailUser) {
+      throw new Error("google_email_already_registered");
+    }
+
+    if (!linkedUser) {
+      const created = {
+        id: randomUUID(),
+        username: uniqueGoogleUsername(users, profile),
+        ...(profile.fullName ? { fullName: profile.fullName.trim() } : {}),
+        email,
+        role: "member",
+        passwordHash: await hashPassword(randomBytes(32).toString("hex")),
+        createdAt: now,
+        google: {
+          sub,
+          email,
+          linkedAt: now,
+          lastLoginAt: now,
+          ...(profile.picture ? { picture: profile.picture } : {}),
+        },
+      };
+      users.push(created);
+      await writeUsersFile(storageDir, users);
+      return { user: publicUser(created), created: true };
+    }
+
+    const emailTaken = users.some(
+      (item) =>
+        item.id !== linkedUser.id && item.email?.toLowerCase() === email,
+    );
+    if (!emailTaken) {
+      linkedUser.email = email;
+    }
+    if (!linkedUser.fullName && profile.fullName) {
+      linkedUser.fullName = profile.fullName.trim();
+    }
+    linkedUser.google = {
+      sub,
+      email,
+      linkedAt: linkedUser.google?.linkedAt ?? now,
+      lastLoginAt: now,
+      ...(profile.picture ? { picture: profile.picture } : {}),
+    };
+    await writeUsersFile(storageDir, users);
+    return { user: publicUser(linkedUser), created: false };
+  });
+}
 
 // Seeds a bootstrap admin from the legacy env vars when the store is empty, so an
 // existing single-login deployment transparently becomes a one-admin multi-user

@@ -21,6 +21,10 @@ Guia para subir o Contas_exe em produção no **Railway**, já no modelo de
 | `CONTAS_FLOW_STORAGE_DIR` | `/data` | sim (senão os dados somem) |
 | `CONTAS_FLOW_TRUSTED_PROXIES` | `1` | **sim no Railway** (1 proxy na frente) |
 | `CONTAS_FLOW_ALLOWED_ORIGIN` | em branco | não (só se a API for consumida de outra origem) |
+| `GOOGLE_AUTH_CLIENT_ID` | Client ID OAuth do Google | se usar login Google |
+| `GOOGLE_AUTH_CLIENT_SECRET` | Client Secret OAuth do Google | se usar login Google |
+| `GOOGLE_AUTH_REDIRECT_URI` | `https://SEU-DOMINIO/api/auth/google/callback` | recomendado em prod |
+| `GOOGLE_AUTH_ALLOWED_DOMAIN` | domínio permitido, ex. `vitissouls.com` | opcional |
 
 **Notas importantes:**
 
@@ -34,6 +38,12 @@ Guia para subir o Contas_exe em produção no **Railway**, já no modelo de
   limit do login usa o IP do socket (o do proxy do Railway, igual para todos) e
   um atacante poderia forjar `X-Forwarded-For`. Com `1`, o app pega o IP real
   que o proxy observou. Em uso local, deixe em branco.
+- Para o login Google, cadastre no Google Cloud o redirect URI exatamente igual
+  ao valor de `GOOGLE_AUTH_REDIRECT_URI`. O callback do app é
+  `/api/auth/google/callback`. Se o e-mail Google verificado ainda não existir,
+  o app cria automaticamente um usuário `member`. Se o e-mail já existir sem
+  vínculo Google, o login é bloqueado para evitar conflito; use usuário/senha.
+  Admins continuam sendo promovidos pela tela **Equipe**.
 - `YOUTUBE_*` só quando for ativar OAuth em prod (integração em pausa).
 
 ---

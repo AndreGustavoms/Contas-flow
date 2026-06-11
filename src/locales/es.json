@@ -28,7 +28,10 @@
     "create_account": "Crear cuenta",
     "continue_google": "Continuar con Google",
     "continue_github": "Continuar con GitHub",
-    "error_field_required": "Campo obligatorio."
+    "error_field_required": "Campo obligatorio.",
+    "error_google": "No se pudo iniciar sesión con Google.",
+    "error_google_email_exists": "Ya existe una cuenta con este correo. Inicia sesión con usuario y contraseña.",
+    "google_not_configured": "El inicio de sesión con Google aún no está configurado."
   },
   "account": {
     "title": "Mi cuenta",

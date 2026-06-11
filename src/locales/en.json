@@ -30,7 +30,10 @@
     "create_account": "Create account",
     "continue_google": "Continue with Google",
     "continue_github": "Continue with GitHub",
-    "error_field_required": "This field is required."
+    "error_field_required": "This field is required.",
+    "error_google": "Could not sign in with Google.",
+    "error_google_email_exists": "An account already exists with this email. Sign in with username and password.",
+    "google_not_configured": "Google sign-in is not configured yet."
   },
   "account": {
     "title": "My account",

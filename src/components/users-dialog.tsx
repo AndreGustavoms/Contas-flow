@@ -51,6 +51,8 @@ type AuditEvent = {
 const AUDIT_ACTION_I18N_KEYS: Record<string, string> = {
   login_ok: "team.audit_login_ok",
   login_fail: "team.audit_login_fail",
+  login_google_ok: "team.audit_login_ok",
+  login_google_fail: "team.audit_login_fail",
   logout: "team.audit_logout",
   reauth_ok: "team.audit_reauth_ok",
   reauth_fail: "team.audit_reauth_fail",

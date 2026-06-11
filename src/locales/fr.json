@@ -28,7 +28,10 @@
     "create_account": "Créer un compte",
     "continue_google": "Continuer avec Google",
     "continue_github": "Continuer avec GitHub",
-    "error_field_required": "Champ obligatoire."
+    "error_field_required": "Champ obligatoire.",
+    "error_google": "Impossible de se connecter avec Google.",
+    "error_google_email_exists": "Un compte existe deja avec cet e-mail. Connectez-vous avec identifiant et mot de passe.",
+    "google_not_configured": "La connexion Google n'est pas encore configuree."
   },
   "account": {
     "title": "Mon compte",

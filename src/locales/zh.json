@@ -28,7 +28,10 @@
     "create_account": "创建账户",
     "continue_google": "使用 Google 继续",
     "continue_github": "使用 GitHub 继续",
-    "error_field_required": "此字段为必填项。"
+    "error_field_required": "此字段为必填项。",
+    "error_google": "无法使用 Google 登录。",
+    "error_google_email_exists": "此邮箱已存在账户。请使用用户名和密码登录。",
+    "google_not_configured": "尚未配置 Google 登录。"
   },
   "account": {
     "title": "我的账户",

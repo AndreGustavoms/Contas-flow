@@ -70,6 +70,14 @@ import {
   SESSION_IDLE_MS,
 } from "./sessions.mjs";
 import { listEvents, logEvent } from "./audit.mjs";
+import {
+  checkRateLimit,
+  clearFailures,
+  ipKey,
+  pruneRateLimits,
+  recordFailure,
+  userKey,
+} from "./rate-limit.mjs";
 
 const rootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
 // In production set CONTAS_FLOW_STORAGE_DIR to a persistent volume (e.g. /data
@@ -128,15 +136,6 @@ function parseCookies(request) {
     if (key) jar[key] = decodeURIComponent(part.slice(sep + 1).trim());
   }
   return jar;
-}
-
-// Drops expired login-attempt buckets so the rate-limit map can't grow unbounded
-// from one-off IPs that never return.
-function pruneLoginAttempts() {
-  const now = Date.now();
-  for (const [ip, entry] of loginAttempts) {
-    if (entry.resetAt <= now) loginAttempts.delete(ip);
-  }
 }
 
 function sessionToken(request) {
@@ -314,12 +313,8 @@ function redirect(response, location) {
 }
 
 // ----- Login rate limiting -----
-// Bounds brute-force attempts against /api/auth/login. In-memory sliding window
-// keyed by client IP; fine for this small single-instance service. Successful
-// logins reset the counter so a legitimate user isn't penalized.
-const LOGIN_MAX_ATTEMPTS = 10;
-const LOGIN_WINDOW_MS = 1000 * 60 * 10; // 10 min
-const loginAttempts = new Map(); // ip -> { count, resetAt }
+// Bloqueio progressivo de falhas de autenticação (ver rate-limit.mjs): chaves
+// por conta (5/10/15 falhas -> 15min/1h/24h) e por IP (limiares mais altos).
 
 function clientIp(request) {
   // The rate limiter must key off an IP the client can't forge. The socket
@@ -346,23 +341,32 @@ function clientIp(request) {
   return request.socket?.remoteAddress ?? "unknown";
 }
 
-// Returns true if this IP is over the limit (request should be refused). Records
-// the attempt and prunes the window. Does not count successes (see resetLoginRate).
-function loginRateLimited(ip) {
-  const now = Date.now();
-  const entry = loginAttempts.get(ip);
-
-  if (!entry || entry.resetAt <= now) {
-    loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
-    return false;
-  }
-
-  entry.count += 1;
-  return entry.count > LOGIN_MAX_ATTEMPTS;
+// Responde 429 (com Retry-After) se alguma das chaves estiver bloqueada e
+// retorna true — o handler deve parar. Os handlers leem o body ANTES desta
+// checagem (o username compõe a chave), então não há stream pendente a drenar.
+function rejectIfRateLimited(response, keys) {
+  pruneRateLimits();
+  const { blocked, retryAfterMs } = checkRateLimit(keys);
+  if (!blocked) return false;
+  const retryAfterSeconds = Math.ceil(retryAfterMs / 1000);
+  response.setHeader("Retry-After", String(retryAfterSeconds));
+  sendJson(response, 429, { error: "too_many_attempts", retryAfterSeconds });
+  return true;
 }
 
-function resetLoginRate(ip) {
-  loginAttempts.delete(ip);
+// Registra a falha de autenticação e audita quando uma chave ACABOU de entrar
+// em bloqueio (uma linha por lockout, não por tentativa).
+function noteAuthFailure(keys, { userId = null, username = null, ip } = {}) {
+  const { newlyBlocked } = recordFailure(keys);
+  for (const key of newlyBlocked) {
+    void logEvent(storageDir, {
+      userId,
+      username,
+      action: "rate_limited",
+      target: key.startsWith("ip:") ? "ip" : key,
+      ip,
+    });
+  }
 }
 
 // /api/* paths reachable without a session: the auth endpoints themselves, and
@@ -940,17 +944,15 @@ async function handleApi(request, response, url, user, session) {
   // Wrong user or wrong password -> the same 401 (no account enumeration).
   // Rate limited per IP to bound brute-force attempts.
   if (url.pathname === "/api/auth/login" && request.method === "POST") {
-    pruneLoginAttempts(); // sweep stale per-IP buckets so the map stays bounded
     const ip = clientIp(request);
-    if (loginRateLimited(ip)) {
-      await drainBody(request);
-      sendJson(response, 429, { error: "too_many_attempts" });
-      return;
-    }
-
     const body = await readBody(request);
     const name = asString(body.name);
     const password = asString(body.password);
+
+    // Chave dupla: a conta alvo (bloqueia cedo) e o IP de origem (bloqueia
+    // varredura de várias contas). Body lido antes — o username compõe a chave.
+    const limitKeys = [ipKey(ip), userKey(name)];
+    if (rejectIfRateLimited(response, limitKeys)) return;
 
     const account = await findByUsername(storageDir, name);
     // Always run a verify so a missing user and a wrong password take a similar
@@ -964,11 +966,11 @@ async function handleApi(request, response, url, user, session) {
       // code and finish at /api/auth/login/totp. The password was correct, so we
       // clear the rate-limit penalty here too.
       if (account.twoFactor?.enabled) {
-        resetLoginRate(ip);
+        clearFailures(limitKeys);
         sendJson(response, 200, { twoFactorRequired: true });
         return;
       }
-      resetLoginRate(ip); // don't penalize a user who just logged in
+      clearFailures(limitKeys); // don't penalize a user who just logged in
       const token = await createSession(storageDir, {
         userId: account.id,
         ip,
@@ -988,6 +990,7 @@ async function handleApi(request, response, url, user, session) {
       });
       return;
     }
+    noteAuthFailure(limitKeys, { username: name || null, ip });
     void logEvent(storageDir, {
       userId: null,
       username: name || null,
@@ -1004,18 +1007,14 @@ async function handleApi(request, response, url, user, session) {
   // brute-force). The client resends name+password (it has them) so we don't need
   // a separate pending-login store.
   if (url.pathname === "/api/auth/login/totp" && request.method === "POST") {
-    pruneLoginAttempts();
     const ip = clientIp(request);
-    if (loginRateLimited(ip)) {
-      await drainBody(request);
-      sendJson(response, 429, { error: "too_many_attempts" });
-      return;
-    }
-
     const body = await readBody(request);
     const name = asString(body.name);
     const password = asString(body.password);
     const code = asString(body.code);
+
+    const limitKeys = [ipKey(ip), userKey(name)];
+    if (rejectIfRateLimited(response, limitKeys)) return;
 
     const account = await findByUsername(storageDir, name);
     const passwordOk = account
@@ -1023,6 +1022,7 @@ async function handleApi(request, response, url, user, session) {
       : await verifyPassword(password, DUMMY_HASH);
 
     if (!account || !passwordOk || !account.twoFactor?.enabled) {
+      noteAuthFailure(limitKeys, { username: name || null, ip });
       sendJson(response, 401, { error: "invalid_credentials" });
       return;
     }
@@ -1034,6 +1034,11 @@ async function handleApi(request, response, url, user, session) {
       : await consumeRecoveryCode(storageDir, account.id, code);
 
     if (!totpOk && !recoveryOk) {
+      noteAuthFailure(limitKeys, {
+        userId: account.id,
+        username: account.username,
+        ip,
+      });
       void logEvent(storageDir, {
         userId: account.id,
         username: account.username,
@@ -1045,7 +1050,7 @@ async function handleApi(request, response, url, user, session) {
       return;
     }
 
-    resetLoginRate(ip);
+    clearFailures(limitKeys);
     const token = await createSession(storageDir, {
       userId: account.id,
       ip,
@@ -1071,13 +1076,7 @@ async function handleApi(request, response, url, user, session) {
   // session; rate-limited per IP like login to bound brute-force. NOTE: this is a
   // public route (no requireContext upstream), so we resolve the session here.
   if (url.pathname === "/api/auth/reauth" && request.method === "POST") {
-    pruneLoginAttempts();
     const ip = clientIp(request);
-    if (loginRateLimited(ip)) {
-      await drainBody(request);
-      sendJson(response, 429, { error: "too_many_attempts" });
-      return;
-    }
     const token = sessionToken(request);
     const current = await resolveAndTouch(storageDir, token);
     if (!current) {
@@ -1088,12 +1087,16 @@ async function handleApi(request, response, url, user, session) {
     const account = await findById(storageDir, current.userId);
     const body = await readBody(request);
     const password = asString(body.password);
+
+    const limitKeys = [ipKey(ip), userKey(account?.username ?? "")];
+    if (rejectIfRateLimited(response, limitKeys)) return;
+
     const ok = account
       ? await verifyPassword(password, account.passwordHash)
       : await verifyPassword(password, DUMMY_HASH);
 
     if (account && ok) {
-      resetLoginRate(ip);
+      clearFailures(limitKeys);
       await markReauth(storageDir, token);
       void logEvent(storageDir, {
         userId: account.id,
@@ -1105,6 +1108,11 @@ async function handleApi(request, response, url, user, session) {
       sendJson(response, 200, { ok: true });
       return;
     }
+    noteAuthFailure(limitKeys, {
+      userId: account?.id ?? null,
+      username: account?.username ?? null,
+      ip,
+    });
     void logEvent(storageDir, {
       userId: account?.id ?? null,
       username: account?.username ?? null,
@@ -1120,15 +1128,15 @@ async function handleApi(request, response, url, user, session) {
   // enumeration — the caller can't tell whether an account was found.
   // Rate-limited to prevent e-mail flood and Resend cost abuse.
   if (url.pathname === "/api/auth/forgot-password" && request.method === "POST") {
-    pruneLoginAttempts();
     const ip = clientIp(request);
-    if (loginRateLimited(ip)) {
-      await drainBody(request);
-      sendJson(response, 429, { error: "too_many_attempts" });
-      return;
-    }
     const body = await readBody(request);
     const email = asString(body.email).trim().toLowerCase();
+
+    // Cada pedido conta como "falha" na chave do IP: limita flood de e-mail e
+    // custo do Resend (limiar de IP: 20 pedidos/30min antes do primeiro bloqueio).
+    const limitKeys = [ipKey(ip)];
+    if (rejectIfRateLimited(response, limitKeys)) return;
+    noteAuthFailure(limitKeys, { ip });
 
     if (email) {
       const account = await findByEmail(storageDir, email);
@@ -1169,15 +1177,14 @@ async function handleApi(request, response, url, user, session) {
       sendJson(response, 403, { error: "registrations_closed" });
       return;
     }
-    pruneLoginAttempts();
     const ip = clientIp(request);
-    if (loginRateLimited(ip)) {
-      await drainBody(request);
-      sendJson(response, 429, { error: "too_many_attempts" });
-      return;
-    }
-
     const body = await readBody(request);
+
+    // Cada tentativa de registro conta na chave do IP (limita spam de contas e
+    // enumeração de usernames/e-mails existentes por tentativas repetidas).
+    const limitKeys = [ipKey(ip)];
+    if (rejectIfRateLimited(response, limitKeys)) return;
+    noteAuthFailure(limitKeys, { ip });
 
     // Sanitize all inputs through asString so non-string values become "".
     const username = asString(body.username).trim();
@@ -1231,16 +1238,13 @@ async function handleApi(request, response, url, user, session) {
 
   // Consume a reset token and set a new password.
   if (url.pathname === "/api/auth/reset-password" && request.method === "POST") {
-    pruneLoginAttempts();
     const ip = clientIp(request);
-    if (loginRateLimited(ip)) {
-      await drainBody(request);
-      sendJson(response, 429, { error: "too_many_attempts" });
-      return;
-    }
     const body = await readBody(request);
     const token = asString(body.token).trim();
     const password = asString(body.password);
+
+    const limitKeys = [ipKey(ip)];
+    if (rejectIfRateLimited(response, limitKeys)) return;
 
     if (!token || !password) {
       badRequest(response, "missing_fields");
@@ -1255,6 +1259,8 @@ async function handleApi(request, response, url, user, session) {
 
     const userId = await validateResetToken(storageDir, token);
     if (!userId) {
+      // Token inválido conta como falha: limita adivinhação de tokens por força bruta.
+      noteAuthFailure(limitKeys, { ip });
       sendJson(response, 400, { error: "invalid_or_expired_token" });
       return;
     }
@@ -1357,16 +1363,29 @@ async function handleApi(request, response, url, user, session) {
     return;
   }
 
-  // Change own password (reauth required).
+  // Change own password (reauth required + rate-limited like login).
   if (url.pathname === "/api/account/password" && request.method === "PUT") {
     if (!requireRecentReauth(session, response)) return;
     const body = await readBody(request);
     const current = asString(body.current);
     const password = asString(body.password);
+
+    const limitKeys = [ipKey(clientIp(request)), userKey(user.username)];
+    if (rejectIfRateLimited(response, limitKeys)) return;
+
     const full = await findById(storageDir, user.id);
     if (!full) { notFound(response); return; }
     const valid = await verifyPassword(current, full.passwordHash);
-    if (!valid) { badRequest(response, "invalid_current_password"); return; }
+    if (!valid) {
+      noteAuthFailure(limitKeys, {
+        userId: user.id,
+        username: user.username,
+        ip: clientIp(request),
+      });
+      badRequest(response, "invalid_current_password");
+      return;
+    }
+    clearFailures(limitKeys);
     const pwErr = validatePassword(password, full.username);
     if (pwErr) { badRequest(response, pwErr); return; }
     await setPassword(storageDir, user.id, password);

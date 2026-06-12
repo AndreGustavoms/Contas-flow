@@ -31,7 +31,10 @@
     "error_field_required": "Champ obligatoire.",
     "error_google": "Impossible de se connecter avec Google.",
     "error_google_email_exists": "Un compte existe deja avec cet e-mail. Connectez-vous avec identifiant et mot de passe.",
-    "google_not_configured": "La connexion Google n'est pas encore configuree."
+    "google_not_configured": "La connexion Google n'est pas encore configuree.",
+    "error_github": "Impossible de se connecter avec GitHub.",
+    "error_github_email_exists": "Un compte existe deja avec cet e-mail. Connectez-vous avec identifiant et mot de passe.",
+    "github_not_configured": "La connexion GitHub n'est pas encore configuree."
   },
   "account": {
     "title": "Mon compte",

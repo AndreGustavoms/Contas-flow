@@ -31,7 +31,10 @@
     "error_field_required": "Campo obligatorio.",
     "error_google": "No se pudo iniciar sesión con Google.",
     "error_google_email_exists": "Ya existe una cuenta con este correo. Inicia sesión con usuario y contraseña.",
-    "google_not_configured": "El inicio de sesión con Google aún no está configurado."
+    "google_not_configured": "El inicio de sesión con Google aún no está configurado.",
+    "error_github": "No se pudo iniciar sesión con GitHub.",
+    "error_github_email_exists": "Ya existe una cuenta con este correo. Inicia sesión con usuario y contraseña.",
+    "github_not_configured": "El inicio de sesión con GitHub aún no está configurado."
   },
   "account": {
     "title": "Mi cuenta",

@@ -7,6 +7,47 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --space-page-xs: 16px;
+  --space-page-sm: 18px;
+  --space-page-md: 20px;
+  --space-page-lg: 24px;
+
+  --tap-target: 44px;
+  --button-min-height: 44px;
+  --input-height: 44px;
+
+  --radius-card: 16px;
+  --radius-button: 12px;
+  --radius-modal: 24px;
+
+  --font-xs: 12px;
+  --font-sm: 14px;
+  --font-base: 16px;
+  --font-lg: 18px;
+  --font-xl: 22px;
+  --font-2xl: 26px;
+
+  --container-max: 320px;
+  --page-padding-x: 16px;
+  --page-padding-y: 20px;
+  --layout-gap: 12px;
+  --element-gap: 8px;
+  --card-gap: 12px;
+  --card-padding: 16px;
+  --font-app: 14px;
+  --font-title: 24px;
+  --font-subtitle: 14px;
+  --line-app: 1.45;
+  --line-title: 1.15;
+  --line-tight: 1.25;
+  --grid-columns: minmax(0, 1fr);
+  --header-gap: 10px;
+  --header-padding-y: 10px;
+  --header-min-height: 64px;
+  --menu-max-height: 60dvh;
+  --modal-max-width: calc(100vw - 32px);
+  --bottom-nav-height: 64px;
 }
 
 .theme-dark {
@@ -81,22 +122,242 @@
   --login-bg: #e9edf3;
 }
 
+@media (max-width: 359px) {
+  :root {
+    --container-max: 320px;
+    --page-padding-x: 16px;
+    --page-padding-y: 18px;
+    --layout-gap: 12px;
+    --element-gap: 8px;
+    --card-gap: 12px;
+    --card-padding: 16px;
+    --font-app: 14px;
+    --font-title: 24px;
+    --font-subtitle: 14px;
+    --line-app: 1.45;
+    --line-title: 1.15;
+    --input-height: 44px;
+    --button-min-height: 44px;
+    --grid-columns: minmax(0, 1fr);
+    --header-gap: 8px;
+    --header-padding-y: 10px;
+    --header-min-height: 64px;
+    --menu-max-height: 58dvh;
+    --bottom-nav-height: 64px;
+  }
+}
+
+@media (min-width: 360px) and (max-width: 374px) {
+  :root {
+    --container-max: 360px;
+    --page-padding-x: 16px;
+    --page-padding-y: 20px;
+    --layout-gap: 14px;
+    --element-gap: 10px;
+    --card-gap: 14px;
+    --card-padding: 18px;
+    --font-app: 14px;
+    --font-title: 24px;
+    --font-subtitle: 14px;
+    --line-app: 1.45;
+    --line-title: 1.15;
+    --input-height: 44px;
+    --button-min-height: 44px;
+    --grid-columns: minmax(0, 1fr);
+    --header-gap: 10px;
+    --header-padding-y: 10px;
+    --header-min-height: 64px;
+    --menu-max-height: 60dvh;
+    --bottom-nav-height: 64px;
+  }
+}
+
+@media (min-width: 375px) and (max-width: 389px) {
+  :root {
+    --container-max: 375px;
+    --page-padding-x: 18px;
+    --page-padding-y: 22px;
+    --layout-gap: 16px;
+    --element-gap: 10px;
+    --card-gap: 16px;
+    --card-padding: 18px;
+    --font-app: 15px;
+    --font-title: 25px;
+    --font-subtitle: 14px;
+    --line-app: 1.48;
+    --line-title: 1.16;
+    --input-height: 46px;
+    --button-min-height: 44px;
+    --grid-columns: minmax(0, 1fr);
+    --header-gap: 10px;
+    --header-padding-y: 10px;
+    --header-min-height: 66px;
+    --menu-max-height: 62dvh;
+    --bottom-nav-height: 66px;
+  }
+}
+
+@media (min-width: 390px) and (max-width: 413px) {
+  :root {
+    --container-max: 390px;
+    --page-padding-x: 20px;
+    --page-padding-y: 22px;
+    --layout-gap: 16px;
+    --element-gap: 10px;
+    --card-gap: 16px;
+    --card-padding: 20px;
+    --font-app: 15px;
+    --font-title: 26px;
+    --font-subtitle: 15px;
+    --line-app: 1.5;
+    --line-title: 1.16;
+    --input-height: 46px;
+    --button-min-height: 44px;
+    --grid-columns: minmax(0, 1fr);
+    --header-gap: 12px;
+    --header-padding-y: 10px;
+    --header-min-height: 66px;
+    --menu-max-height: 62dvh;
+    --bottom-nav-height: 66px;
+  }
+}
+
+@media (min-width: 414px) and (max-width: 429px) {
+  :root {
+    --container-max: 414px;
+    --page-padding-x: 20px;
+    --page-padding-y: 24px;
+    --layout-gap: 18px;
+    --element-gap: 12px;
+    --card-gap: 18px;
+    --card-padding: 20px;
+    --font-app: 15px;
+    --font-title: 26px;
+    --font-subtitle: 15px;
+    --line-app: 1.5;
+    --line-title: 1.16;
+    --input-height: 46px;
+    --button-min-height: 44px;
+    --grid-columns: minmax(0, 1fr);
+    --header-gap: 12px;
+    --header-padding-y: 10px;
+    --header-min-height: 66px;
+    --menu-max-height: 64dvh;
+    --bottom-nav-height: 68px;
+  }
+}
+
+@media (min-width: 430px) and (max-width: 767px) {
+  :root {
+    --container-max: 430px;
+    --page-padding-x: 24px;
+    --page-padding-y: 24px;
+    --layout-gap: 20px;
+    --element-gap: 12px;
+    --card-gap: 20px;
+    --card-padding: 22px;
+    --font-app: 16px;
+    --font-title: 28px;
+    --font-subtitle: 15px;
+    --line-app: 1.5;
+    --line-title: 1.16;
+    --input-height: 48px;
+    --button-min-height: 44px;
+    --grid-columns: minmax(0, 1fr);
+    --header-gap: 12px;
+    --header-padding-y: 10px;
+    --header-min-height: 68px;
+    --menu-max-height: 65dvh;
+    --bottom-nav-height: 68px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root {
+    --container-max: 768px;
+    --page-padding-x: 32px;
+    --page-padding-y: 28px;
+    --layout-gap: 24px;
+    --element-gap: 14px;
+    --card-gap: 24px;
+    --card-padding: 24px;
+    --font-app: 16px;
+    --font-title: 30px;
+    --font-subtitle: 16px;
+    --line-app: 1.55;
+    --line-title: 1.18;
+    --input-height: 48px;
+    --button-min-height: 44px;
+    --grid-columns: repeat(2, minmax(0, 1fr));
+    --header-gap: 16px;
+    --header-padding-y: 12px;
+    --header-min-height: 72px;
+    --menu-max-height: 68dvh;
+    --bottom-nav-height: 72px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --container-max: 1200px;
+    --page-padding-x: 40px;
+    --page-padding-y: 32px;
+    --layout-gap: 28px;
+    --element-gap: 16px;
+    --card-gap: 28px;
+    --card-padding: 24px;
+    --font-app: 16px;
+    --font-title: 32px;
+    --font-subtitle: 16px;
+    --line-app: 1.55;
+    --line-title: 1.18;
+    --input-height: 46px;
+    --button-min-height: 44px;
+    --grid-columns: repeat(3, minmax(0, 1fr));
+    --header-gap: 20px;
+    --header-padding-y: 12px;
+    --header-min-height: 72px;
+    --menu-max-height: 70dvh;
+    --bottom-nav-height: 72px;
+  }
+}
+
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
 html {
   /* iOS Safari: don't inflate text after orientation changes. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body {
-  min-width: 320px;
-  /* 100dvh tracks the real visible viewport on mobile (address bar shows/
-     hides); browsers without dvh keep the 100vh fallback. */
-  min-height: 100vh;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  /* 100dvh tracks the real visible viewport on mobile (address bar shows/hides). */
   min-height: 100dvh;
   margin: 0;
+  overflow-x: hidden;
   background: var(--page-bg, #070a12);
   color: var(--text, #e2e8f0);
+  font-size: var(--font-app);
+  line-height: var(--line-app);
+  overflow-wrap: anywhere;
+}
+
+#root {
+  width: 100%;
+  min-height: 100dvh;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 button,
@@ -124,6 +385,66 @@ a {
   touch-action: manipulation;
 }
 
+button,
+[role="button"],
+input,
+select,
+textarea,
+summary {
+  min-height: var(--tap-target);
+}
+
+button,
+[role="button"],
+summary {
+  min-width: var(--tap-target);
+}
+
+input,
+select,
+textarea {
+  min-height: var(--input-height);
+  max-width: 100%;
+  font-size: max(var(--font-app), 16px);
+  line-height: var(--line-app);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+button {
+  min-height: var(--button-min-height);
+}
+
+button:active,
+[role="button"]:active {
+  transform: translateY(0);
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+button:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent, #22c55e);
+  outline-offset: 2px;
+}
+
 /* Media never overflows its container. Hero/logo classes that need to bleed
    set their own max-width and win by specificity. */
 img,
@@ -131,6 +452,44 @@ svg,
 video,
 canvas {
   max-width: 100%;
+  height: auto;
+}
+
+table {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  @supports (height: 100dvh) {
+    body {
+      min-height: 100dvh;
+    }
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  button:hover,
+  [role="button"]:hover {
+    transform: none;
+  }
+
+  .spotlight-card:hover::before {
+    opacity: 0;
+  }
 }
 
 ::selection {
@@ -138,9 +497,16 @@ canvas {
 }
 
 .app-shell {
+  width: 100%;
+  min-height: 100dvh;
+  max-width: 100%;
+  overflow-x: clip;
   background: var(--page-bg);
   color: var(--text);
+  font-size: var(--font-app);
+  line-height: var(--line-app);
   font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 /*
@@ -152,7 +518,7 @@ canvas {
 */
 .balanced-text {
   text-wrap: balance;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 /*
@@ -239,8 +605,9 @@ canvas {
 
 .login-shell {
   position: relative;
-  min-height: 100vh;
+  width: 100%;
   min-height: 100dvh;
+  max-width: 100%;
   overflow-x: hidden;
   background: var(--login-page-bg, #f6f8fb);
   color: var(--login-form-text, #0f172a);
@@ -301,15 +668,18 @@ canvas {
 
 .login-layout {
   display: flex;
-  min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
   min-height: 100dvh;
+  overflow-x: clip;
   background: var(--login-page-bg);
 }
 
 .login-brand-panel {
   position: relative;
   display: flex;
-  min-height: 100vh;
+  min-height: 100dvh;
+  max-width: 100%;
   flex-direction: column;
   gap: 1.5rem;
   overflow: hidden;
@@ -524,7 +894,7 @@ canvas {
   justify-content: center;
   gap: 0.55em;
   width: 100%;
-  height: 42px;
+  min-height: var(--button-min-height);
   border-radius: 6px;
   border: 2px solid var(--border);
   background-color: var(--field);
@@ -585,9 +955,9 @@ canvas {
   position: relative;
   display: flex;
   flex: 1;
-  min-height: 100vh;
   min-height: 100dvh;
   min-width: 0;
+  max-width: 100%;
   align-items: center;
   justify-content: center;
   padding: clamp(2rem, 6vw, 5rem);
@@ -625,6 +995,7 @@ canvas {
 .login-form-shell {
   width: min(100%, 36rem);
   max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .login-form {
@@ -641,6 +1012,7 @@ canvas {
   justify-content: center;
   gap: 0.5em;
   width: 100%;
+  min-height: var(--button-min-height);
   padding: 0.85em 2em;
   font-family: inherit;
   font-size: 0.9375rem;
@@ -776,8 +1148,10 @@ canvas {
   border-bottom: 2px solid var(--login-form-text);
   display: block;
   width: 100%;
+  min-height: var(--input-height);
   padding: 15px 0;
-  font-size: 18px;
+  font-size: max(var(--font-app), 16px);
+  line-height: var(--line-app);
   color: var(--login-form-text);
 }
 
@@ -836,7 +1210,7 @@ canvas {
 
 .animated-field label span {
   display: inline-block;
-  font-size: 18px;
+  font-size: max(var(--font-app), 16px);
   min-width: 5px;
   color: var(--login-form-text);
   transition: 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
@@ -864,10 +1238,10 @@ canvas {
 .login-heading h2 {
   margin: 0;
   color: var(--login-form-text);
-  font-size: clamp(2rem, 3vw, 2.35rem);
+  font-size: var(--font-title);
   font-weight: 800;
   letter-spacing: 0;
-  line-height: 1.12;
+  line-height: var(--line-title);
   text-shadow: none;
 }
 
@@ -915,8 +1289,9 @@ canvas {
 .login-heading p {
   margin-top: 0.75rem;
   color: var(--login-form-muted);
-  font-size: 1rem;
-  line-height: 1.55;
+  font-size: var(--font-subtitle);
+  line-height: var(--line-app);
+  overflow-wrap: anywhere;
 }
 
 /* Marca compacta usada apenas no mobile (ver media query de 900px): logo +
@@ -1144,16 +1519,15 @@ canvas {
   }
 
   .login-form-panel {
-    min-height: 100vh;
     min-height: 100dvh;
     align-items: flex-start;
     /* Topo livre para o toggle de tema fixo (top-4 + 32px de altura);
        laterais/base respeitam notch e home indicator. */
     padding:
       calc(4.25rem + env(safe-area-inset-top, 0px))
-      max(1.25rem, env(safe-area-inset-right, 0px))
+      max(var(--page-padding-x), env(safe-area-inset-right, 0px))
       calc(2.5rem + env(safe-area-inset-bottom, 0px))
-      max(1.25rem, env(safe-area-inset-left, 0px));
+      max(var(--page-padding-x), env(safe-area-inset-left, 0px));
     border-left: 0;
     border-radius: 0;
     box-shadow: none;
@@ -1173,8 +1547,8 @@ canvas {
      toggle de tema ocupa o direito) e expande para baixo, em vez de ficar
      ancorado embaixo cobrindo os botões do formulário. */
   .login-terminal {
-    top: calc(0.75rem + env(safe-area-inset-top, 0px));
-    left: calc(0.75rem + env(safe-area-inset-left, 0px));
+    top: calc(var(--page-padding-x) + env(safe-area-inset-top, 0px));
+    left: max(var(--page-padding-x), env(safe-area-inset-left, 0px));
     right: auto;
     bottom: auto;
   }
@@ -1183,7 +1557,7 @@ canvas {
 @media (max-width: 600px) {
   .login-form-shell {
     width: 100%;
-    max-width: 23.5rem;
+    max-width: min(var(--container-max), 23.5rem);
     margin-inline: auto;
   }
 
@@ -1203,7 +1577,7 @@ canvas {
   }
 
   .login-heading h2 {
-    font-size: 1.75rem;
+    font-size: var(--font-title);
   }
 }
 
@@ -1312,6 +1686,11 @@ canvas {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.floating-theme-toggle {
+  top: calc(1rem + env(safe-area-inset-top, 0px));
+  right: max(1rem, env(safe-area-inset-right, 0px));
 }
 
 .theme-switch-icon {
@@ -1667,8 +2046,9 @@ canvas {
 .switch {
   position: relative;
   display: inline-flex;
-  height: 1.5rem;
-  width: 2.75rem;
+  min-height: var(--tap-target);
+  width: 3.25rem;
+  min-width: var(--tap-target);
   flex-shrink: 0;
   cursor: pointer;
   align-items: center;
@@ -1683,8 +2063,8 @@ canvas {
 }
 
 .switch .switch-track {
-  height: 100%;
-  width: 100%;
+  height: 1.5rem;
+  width: 2.75rem;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface-soft);
@@ -1697,6 +2077,7 @@ canvas {
 .switch .switch-thumb {
   position: absolute;
   left: 3px;
+  top: 50%;
   height: 1.05rem;
   width: 1.05rem;
   border-radius: 999px;
@@ -1705,6 +2086,7 @@ canvas {
   transition:
     transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
     background 220ms ease;
+  transform: translateY(-50%);
 }
 
 .switch input:checked ~ .switch-track {
@@ -1714,7 +2096,7 @@ canvas {
 }
 
 .switch input:checked ~ .switch-thumb {
-  transform: translateX(1.25rem);
+  transform: translate(1.25rem, -50%);
   background: var(--accent-foreground);
 }
 
@@ -1810,8 +2192,15 @@ canvas {
   z-index: 40;
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-  padding: 0.75rem 1.5rem;
+  min-height: var(--header-min-height);
+  width: 100%;
+  max-width: 100%;
+  gap: var(--header-gap);
+  padding:
+    calc(var(--header-padding-y) + env(safe-area-inset-top, 0px))
+    max(var(--page-padding-x), env(safe-area-inset-right, 0px))
+    var(--header-padding-y)
+    max(var(--page-padding-x), env(safe-area-inset-left, 0px));
   border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   background: var(--panel);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
@@ -1821,19 +2210,84 @@ canvas {
     0 8px 32px -16px rgba(0, 0, 0, 0.18);
 }
 
+.vault-navbar-actions {
+  min-width: 0;
+  gap: var(--element-gap);
+}
+
+.vault-shell-grid {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* Sidebar: glass limpo sem glow colorido */
 .vault-sidebar {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  gap: var(--layout-gap);
+  padding-block: var(--card-gap);
+  padding-inline:
+    max(var(--page-padding-x), env(safe-area-inset-left, 0px))
+    max(var(--page-padding-x), env(safe-area-inset-right, 0px));
   background: color-mix(in srgb, var(--sidebar) 80%, transparent);
   border-right: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   -webkit-backdrop-filter: blur(20px) saturate(140%);
   backdrop-filter: blur(20px) saturate(140%);
 }
 
+.vault-sidebar-actions {
+  width: 100%;
+  max-width: 100%;
+  gap: var(--element-gap);
+}
+
+.vault-content {
+  width: 100%;
+  min-width: 0;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding:
+    var(--page-padding-y)
+    max(var(--page-padding-x), env(safe-area-inset-right, 0px))
+    calc(var(--page-padding-y) + env(safe-area-inset-bottom, 0px))
+    max(var(--page-padding-x), env(safe-area-inset-left, 0px));
+}
+
+.vault-content-header {
+  gap: var(--element-gap);
+}
+
+.vault-toolbar {
+  gap: var(--card-gap);
+  padding: var(--card-padding);
+}
+
+.vault-filters {
+  width: 100%;
+  max-width: 100%;
+  gap: var(--element-gap);
+}
+
+.vault-list {
+  width: 100%;
+  max-width: 100%;
+}
+
+.vault-menu-row,
+.status-tabs {
+  max-width: 100%;
+}
+
 /* Card principal do vault — painel neutro com sombra sutil */
 .vault-card {
+  width: 100%;
+  max-width: 100%;
   background: var(--panel);
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  border-radius: 1.5rem;
+  border-radius: var(--radius-card);
   -webkit-backdrop-filter: blur(24px) saturate(150%);
   backdrop-filter: blur(24px) saturate(150%);
   box-shadow:
@@ -1849,8 +2303,8 @@ canvas {
   justify-content: center;
   gap: 0.5em;
   padding: 0 1.25rem;
-  height: 2.375rem;
-  border-radius: 0.75rem;
+  min-height: var(--button-min-height);
+  border-radius: var(--radius-button);
   border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
   background: var(--surface-soft);
   color: var(--text);
@@ -1889,7 +2343,8 @@ canvas {
   align-items: center;
   gap: 0.4rem;
   padding: 0 0.875rem;
-  height: 2.25rem;
+  min-width: var(--tap-target);
+  min-height: var(--button-min-height);
   border-radius: 0.625rem;
   border: 1px solid transparent;
   background: transparent;
@@ -1965,6 +2420,90 @@ canvas {
   animation: rise 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.modal-viewport {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  max-width: 100vw;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding:
+    max(16px, env(safe-area-inset-top, 0px))
+    max(16px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px))
+    max(16px, env(safe-area-inset-left, 0px));
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-panel {
+  width: min(100%, var(--modal-max-width));
+  max-width: min(var(--modal-max-width), calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--radius-modal);
+}
+
+.modal-panel-sm {
+  --modal-max-width: 24rem;
+}
+
+.modal-panel-md {
+  --modal-max-width: 28rem;
+}
+
+.modal-panel-lg {
+  --modal-max-width: 32rem;
+}
+
+.modal-panel-xl {
+  --modal-max-width: 36rem;
+}
+
+.modal-panel-3xl {
+  --modal-max-width: 48rem;
+}
+
+.account-settings-panel {
+  min-height: min(520px, calc(100dvh - 32px));
+}
+
+.account-settings-nav,
+.account-settings-content {
+  min-width: 0;
+}
+
+.menu-popover {
+  max-width: calc(100vw - 32px);
+  max-height: var(--menu-max-height);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.responsive-grid {
+  display: grid;
+  grid-template-columns: var(--grid-columns);
+  gap: var(--layout-gap);
+}
+
+.table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bottom-navigation,
+.bottom-actions,
+.mobile-bottom-actions {
+  width: 100%;
+  max-width: 100%;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
 /* ============================================================================
    Mobile, toque e safe-area
    ========================================================================= */
@@ -2017,15 +2556,155 @@ canvas {
   }
 }
 
+@media (max-width: 767px) {
+  .vault-shell-grid,
+  .responsive-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vault-navbar {
+    position: sticky;
+    flex-wrap: nowrap;
+  }
+
+  .vault-navbar-actions {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .vault-navbar-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .vault-content {
+    max-width: var(--container-max);
+  }
+
+  .vault-toolbar {
+    flex-direction: column;
+  }
+
+  .vault-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vault-filters > * {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .vault-list {
+    display: grid;
+    gap: var(--card-gap);
+    padding: var(--card-gap);
+  }
+
+  .vault-menu-row,
+  .status-tabs {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--element-gap);
+    width: 100%;
+    overflow-x: visible;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+
+  .vault-menu-row > *,
+  .status-tabs > * {
+    width: 100%;
+    min-width: 0;
+    justify-content: space-between;
+  }
+
+  .account-row-card {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface-soft);
+    overflow: hidden;
+  }
+
+  .modal-viewport {
+    padding:
+      max(16px, env(safe-area-inset-top, 0px))
+      max(16px, env(safe-area-inset-right, 0px))
+      max(16px, env(safe-area-inset-bottom, 0px))
+      max(16px, env(safe-area-inset-left, 0px));
+  }
+
+  .modal-panel {
+    width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 32px);
+    border-radius: var(--radius-modal);
+  }
+
+  .account-settings-panel {
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .account-settings-nav {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: var(--card-padding);
+    padding-bottom: calc(var(--element-gap) + env(safe-area-inset-bottom, 0px));
+    scrollbar-width: none;
+  }
+
+  .account-settings-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .account-settings-nav button {
+    flex: 0 0 auto;
+    min-width: max-content;
+  }
+
+  .account-settings-content {
+    padding: var(--card-padding);
+  }
+
+  .menu-popover {
+    max-height: min(var(--menu-max-height), calc(100dvh - 96px));
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .vault-menu-row,
+  .status-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--element-gap);
+    width: 100%;
+    overflow-x: visible;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+
+  .vault-menu-row > *,
+  .status-tabs > * {
+    width: 100%;
+    min-width: 0;
+    justify-content: space-between;
+  }
+}
+
 /* Navbar do vault em telas pequenas: padding compacto + respeito ao notch. */
 @media (max-width: 640px) {
   .vault-navbar {
-    gap: 0.75rem;
+    gap: var(--header-gap);
     padding:
-      calc(0.6rem + env(safe-area-inset-top, 0px))
-      max(0.875rem, env(safe-area-inset-right, 0px))
-      0.6rem
-      max(0.875rem, env(safe-area-inset-left, 0px));
+      calc(var(--header-padding-y) + env(safe-area-inset-top, 0px))
+      max(var(--page-padding-x), env(safe-area-inset-right, 0px))
+      var(--header-padding-y)
+      max(var(--page-padding-x), env(safe-area-inset-left, 0px));
   }
 
   /* Blur mais leve em telas pequenas: backdrop-filter alto é caro em GPU
@@ -2041,6 +2720,14 @@ canvas {
 /* Toggle de tema compacto em telas estreitas (a versão de 120px + ícones
    ocupava metade da navbar e era cortada em 320–360px). */
 @media (max-width: 480px) {
+  .login-terminal:not(.login-terminal--collapsed) {
+    top: calc(4.5rem + env(safe-area-inset-top, 0px));
+    right: max(var(--page-padding-x), env(safe-area-inset-right, 0px));
+    left: max(var(--page-padding-x), env(safe-area-inset-left, 0px));
+    width: auto;
+    min-width: 0;
+  }
+
   .theme-switch-icon {
     display: none;
   }

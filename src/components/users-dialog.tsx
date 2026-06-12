@@ -352,7 +352,7 @@ export function UsersDialog({
   return (
     // Wrapper rolável + m-auto: este é o modal mais alto do app; com
     // items-center o topo ficava cortado e inalcançável no mobile.
-    <div className="fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
+    <div className="modal-viewport fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
       <button
         aria-label="Fechar"
         className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
@@ -361,7 +361,7 @@ export function UsersDialog({
       />
       <section
         aria-modal="true"
-        className="app-panel animate-pop-in relative m-auto w-full max-w-lg overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6"
+        className="modal-panel modal-panel-lg app-panel animate-pop-in relative m-auto w-full max-w-lg overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6"
         role="dialog"
       >
         <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />
@@ -393,7 +393,7 @@ export function UsersDialog({
           className="mt-5 grid gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4"
           onSubmit={handleCreate}
         >
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2">
             <label className="grid gap-1.5">
               <span className="text-xs font-medium text-[color:var(--muted)]">
                 Usuário
@@ -421,7 +421,7 @@ export function UsersDialog({
             </label>
           </div>
 
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col items-stretch justify-between gap-3 min-[430px]:flex-row min-[430px]:items-center">
             <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[color:var(--text)]">
               <Switch
                 checked={newRole === "admin"}
@@ -433,7 +433,7 @@ export function UsersDialog({
               Tornar admin (vê tudo)
             </label>
             <Button
-              className="shrink-0"
+              className="w-full shrink-0 min-[430px]:w-auto"
               variant="neon"
               disabled={creating || !newName.trim() || !newPassword}
               type="submit"
@@ -470,7 +470,7 @@ export function UsersDialog({
               return (
                 <div
                   key={user.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-3.5 py-2.5"
+              className="flex flex-col items-stretch justify-between gap-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-3.5 py-2.5 min-[430px]:flex-row min-[430px]:items-center"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-[color:var(--text)]">
@@ -491,7 +491,7 @@ export function UsersDialog({
                       {user.role === "admin" ? "Administrador" : "Membro"}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="flex shrink-0 flex-wrap items-center gap-1">
                     {user.twoFactorEnabled ? (
                       <button
                         className="rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--muted)] transition hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
@@ -545,7 +545,7 @@ export function UsersDialog({
                     key={user.id}
                     className="rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] p-3"
                   >
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-col items-stretch justify-between gap-3 min-[430px]:flex-row min-[430px]:items-center">
                       <p className="truncate text-sm font-semibold text-[color:var(--text)]">
                         {user.username}
                         <span className="ml-2 text-xs font-normal text-[color:var(--muted)]">
@@ -565,7 +565,7 @@ export function UsersDialog({
                       {list.map((session) => (
                         <li
                           key={session.sessionId}
-                          className="flex items-center justify-between gap-3 rounded-lg bg-[color:var(--surface-soft)] px-2.5 py-2"
+                          className="flex flex-col items-stretch justify-between gap-3 rounded-lg bg-[color:var(--surface-soft)] px-2.5 py-2 min-[430px]:flex-row min-[430px]:items-center"
                         >
                           <div className="min-w-0">
                             <p className="truncate text-xs font-medium text-[color:var(--text)]">
@@ -599,7 +599,7 @@ export function UsersDialog({
 
         {/* Backup: full export of all groups/accounts (admin only). The browser
             downloads it thanks to the server's Content-Disposition header. */}
-        <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4">
+        <div className="mt-5 flex flex-col items-stretch justify-between gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4 min-[430px]:flex-row min-[430px]:items-center">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-[color:var(--text)]">
               Backup completo
@@ -609,7 +609,7 @@ export function UsersDialog({
             </p>
           </div>
           <button
-            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-3.5 text-sm font-semibold text-[color:var(--text)] transition hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)]"
+            className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-3.5 text-sm font-semibold text-[color:var(--text)] transition hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] min-[430px]:w-auto"
             type="button"
             onClick={downloadBackup}
           >
@@ -636,7 +636,7 @@ export function UsersDialog({
               {events.map((event, index) => (
                 <li
                   key={`${event.ts}-${index}`}
-                  className="flex items-center justify-between gap-3 rounded-lg bg-[color:var(--surface-soft)] px-2.5 py-2"
+                  className="flex flex-col items-stretch justify-between gap-3 rounded-lg bg-[color:var(--surface-soft)] px-2.5 py-2 min-[430px]:flex-row min-[430px]:items-center"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-xs font-medium text-[color:var(--text)]">

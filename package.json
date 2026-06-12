@@ -12,6 +12,8 @@
     "local": "node scripts/local-dev.mjs",
     "build": "tsc -b && vite build",
     "start": "node server/index.mjs",
+    "test": "node --test",
+    "typecheck": "tsc -b",
     "format": "prettier --write ."
   },
   "dependencies": {

@@ -1,0 +1,34 @@
+# Pipeline de integração contínua: formato, testes e build a cada push/PR na
+# main. O deploy do Railway é disparado pelo push no GitHub; para o deploy
+# esperar este pipeline, ativar "Wait for CI" no serviço do Railway
+# (Settings → Deploy → Wait for CI) — aí um pipeline vermelho segura o deploy.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Formato (prettier --check)
+        run: npx prettier --check .
+
+      - name: Testes (node --test)
+        run: npm test
+
+      - name: Build (tsc + vite)
+        run: npm run build

@@ -1370,11 +1370,20 @@ async function handleApi(request, response, url, user, session) {
     const pwErr = validatePassword(password, full.username);
     if (pwErr) { badRequest(response, pwErr); return; }
     await setPassword(storageDir, user.id, password);
+    // A senha mudou: derruba toda sessão aberta em outros dispositivos. A sessão
+    // atual sobrevive (foi ela que provou conhecer a senha nova via reauth).
+    const revoked = await revokeAllForUser(storageDir, user.id, session.sessionId);
     void logEvent(storageDir, {
       userId: user.id, username: user.username,
       action: "password_changed", target: "self", ip: clientIp(request),
     });
-    sendJson(response, 200, { ok: true });
+    if (revoked > 0) {
+      void logEvent(storageDir, {
+        userId: user.id, username: user.username,
+        action: "sessions_revoked_all", target: `count:${revoked}`, ip: clientIp(request),
+      });
+    }
+    sendJson(response, 200, { ok: true, revokedSessions: revoked });
     return;
   }
 
@@ -1426,6 +1435,23 @@ async function handleApi(request, response, url, user, session) {
     return;
   }
 
+  // Revoke ALL own sessions except the current one ("sair dos outros
+  // dispositivos") in a single atomic call, instead of N DELETEs do front.
+  if (url.pathname === "/api/account/sessions" && request.method === "DELETE") {
+    const revoked = await revokeAllForUser(storageDir, user.id, session.sessionId);
+    if (revoked > 0) {
+      void logEvent(storageDir, {
+        userId: user.id,
+        username: user.username,
+        action: "sessions_revoked_all",
+        target: `count:${revoked}`,
+        ip: clientIp(request),
+      });
+    }
+    sendJson(response, 200, { ok: true, revoked });
+    return;
+  }
+
   // Revoke a specific own session by ID.
   const ownSessionMatch = url.pathname.match(/^\/api\/account\/sessions\/([^/]+)$/);
   if (ownSessionMatch && request.method === "DELETE") {
@@ -1436,6 +1462,13 @@ async function handleApi(request, response, url, user, session) {
       return;
     }
     await revokeSession(storageDir, sid);
+    void logEvent(storageDir, {
+      userId: user.id,
+      username: user.username,
+      action: "session_revoked",
+      target: "self",
+      ip: clientIp(request),
+    });
     sendJson(response, 200, { ok: true });
     return;
   }
@@ -1675,6 +1708,9 @@ async function handleApi(request, response, url, user, session) {
       notFound(response);
       return;
     }
+    // Reset feito pelo admin: o dono da conta precisa logar de novo em TODOS os
+    // dispositivos (inclusive onde quer que a senha antiga estivesse em uso).
+    const revoked = await revokeAllForUser(storageDir, targetId);
     void logEvent(storageDir, {
       userId: user.id,
       username: user.username,
@@ -1682,7 +1718,16 @@ async function handleApi(request, response, url, user, session) {
       target: `user:${targetId}`,
       ip: clientIp(request),
     });
-    sendJson(response, 200, { ok: true });
+    if (revoked > 0) {
+      void logEvent(storageDir, {
+        userId: user.id,
+        username: user.username,
+        action: "sessions_revoked_all",
+        target: `user:${targetId}`,
+        ip: clientIp(request),
+      });
+    }
+    sendJson(response, 200, { ok: true, revokedSessions: revoked });
     return;
   }
 

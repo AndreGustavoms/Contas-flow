@@ -1,222 +1,134 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { Copy, KeyRound, Mail, ShieldCheck, ShieldOff, X } from "lucide-react";
+import {
+  Copy,
+  Globe,
+  KeyRound,
+  Lock,
+  LogOut,
+  Mail,
+  Monitor,
+  Settings,
+  ShieldCheck,
+  ShieldOff,
+  Trash2,
+  User,
+  X,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Spinner } from "./ui/spinner";
+import { cn } from "../lib/utils";
+import { type AppTheme } from "../theme";
+import { type SessionUser } from "../App";
+import { LANGUAGES } from "../i18n";
+import i18n from "../i18n";
 
-// "Minha conta": per-user account settings. This release focuses on the
-// Security / 2FA section (TOTP, Riot-style: scan/enter the key, confirm a code to
-// enable, save one-time recovery codes). Every state-changing call goes through
-// `withReauth` (the parent owns the re-auth modal), so the server's
-// reauth_required is handled transparently.
+type Tab = "perfil" | "segurança" | "sessões" | "preferências" | "conta";
 
 type AccountSettingsProps = {
   onClose: () => void;
-  // Runs an action, handling the re-auth prompt+retry centrally (parent vault).
   withReauth: <T>(action: () => Promise<T>) => Promise<T>;
+  theme: AppTheme;
+  onThemeChange: (t: AppTheme) => void;
+  user: SessionUser | null;
 };
 
-const API = "/api/account/2fa";
+type Profile = {
+  id: string;
+  username: string;
+  fullName: string | null;
+  email: string | null;
+  role: "admin" | "member";
+  createdAt: string | null;
+  linkedProviders: { google: boolean; github: boolean };
+};
 
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
+type SessionInfo = {
+  sessionId: string;
+  current: boolean;
+  createdAt: string;
+  lastSeenAt: string;
+  userAgent: string;
+};
+
+type TfaStatus = { enabled: boolean; recoveryCodesRemaining: number };
+
+async function api<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     ...init,
   });
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? `http_${response.status}`);
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `http_${res.status}`);
   }
-  return response.json() as Promise<T>;
+  return res.json() as Promise<T>;
 }
 
-function isReauthCancelled(error: unknown): boolean {
-  return error instanceof Error && error.message === "reauth_required";
+function isReauthCancelled(err: unknown): boolean {
+  return err instanceof Error && err.message === "reauth_required";
 }
 
-type Status = { enabled: boolean; recoveryCodesRemaining: number };
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "agora mesmo";
+  if (m < 60) return `há ${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `há ${h}h`;
+  return `há ${Math.floor(h / 24)}d`;
+}
 
-export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function parseBrowser(ua: string): string {
+  if (!ua) return "Dispositivo desconhecido";
+  if (/mobile/i.test(ua)) {
+    if (/android/i.test(ua)) return "Android";
+    if (/iphone|ipad/i.test(ua)) return "iPhone / iPad";
+    return "Mobile";
+  }
+  if (/edg\//i.test(ua)) return "Edge";
+  if (/chrome/i.test(ua)) return "Chrome";
+  if (/firefox/i.test(ua)) return "Firefox";
+  if (/safari/i.test(ua)) return "Safari";
+  return "Navegador";
+}
+
+const NAV: { tab: Tab; icon: typeof User; labelKey: string }[] = [
+  { tab: "perfil", icon: User, labelKey: "account.nav_perfil" },
+  { tab: "segurança", icon: Lock, labelKey: "account.nav_security" },
+  { tab: "sessões", icon: Monitor, labelKey: "account.nav_sessions" },
+  { tab: "preferências", icon: Settings, labelKey: "account.nav_preferences" },
+  { tab: "conta", icon: Settings, labelKey: "account.nav_account" },
+];
+
+export function AccountSettings({
+  onClose,
+  withReauth,
+  theme,
+  onThemeChange,
+  user,
+}: AccountSettingsProps) {
   const { t } = useTranslation();
-  const [status, setStatus] = useState<Status | null>(null);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  // Setup flow state.
-  const [setup, setSetup] = useState<{ secret: string; otpauthUri: string } | null>(null);
-  const [enableCode, setEnableCode] = useState("");
-  // Recovery codes shown ONCE right after enabling / regenerating.
-  const [freshCodes, setFreshCodes] = useState<string[] | null>(null);
-  // Disable flow.
-  const [disabling, setDisabling] = useState(false);
-  const [disableCode, setDisableCode] = useState("");
-  const [copied, setCopied] = useState(false);
-
-  // Recovery e-mail state.
-  const [email, setEmail] = useState("");
-  const [emailLoaded, setEmailLoaded] = useState(false);
-  const [emailSaving, setEmailSaving] = useState(false);
-  const [emailSuccess, setEmailSuccess] = useState(false);
-  const [emailError, setEmailError] = useState("");
+  const [tab, setTab] = useState<Tab>("perfil");
 
   useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
     }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  async function loadStatus() {
-    try {
-      setStatus(await requestJson<Status>(API));
-    } catch {
-      setError(t("account.error_load_status"));
-    }
-  }
-
-  useEffect(() => {
-    void loadStatus();
-    // Load current e-mail.
-    fetch("/api/account/email")
-      .then((r) => (r.ok ? r.json() : { email: null }))
-      .then((d: { email: string | null }) => {
-        setEmail(d.email ?? "");
-        setEmailLoaded(true);
-      })
-      .catch(() => setEmailLoaded(true));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function saveEmail(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setEmailSaving(true);
-    setEmailError("");
-    setEmailSuccess(false);
-    try {
-      await requestJson("/api/account/email", {
-        method: "PUT",
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      setEmailSuccess(true);
-      window.setTimeout(() => setEmailSuccess(false), 2500);
-    } catch (err) {
-      setEmailError(
-        err instanceof Error && err.message === "invalid_email"
-          ? "E-mail inválido."
-          : "Não foi possível salvar.",
-      );
-    } finally {
-      setEmailSaving(false);
-    }
-  }
-
-  async function beginSetup() {
-    setError("");
-    setBusy(true);
-    try {
-      const result = await withReauth(() =>
-        requestJson<{ secret: string; otpauthUri: string }>(`${API}/setup`, {
-          method: "POST",
-        }),
-      );
-      setSetup(result);
-      setFreshCodes(null);
-      setEnableCode("");
-    } catch (err) {
-      if (!isReauthCancelled(err)) setError(t("account.error_start_setup"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function confirmEnable(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setBusy(true);
-    try {
-      const result = await withReauth(() =>
-        requestJson<{ recoveryCodes: string[] }>(`${API}/enable`, {
-          method: "POST",
-          body: JSON.stringify({ code: enableCode.trim() }),
-        }),
-      );
-      setFreshCodes(result.recoveryCodes);
-      setSetup(null);
-      setEnableCode("");
-      await loadStatus();
-    } catch (err) {
-      if (isReauthCancelled(err)) return;
-      setError(
-        err instanceof Error && err.message === "invalid_code"
-          ? t("account.error_invalid_code")
-          : t("account.error_enable"),
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function confirmDisable(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setBusy(true);
-    try {
-      await withReauth(() =>
-        requestJson(`${API}/disable`, {
-          method: "POST",
-          body: JSON.stringify({ code: disableCode.trim() }),
-        }),
-      );
-      setDisabling(false);
-      setDisableCode("");
-      setFreshCodes(null);
-      await loadStatus();
-    } catch (err) {
-      if (isReauthCancelled(err)) return;
-      setError(
-        err instanceof Error && err.message === "invalid_code"
-          ? t("account.error_invalid_code")
-          : t("account.error_disable"),
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function regenerate() {
-    setError("");
-    setBusy(true);
-    try {
-      const result = await withReauth(() =>
-        requestJson<{ recoveryCodes: string[] }>(`${API}/recovery-codes`, {
-          method: "POST",
-        }),
-      );
-      setFreshCodes(result.recoveryCodes);
-      await loadStatus();
-    } catch (err) {
-      if (!isReauthCancelled(err)) setError(t("account.error_new_codes"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function copySecret() {
-    if (!setup) return;
-    void navigator.clipboard.writeText(setup.secret).then(
-      () => {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 1500);
-      },
-      () => {},
-    );
-  }
-
   return (
-    // Wrapper rolável + m-auto: o modal centraliza quando cabe e rola desde o
-    // topo quando é mais alto que a tela (items-center cortava o início).
     <div className="fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
       <button
         aria-label="Fechar"
@@ -226,70 +138,507 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
       />
       <section
         aria-modal="true"
-        className="app-panel animate-pop-in relative m-auto w-full max-w-lg overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6"
         role="dialog"
+        className="app-panel animate-pop-in relative m-auto flex w-full max-w-3xl overflow-hidden rounded-[28px] border backdrop-blur-2xl"
+        style={{ minHeight: "520px" }}
       >
         <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />
 
-        <div className="relative flex items-start justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <ShieldCheck className="h-5 w-5 text-[color:var(--accent)]" />
-            <h2 className="text-xl font-semibold tracking-normal text-[color:var(--text)]">
+        {/* Sidebar */}
+        <nav className="flex w-52 shrink-0 flex-col border-r border-[color:var(--border)] p-4 pt-5">
+          <div className="mb-5 flex items-center justify-between">
+            <span className="text-sm font-semibold text-[color:var(--text)]">
               {t("account.title")}
-            </h2>
+            </span>
+            <Button aria-label={t("account.close")} size="icon" variant="ghost" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-          <Button aria-label={t("account.close")} size="icon" variant="ghost" onClick={onClose}>
-            <X className="h-4 w-4" />
+          {NAV.map(({ tab: id, icon: Icon, labelKey }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className={cn(
+                "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition",
+                tab === id
+                  ? "bg-[color:var(--accent)] text-white"
+                  : "text-[color:var(--muted)] hover:bg-[color:var(--field)] hover:text-[color:var(--text)]",
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {t(labelKey)}
+            </button>
+          ))}
+        </nav>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {tab === "perfil" && (
+            <PerfilTab withReauth={withReauth} user={user} />
+          )}
+          {tab === "segurança" && (
+            <SegurancaTab withReauth={withReauth} />
+          )}
+          {tab === "sessões" && (
+            <SessoesTab />
+          )}
+          {tab === "preferências" && (
+            <PreferenciasTab theme={theme} onThemeChange={onThemeChange} />
+          )}
+          {tab === "conta" && (
+            <ContaTab withReauth={withReauth} user={user} onClose={onClose} />
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ─── Perfil ──────────────────────────────────────────────────────────────────
+
+function PerfilTab({
+  withReauth,
+  user,
+}: {
+  withReauth: AccountSettingsProps["withReauth"];
+  user: SessionUser | null;
+}) {
+  const { t } = useTranslation();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [fullName, setFullName] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [nameSaved, setNameSaved] = useState(false);
+  const [nameError, setNameError] = useState("");
+
+  const [email, setEmail] = useState("");
+  const [emailLoaded, setEmailLoaded] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [emailSaved, setEmailSaved] = useState(false);
+  const [emailError, setEmailError] = useState("");
+
+  useEffect(() => {
+    api<Profile>("/api/account/me")
+      .then((p) => {
+        setProfile(p);
+        setFullName(p.fullName ?? "");
+      })
+      .catch(() => {});
+
+    fetch("/api/account/email")
+      .then((r) => (r.ok ? r.json() : { email: null }))
+      .then((d: { email: string | null }) => {
+        setEmail(d.email ?? "");
+        setEmailLoaded(true);
+      })
+      .catch(() => setEmailLoaded(true));
+  }, []);
+
+  async function saveName(e: FormEvent) {
+    e.preventDefault();
+    setSavingName(true);
+    setNameError("");
+    setNameSaved(false);
+    try {
+      await api("/api/account/profile", {
+        method: "PUT",
+        body: JSON.stringify({ fullName: fullName.trim() || null }),
+      });
+      setNameSaved(true);
+      window.setTimeout(() => setNameSaved(false), 2500);
+    } catch {
+      setNameError("Não foi possível salvar.");
+    } finally {
+      setSavingName(false);
+    }
+  }
+
+  async function saveEmail(e: FormEvent) {
+    e.preventDefault();
+    setSavingEmail(true);
+    setEmailError("");
+    setEmailSaved(false);
+    try {
+      await api("/api/account/email", {
+        method: "PUT",
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      setEmailSaved(true);
+      window.setTimeout(() => setEmailSaved(false), 2500);
+    } catch (err) {
+      setEmailError(
+        err instanceof Error && err.message === "invalid_email"
+          ? "E-mail inválido."
+          : "Não foi possível salvar.",
+      );
+    } finally {
+      setSavingEmail(false);
+    }
+  }
+
+  const initials = (profile?.fullName ?? user?.username ?? "?")
+    .split(" ")
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .slice(0, 2)
+    .join("");
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-lg font-semibold text-[color:var(--text)]">
+        {t("account.nav_perfil")}
+      </h2>
+
+      {/* Avatar + identity */}
+      <div className="flex items-center gap-4">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-xl font-bold text-white">
+          {initials}
+        </div>
+        <div className="min-w-0">
+          <p className="font-semibold text-[color:var(--text)]">
+            {profile?.fullName ?? user?.username}
+          </p>
+          <p className="text-sm text-[color:var(--muted)]">@{profile?.username ?? user?.username}</p>
+          <span
+            className={cn(
+              "mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold",
+              profile?.role === "admin"
+                ? "bg-[color:var(--accent)] text-white"
+                : "bg-[color:var(--field)] text-[color:var(--muted)]",
+            )}
+          >
+            {profile?.role === "admin" ? t("account.role_admin") : t("account.role_member")}
+          </span>
+          {profile?.createdAt && (
+            <p className="mt-0.5 text-xs text-[color:var(--muted)]">
+              {t("account.member_since", { date: fmtDate(profile.createdAt) })}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Full name */}
+      <form onSubmit={saveName} className="grid gap-1.5">
+        <label className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
+          {t("account.full_name_label")}
+        </label>
+        <div className="flex gap-2">
+          <Input
+            className="h-10 flex-1 rounded-xl px-3"
+            placeholder={t("account.full_name_placeholder")}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
+          <Button type="submit" variant="outline" disabled={savingName} className="h-10 shrink-0">
+            {savingName ? <Spinner className="h-4 w-4" /> : t("account.save")}
           </Button>
         </div>
+        {nameSaved && <p className="text-xs text-green-400">{t("account.saved")}</p>}
+        {nameError && <p className="text-xs text-red-300">{nameError}</p>}
+      </form>
 
-        <h3 className="mt-5 text-sm font-semibold uppercase tracking-[0.16em] text-[color:var(--accent-muted)]">
-          E-mail de recuperação
-        </h3>
-        <p className="mt-1 text-xs text-[color:var(--muted)]">
-          Usado para redefinir sua senha caso esqueça.
-        </p>
+      {/* Recovery email */}
+      <form onSubmit={saveEmail} className="grid gap-1.5">
+        <label className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
+          <Mail className="mr-1 inline h-3.5 w-3.5" />
+          {t("account.recovery_email")}
+        </label>
+        <p className="text-xs text-[color:var(--muted)]">{t("account.recovery_email_desc")}</p>
         {emailLoaded && (
-          <form className="mt-3 flex gap-2" onSubmit={saveEmail}>
+          <div className="flex gap-2">
             <Input
               type="email"
-              autoComplete="email"
-              className="h-10 min-w-0 flex-1 rounded-xl px-3"
+              className="h-10 flex-1 rounded-xl px-3"
               placeholder="seu@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <Button
-              type="submit"
-              variant="outline"
-              disabled={emailSaving}
-              className="h-10 shrink-0"
-            >
-              {emailSaving ? <Spinner className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
-              Salvar
+            <Button type="submit" variant="outline" disabled={savingEmail} className="h-10 shrink-0">
+              {savingEmail ? <Spinner className="h-4 w-4" /> : t("account.save")}
             </Button>
-          </form>
+          </div>
         )}
-        {emailSuccess && (
-          <p className="mt-1 text-xs text-green-400">E-mail salvo.</p>
-        )}
-        {emailError && (
-          <p className="mt-1 text-xs text-red-300">{emailError}</p>
-        )}
+        {emailSaved && <p className="text-xs text-green-400">{t("account.saved")}</p>}
+        {emailError && <p className="text-xs text-red-300">{emailError}</p>}
+      </form>
 
-        <h3 className="mt-6 text-sm font-semibold uppercase tracking-[0.16em] text-[color:var(--accent-muted)]">
-          {t("account.two_factor")}
-        </h3>
-
-        {error ? (
-          <p className="mt-3 text-sm text-red-300" role="alert">
-            {error}
+      {/* Linked providers */}
+      {profile && (
+        <div className="grid gap-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
+            {t("account.linked_providers")}
           </p>
-        ) : null}
+          <div className="flex gap-3">
+            <ProviderChip
+              linked={profile.linkedProviders.google}
+              label="Google"
+              icon={
+                <svg className="h-4 w-4" viewBox="0 0 24 24">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+              }
+            />
+            <ProviderChip
+              linked={profile.linkedProviders.github}
+              label="GitHub"
+              icon={
+                <svg className="h-4 w-4" viewBox="0 0 24 24">
+                  <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" fill="currentColor"/>
+                </svg>
+              }
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
-        {/* Fresh recovery codes — shown once, right after enable/regenerate. */}
+function ProviderChip({
+  linked,
+  label,
+  icon,
+}: {
+  linked: boolean;
+  label: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 rounded-xl border px-3 py-2 text-sm",
+        linked
+          ? "border-[color:var(--accent-border)] text-[color:var(--text)]"
+          : "border-[color:var(--border)] text-[color:var(--muted)] opacity-60",
+      )}
+    >
+      {icon}
+      <span>{label}</span>
+      {linked ? (
+        <span className="ml-1 h-2 w-2 rounded-full bg-green-400" />
+      ) : (
+        <span className="ml-1 h-2 w-2 rounded-full bg-[color:var(--muted)] opacity-40" />
+      )}
+    </div>
+  );
+}
+
+// ─── Segurança ───────────────────────────────────────────────────────────────
+
+function SegurancaTab({
+  withReauth,
+}: {
+  withReauth: AccountSettingsProps["withReauth"];
+}) {
+  const { t } = useTranslation();
+  const [current, setCurrent] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [savingPw, setSavingPw] = useState(false);
+  const [pwSuccess, setPwSuccess] = useState(false);
+  const [pwError, setPwError] = useState("");
+
+  // 2FA state
+  const [tfaStatus, setTfaStatus] = useState<TfaStatus | null>(null);
+  const [tfaError, setTfaError] = useState("");
+  const [tfaBusy, setTfaBusy] = useState(false);
+  const [setup, setSetup] = useState<{ secret: string; otpauthUri: string } | null>(null);
+  const [enableCode, setEnableCode] = useState("");
+  const [freshCodes, setFreshCodes] = useState<string[] | null>(null);
+  const [disabling, setDisabling] = useState(false);
+  const [disableCode, setDisableCode] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    api<TfaStatus>("/api/account/2fa")
+      .then(setTfaStatus)
+      .catch(() => setTfaError(t("account.error_load_status")));
+  }, [t]);
+
+  async function changePassword(e: FormEvent) {
+    e.preventDefault();
+    setSavingPw(true);
+    setPwError("");
+    setPwSuccess(false);
+    try {
+      await withReauth(() =>
+        api("/api/account/password", {
+          method: "PUT",
+          body: JSON.stringify({ current, password: newPw }),
+        }),
+      );
+      setCurrent("");
+      setNewPw("");
+      setPwSuccess(true);
+      window.setTimeout(() => setPwSuccess(false), 3000);
+    } catch (err) {
+      if (isReauthCancelled(err)) return;
+      setPwError(
+        err instanceof Error
+          ? err.message === "invalid_current_password"
+            ? t("account.error_invalid_current_password")
+            : t(`team.error_${err.message}`) || t("account.error_change_password")
+          : t("account.error_change_password"),
+      );
+    } finally {
+      setSavingPw(false);
+    }
+  }
+
+  async function beginSetup() {
+    setTfaError("");
+    setTfaBusy(true);
+    try {
+      const result = await withReauth(() =>
+        api<{ secret: string; otpauthUri: string }>("/api/account/2fa/setup", { method: "POST" }),
+      );
+      setSetup(result);
+      setFreshCodes(null);
+      setEnableCode("");
+    } catch (err) {
+      if (!isReauthCancelled(err)) setTfaError(t("account.error_start_setup"));
+    } finally {
+      setTfaBusy(false);
+    }
+  }
+
+  async function confirmEnable(e: FormEvent) {
+    e.preventDefault();
+    setTfaError("");
+    setTfaBusy(true);
+    try {
+      const result = await withReauth(() =>
+        api<{ recoveryCodes: string[] }>("/api/account/2fa/enable", {
+          method: "POST",
+          body: JSON.stringify({ code: enableCode.trim() }),
+        }),
+      );
+      setFreshCodes(result.recoveryCodes);
+      setSetup(null);
+      setEnableCode("");
+      const s = await api<TfaStatus>("/api/account/2fa");
+      setTfaStatus(s);
+    } catch (err) {
+      if (isReauthCancelled(err)) return;
+      setTfaError(
+        err instanceof Error && err.message === "invalid_code"
+          ? t("account.error_invalid_code")
+          : t("account.error_enable"),
+      );
+    } finally {
+      setTfaBusy(false);
+    }
+  }
+
+  async function confirmDisable(e: FormEvent) {
+    e.preventDefault();
+    setTfaError("");
+    setTfaBusy(true);
+    try {
+      await withReauth(() =>
+        api("/api/account/2fa/disable", {
+          method: "POST",
+          body: JSON.stringify({ code: disableCode.trim() }),
+        }),
+      );
+      setDisabling(false);
+      setDisableCode("");
+      setFreshCodes(null);
+      const s = await api<TfaStatus>("/api/account/2fa");
+      setTfaStatus(s);
+    } catch (err) {
+      if (isReauthCancelled(err)) return;
+      setTfaError(
+        err instanceof Error && err.message === "invalid_code"
+          ? t("account.error_invalid_code")
+          : t("account.error_disable"),
+      );
+    } finally {
+      setTfaBusy(false);
+    }
+  }
+
+  async function regenerate() {
+    setTfaError("");
+    setTfaBusy(true);
+    try {
+      const result = await withReauth(() =>
+        api<{ recoveryCodes: string[] }>("/api/account/2fa/recovery-codes", { method: "POST" }),
+      );
+      setFreshCodes(result.recoveryCodes);
+      const s = await api<TfaStatus>("/api/account/2fa");
+      setTfaStatus(s);
+    } catch (err) {
+      if (!isReauthCancelled(err)) setTfaError(t("account.error_new_codes"));
+    } finally {
+      setTfaBusy(false);
+    }
+  }
+
+  function copySecret() {
+    if (!setup) return;
+    void navigator.clipboard.writeText(setup.secret).then(
+      () => { setCopied(true); window.setTimeout(() => setCopied(false), 1500); },
+      () => {},
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <h2 className="text-lg font-semibold text-[color:var(--text)]">
+        {t("account.nav_security")}
+      </h2>
+
+      {/* Change password */}
+      <section className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
+          {t("account.change_password")}
+        </p>
+        <form onSubmit={changePassword} className="grid gap-3">
+          <label className="grid gap-1.5">
+            <span className="text-xs text-[color:var(--muted)]">{t("account.current_password_label")}</span>
+            <Input
+              type="password"
+              className="h-10 rounded-xl px-3"
+              autoComplete="current-password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+            />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-xs text-[color:var(--muted)]">{t("account.new_password_label")}</span>
+            <Input
+              type="password"
+              className="h-10 rounded-xl px-3"
+              autoComplete="new-password"
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+            />
+          </label>
+          {pwSuccess && <p className="text-xs text-green-400">{t("account.password_changed_ok")}</p>}
+          {pwError && <p className="text-xs text-red-300">{pwError}</p>}
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={savingPw || !current || !newPw}
+            className="h-10 w-fit"
+          >
+            {savingPw ? <Spinner className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+            {t("account.change_password_btn")}
+          </Button>
+        </form>
+      </section>
+
+      {/* 2FA */}
+      <section className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
+          {t("account.two_factor")}
+        </p>
+        {tfaError && <p className="text-sm text-red-300">{tfaError}</p>}
+
         {freshCodes ? (
-          <div className="mt-4 rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--field)] p-4">
+          <div className="rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--field)] p-4">
             <p className="text-sm font-semibold text-[color:var(--text)]">
               {t("account.two_factor_save_codes_title")}
             </p>
@@ -298,30 +647,18 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-sm text-[color:var(--text)]">
               {freshCodes.map((c) => (
-                <span
-                  key={c}
-                  className="rounded-lg bg-[color:var(--surface-soft)] px-2.5 py-1.5 text-center"
-                >
+                <span key={c} className="rounded-lg bg-[color:var(--surface-soft)] px-2.5 py-1.5 text-center">
                   {c}
                 </span>
               ))}
             </div>
-            <Button
-              className="mt-3"
-              variant="outline"
-              onClick={() => setFreshCodes(null)}
-            >
+            <Button className="mt-3" variant="outline" onClick={() => setFreshCodes(null)}>
               {t("account.two_factor_saved")}
             </Button>
           </div>
-        ) : null}
-
-        {/* Setup in progress: show the key to add to the authenticator app. */}
-        {setup ? (
-          <form className="mt-4 grid gap-3" onSubmit={confirmEnable}>
-            <p className="text-sm text-[color:var(--muted)]">
-              {t("account.two_factor_manual_key")}
-            </p>
+        ) : setup ? (
+          <form className="grid gap-3" onSubmit={confirmEnable}>
+            <p className="text-sm text-[color:var(--muted)]">{t("account.two_factor_manual_key")}</p>
             <div className="flex items-center gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] p-3">
               <code className="min-w-0 flex-1 break-all font-mono text-sm text-[color:var(--text)]">
                 {setup.secret}
@@ -335,9 +672,7 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
                 <Copy className="h-4 w-4" />
               </button>
             </div>
-            {copied ? (
-              <p className="text-xs text-[color:var(--accent)]">{t("account.two_factor_key_copied")}</p>
-            ) : null}
+            {copied && <p className="text-xs text-[color:var(--accent)]">{t("account.two_factor_key_copied")}</p>}
             <label className="grid gap-1.5">
               <span className="text-xs font-medium text-[color:var(--muted)]">
                 {t("account.two_factor_confirm_label")}
@@ -348,51 +683,37 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
                 className="h-11 rounded-2xl px-4 tracking-widest"
                 placeholder="000000"
                 value={enableCode}
-                onChange={(event) => setEnableCode(event.target.value)}
+                onChange={(e) => setEnableCode(e.target.value)}
               />
             </label>
             <div className="grid grid-cols-2 gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setSetup(null)}
-              >
+              <Button type="button" variant="outline" onClick={() => setSetup(null)}>
                 {t("account.two_factor_cancel")}
               </Button>
-              <Button
-                type="submit"
-                variant="neon"
-                disabled={busy || !enableCode.trim()}
-              >
-                {busy ? <Spinner className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+              <Button type="submit" variant="neon" disabled={tfaBusy || !enableCode.trim()}>
+                {tfaBusy ? <Spinner className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
                 {t("account.two_factor_activate")}
               </Button>
             </div>
           </form>
         ) : disabling ? (
-          <form className="mt-4 grid gap-3" onSubmit={confirmDisable}>
-            <p className="text-sm text-[color:var(--muted)]">
-              {t("account.two_factor_disable_instruction")}
-            </p>
+          <form className="grid gap-3" onSubmit={confirmDisable}>
+            <p className="text-sm text-[color:var(--muted)]">{t("account.two_factor_disable_instruction")}</p>
             <Input
               autoFocus
               className="h-11 rounded-2xl px-4 tracking-widest"
               placeholder={t("account.two_factor_code")}
               value={disableCode}
-              onChange={(event) => setDisableCode(event.target.value)}
+              onChange={(e) => setDisableCode(e.target.value)}
             />
             <div className="grid grid-cols-2 gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDisabling(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setDisabling(false)}>
                 {t("account.two_factor_cancel")}
               </Button>
               <button
-                className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-red-500 px-4 text-sm font-semibold text-white transition hover:bg-red-400 disabled:opacity-50"
+                className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-50"
                 type="submit"
-                disabled={busy || !disableCode.trim()}
+                disabled={tfaBusy || !disableCode.trim()}
               >
                 <ShieldOff className="h-4 w-4" />
                 {t("account.two_factor_disable")}
@@ -400,46 +721,380 @@ export function AccountSettings({ onClose, withReauth }: AccountSettingsProps) {
             </div>
           </form>
         ) : (
-          // Idle: show status + the primary action.
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-[color:var(--text)]">
-                {status?.enabled ? t("account.two_factor_enabled") : t("account.two_factor_disabled")}
+                {tfaStatus?.enabled ? t("account.two_factor_enabled") : t("account.two_factor_disabled")}
               </p>
               <p className="text-xs text-[color:var(--muted)]">
-                {status?.enabled
-                  ? t("account.two_factor_description", { count: status.recoveryCodesRemaining })
+                {tfaStatus?.enabled
+                  ? t("account.two_factor_description", { count: tfaStatus.recoveryCodesRemaining })
                   : t("account.two_factor_cta")}
               </p>
             </div>
-            {status?.enabled ? (
+            {tfaStatus?.enabled ? (
               <div className="flex shrink-0 flex-col gap-2">
-                <Button variant="outline" disabled={busy} onClick={regenerate}>
+                <Button variant="outline" disabled={tfaBusy} onClick={regenerate}>
                   <KeyRound className="h-4 w-4" />
                   {t("account.two_factor_new_codes")}
                 </Button>
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => setDisabling(true)}
-                >
+                <Button variant="outline" disabled={tfaBusy} onClick={() => setDisabling(true)}>
                   <ShieldOff className="h-4 w-4" />
                   {t("account.two_factor_disable")}
                 </Button>
               </div>
             ) : (
-              <Button
-                className="shrink-0"
-                variant="neon"
-                disabled={busy}
-                onClick={beginSetup}
-              >
-                {busy ? <Spinner className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+              <Button className="shrink-0" variant="neon" disabled={tfaBusy} onClick={beginSetup}>
+                {tfaBusy ? <Spinner className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
                 {t("account.two_factor_enable")}
               </Button>
             )}
           </div>
         )}
+      </section>
+    </div>
+  );
+}
+
+// ─── Sessões ─────────────────────────────────────────────────────────────────
+
+function SessoesTab() {
+  const { t } = useTranslation();
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [revoking, setRevoking] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  async function load() {
+    setLoading(true);
+    try {
+      const data = await api<{ sessions: SessionInfo[] }>("/api/account/sessions");
+      setSessions(data.sessions);
+    } catch {
+      setError("Não foi possível carregar as sessões.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { void load(); }, []);
+
+  async function revoke(sid: string) {
+    setRevoking(sid);
+    setError("");
+    try {
+      await api(`/api/account/sessions/${encodeURIComponent(sid)}`, { method: "DELETE" });
+      setSessions((s) => s.filter((x) => x.sessionId !== sid));
+    } catch {
+      setError("Não foi possível encerrar.");
+    } finally {
+      setRevoking(null);
+    }
+  }
+
+  async function revokeAll() {
+    setError("");
+    const others = sessions.filter((s) => !s.current);
+    for (const s of others) await revoke(s.sessionId);
+  }
+
+  const others = sessions.filter((s) => !s.current);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-[color:var(--text)]">
+          {t("account.nav_sessions")}
+        </h2>
+        {others.length > 0 && (
+          <Button variant="outline" className="h-8 text-xs" onClick={revokeAll}>
+            <LogOut className="h-3.5 w-3.5" />
+            {t("account.revoke_all_sessions")}
+          </Button>
+        )}
+      </div>
+
+      {error && <p className="text-sm text-red-300">{error}</p>}
+
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <Spinner className="h-5 w-5" />
+        </div>
+      ) : sessions.length === 0 ? (
+        <p className="text-sm text-[color:var(--muted)]">{t("account.no_sessions")}</p>
+      ) : (
+        <div className="space-y-2">
+          {sessions.map((s) => (
+            <div
+              key={s.sessionId}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4"
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <Monitor className="h-4 w-4 shrink-0 text-[color:var(--muted)]" />
+                  <p className="text-sm font-medium text-[color:var(--text)]">
+                    {parseBrowser(s.userAgent)}
+                  </p>
+                  {s.current && (
+                    <span className="rounded-full bg-[color:var(--accent)] px-2 py-0.5 text-xs font-semibold text-white">
+                      {t("account.current_session")}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-xs text-[color:var(--muted)]">
+                  {t("account.session_last_active", { time: timeAgo(s.lastSeenAt) })}
+                  {" · "}
+                  {t("account.session_created", { time: timeAgo(s.createdAt) })}
+                </p>
+              </div>
+              {!s.current && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={revoking === s.sessionId}
+                  onClick={() => revoke(s.sessionId)}
+                  className="shrink-0"
+                >
+                  {revoking === s.sessionId ? (
+                    <Spinner className="h-3.5 w-3.5" />
+                  ) : (
+                    <LogOut className="h-3.5 w-3.5" />
+                  )}
+                  {t("account.revoke_session")}
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Preferências ────────────────────────────────────────────────────────────
+
+function PreferenciasTab({
+  theme,
+  onThemeChange,
+}: {
+  theme: AppTheme;
+  onThemeChange: (t: AppTheme) => void;
+}) {
+  const { t } = useTranslation();
+  const currentLang = i18n.language as string;
+
+  return (
+    <div className="space-y-8">
+      <h2 className="text-lg font-semibold text-[color:var(--text)]">
+        {t("account.nav_preferences")}
+      </h2>
+
+      {/* Theme */}
+      <section className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
+          {t("account.theme_label")}
+        </p>
+        <div className="flex gap-3">
+          {(["white", "dark"] as const).map((th) => (
+            <button
+              key={th}
+              type="button"
+              onClick={() => onThemeChange(th)}
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-2 rounded-2xl border-2 py-5 text-sm font-medium transition",
+                theme === th
+                  ? "border-[color:var(--accent)] text-[color:var(--accent)]"
+                  : "border-[color:var(--border)] text-[color:var(--muted)] hover:border-[color:var(--accent-muted)]",
+              )}
+            >
+              <div
+                className={cn(
+                  "h-8 w-14 rounded-lg border",
+                  th === "white"
+                    ? "border-gray-300 bg-white"
+                    : "border-gray-700 bg-gray-900",
+                )}
+              />
+              {th === "white" ? t("account.theme_light") : t("account.theme_dark")}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Language */}
+      <section className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
+          <Globe className="mr-1 inline h-3.5 w-3.5" />
+          {t("account.language_label")}
+        </p>
+        <div className="grid grid-cols-1 gap-2">
+          {LANGUAGES.map(({ code, label, flag }) => (
+            <button
+              key={code}
+              type="button"
+              onClick={() => void i18n.changeLanguage(code)}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition",
+                currentLang === code
+                  ? "border-[color:var(--accent)] bg-[color:var(--accent)]/10 text-[color:var(--text)]"
+                  : "border-[color:var(--border)] text-[color:var(--muted)] hover:border-[color:var(--accent-muted)] hover:text-[color:var(--text)]",
+              )}
+            >
+              <span className="text-lg">{flag}</span>
+              <span>{label}</span>
+              {currentLang === code && (
+                <span className="ml-auto h-2 w-2 rounded-full bg-[color:var(--accent)]" />
+              )}
+            </button>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ─── Conta ───────────────────────────────────────────────────────────────────
+
+function ContaTab({
+  withReauth,
+  user,
+  onClose,
+}: {
+  withReauth: AccountSettingsProps["withReauth"];
+  user: SessionUser | null;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+
+  // Change username
+  const [newUsername, setNewUsername] = useState("");
+  const [savingUsername, setSavingUsername] = useState(false);
+  const [usernameSuccess, setUsernameSuccess] = useState("");
+  const [usernameError, setUsernameError] = useState("");
+
+  // Delete account
+  const [confirmInput, setConfirmInput] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  async function changeUsername(e: FormEvent) {
+    e.preventDefault();
+    setSavingUsername(true);
+    setUsernameError("");
+    setUsernameSuccess("");
+    try {
+      await withReauth(() =>
+        api("/api/account/username", {
+          method: "PUT",
+          body: JSON.stringify({ username: newUsername.trim() }),
+        }),
+      );
+      setUsernameSuccess(t("account.username_changed"));
+      setNewUsername("");
+      window.setTimeout(() => setUsernameSuccess(""), 3000);
+    } catch (err) {
+      if (isReauthCancelled(err)) return;
+      setUsernameError(
+        err instanceof Error && err.message === "username_taken"
+          ? t("account.error_username_taken")
+          : t("account.error_change_username"),
+      );
+    } finally {
+      setSavingUsername(false);
+    }
+  }
+
+  async function deleteAccount(e: FormEvent) {
+    e.preventDefault();
+    if (confirmInput !== user?.username) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await withReauth(() => api("/api/account", { method: "DELETE" }));
+      onClose();
+      window.location.reload();
+    } catch (err) {
+      if (isReauthCancelled(err)) return;
+      setDeleteError(
+        err instanceof Error && err.message === "last_admin"
+          ? t("account.error_delete_last_admin")
+          : t("account.error_delete_account"),
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-8">
+      <h2 className="text-lg font-semibold text-[color:var(--text)]">
+        {t("account.nav_account")}
+      </h2>
+
+      {/* Change username */}
+      <section className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
+          {t("account.change_username")}
+        </p>
+        <p className="text-xs text-[color:var(--muted)]">
+          {t("account.username_currently", { username: user?.username })}
+        </p>
+        <form onSubmit={changeUsername} className="grid gap-3">
+          <Input
+            className="h-10 rounded-xl px-3"
+            placeholder={t("account.new_username_label")}
+            value={newUsername}
+            onChange={(e) => setNewUsername(e.target.value)}
+          />
+          {usernameSuccess && <p className="text-xs text-green-400">{usernameSuccess}</p>}
+          {usernameError && <p className="text-xs text-red-300">{usernameError}</p>}
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={savingUsername || !newUsername.trim()}
+            className="h-10 w-fit"
+          >
+            {savingUsername ? <Spinner className="h-4 w-4" /> : null}
+            {t("account.change_username_btn")}
+          </Button>
+        </form>
+      </section>
+
+      {/* Danger zone */}
+      <section className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-red-500">
+          {t("account.danger_zone")}
+        </p>
+        <div className="rounded-2xl border border-red-600/30 bg-red-600/5 p-4">
+          <p className="text-sm font-semibold text-[color:var(--text)]">
+            {t("account.delete_account")}
+          </p>
+          <p className="mt-1 text-xs text-[color:var(--muted)]">
+            {t("account.delete_account_desc")}
+          </p>
+          <form onSubmit={deleteAccount} className="mt-4 grid gap-3">
+            <label className="grid gap-1.5">
+              <span className="text-xs text-[color:var(--muted)]">
+                {t("account.delete_confirm_label", { username: user?.username })}
+              </span>
+              <Input
+                className="h-10 rounded-xl border-red-600/30 px-3"
+                placeholder={user?.username}
+                value={confirmInput}
+                onChange={(e) => setConfirmInput(e.target.value)}
+              />
+            </label>
+            {deleteError && <p className="text-xs text-red-300">{deleteError}</p>}
+            <button
+              type="submit"
+              disabled={deleting || confirmInput !== user?.username}
+              className="flex h-10 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {deleting ? <Spinner className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
+              {t("account.delete_confirm_btn")}
+            </button>
+          </form>
+        </div>
       </section>
     </div>
   );

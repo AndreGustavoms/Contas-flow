@@ -1440,6 +1440,9 @@ export function AccountVault({
         <AccountSettings
           onClose={() => setAccountSettingsOpen(false)}
           withReauth={withReauth}
+          theme={theme}
+          onThemeChange={onThemeChange}
+          user={user}
         />
       ) : null}
 

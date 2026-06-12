@@ -496,6 +496,33 @@ export function setEmail(storageDir, id, email) {
   });
 }
 
+export function setFullName(storageDir, id, fullName) {
+  return withLock(async () => {
+    const users = await readUsersFile(storageDir);
+    const user = users.find((u) => u.id === id);
+    if (!user) return false;
+    user.fullName = typeof fullName === "string" ? fullName.trim() || null : null;
+    await writeUsersFile(storageDir, users);
+    return true;
+  });
+}
+
+export function setUsername(storageDir, id, username) {
+  return withLock(async () => {
+    const err = validateUsername(username);
+    if (err) throw new Error(err);
+    const users = await readUsersFile(storageDir);
+    if (users.some((u) => u.id !== id && u.username === username)) {
+      throw new Error("username_taken");
+    }
+    const user = users.find((u) => u.id === id);
+    if (!user) return false;
+    user.username = username;
+    await writeUsersFile(storageDir, users);
+    return true;
+  });
+}
+
 // Resets a user's password (admin action). Returns true if the user existed.
 export function setPassword(storageDir, id, password) {
   return withLock(async () => {

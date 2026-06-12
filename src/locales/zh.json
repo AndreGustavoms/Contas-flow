@@ -113,7 +113,17 @@
     "delete_confirm_label": "输入 \"{{username}}\" 以确认",
     "delete_confirm_btn": "永久删除账户",
     "error_delete_last_admin": "无法删除最后一位管理员。",
-    "error_delete_account": "无法删除账户。"
+    "error_delete_account": "无法删除账户。",
+    "error_save": "无法保存。",
+    "error_invalid_email": "邮箱无效。",
+    "error_load_sessions": "无法加载会话。",
+    "error_revoke_session": "无法结束会话。",
+    "unknown_device": "未知设备",
+    "generic_browser": "浏览器",
+    "time_now": "刚刚",
+    "time_minutes_other": "{{count}}分钟前",
+    "time_hours_other": "{{count}}小时前",
+    "time_days_other": "{{count}}天前"
   },
   "team": {
     "title": "团队",
@@ -133,6 +143,8 @@
     "no_users": "暂无用户。",
     "loading": "加载中…",
     "unknown_device": "未知设备",
+    "generic_browser": "浏览器",
+    "sessions_count_other": "{{count}} 个会话",
     "this_device": "此设备",
     "active_since": "{{time}} 前活跃",
     "end_session": "结束",
@@ -318,6 +330,23 @@
     "Revisar": "待审查",
     "Arquivada": "已归档",
     "Desativada": "已禁用"
+  },
+  "reset": {
+    "title": "新密码",
+    "subtitle": "为您的账户设置一个新密码。",
+    "password_label": "新密码",
+    "rule_min": "至少 8 个字符",
+    "rule_upper": "一个大写字母",
+    "rule_lower": "一个小写字母",
+    "rule_number": "一个数字",
+    "rule_special": "一个特殊字符",
+    "success_title": "密码重置成功！",
+    "success_sessions": "出于安全考虑，所有先前的会话已被结束。",
+    "go_login": "前往登录",
+    "saving": "保存中...",
+    "submit": "重置密码",
+    "error_invalid_token": "链接无效或已过期。请重新申请。",
+    "error_generic": "无法重置密码。"
   },
   "register": {
     "title": "创建账户",

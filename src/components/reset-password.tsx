@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { CheckCircle, Eye, EyeOff, KeyRound } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { type AppTheme } from "../theme";
 import { cn } from "../lib/utils";
 import { Spinner } from "./ui/spinner";
@@ -11,24 +12,28 @@ type ResetPasswordProps = {
 };
 
 const PASSWORD_RULES = [
-  { test: (p: string) => p.length >= 8, label: "Mínimo 8 caracteres" },
-  { test: (p: string) => /[A-Z]/.test(p), label: "Uma letra maiúscula" },
-  { test: (p: string) => /[a-z]/.test(p), label: "Uma letra minúscula" },
-  { test: (p: string) => /[0-9]/.test(p), label: "Um número" },
-  { test: (p: string) => /[^A-Za-z0-9]/.test(p), label: "Um caractere especial" },
+  { test: (p: string) => p.length >= 8, labelKey: "reset.rule_min" },
+  { test: (p: string) => /[A-Z]/.test(p), labelKey: "reset.rule_upper" },
+  { test: (p: string) => /[a-z]/.test(p), labelKey: "reset.rule_lower" },
+  { test: (p: string) => /[0-9]/.test(p), labelKey: "reset.rule_number" },
+  { test: (p: string) => /[^A-Za-z0-9]/.test(p), labelKey: "reset.rule_special" },
 ];
 
-const ERROR_MESSAGES: Record<string, string> = {
-  invalid_or_expired_token: "Link inválido ou expirado. Solicite um novo.",
-  password_too_short: "Senha muito curta (mín. 8 caracteres).",
-  password_no_uppercase: "Inclua ao menos uma letra maiúscula.",
-  password_no_lowercase: "Inclua ao menos uma letra minúscula.",
-  password_no_number: "Inclua ao menos um número.",
-  password_no_special: "Inclua ao menos um caractere especial.",
-  password_too_common: "Senha muito comum. Escolha outra.",
+// Códigos de erro do servidor -> chaves i18n (as regras de senha reutilizam as
+// mensagens já traduzidas do cadastro).
+const ERROR_I18N_KEYS: Record<string, string> = {
+  invalid_or_expired_token: "reset.error_invalid_token",
+  password_too_short: "register.error_password_too_short",
+  password_no_uppercase: "register.error_password_no_uppercase",
+  password_no_lowercase: "register.error_password_no_lowercase",
+  password_no_number: "register.error_password_no_number",
+  password_no_special: "register.error_password_no_special",
+  password_too_common: "register.error_password_too_common",
+  too_many_attempts: "register.error_too_many_attempts",
 };
 
 export function ResetPassword({ token, onDone, theme }: ResetPasswordProps) {
+  const { t } = useTranslation();
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -58,9 +63,10 @@ export function ResetPassword({ token, onDone, theme }: ResetPasswordProps) {
       }
 
       const data = (await response.json().catch(() => ({}))) as { error?: string };
-      setError(ERROR_MESSAGES[data.error ?? ""] ?? "Não foi possível redefinir a senha.");
+      const key = ERROR_I18N_KEYS[data.error ?? ""];
+      setError(key ? t(key) : t("reset.error_generic"));
     } catch {
-      setError("Não foi possível conectar ao servidor.");
+      setError(t("login.error_no_connection"));
     } finally {
       setSubmitting(false);
     }
@@ -82,8 +88,8 @@ export function ResetPassword({ token, onDone, theme }: ResetPasswordProps) {
                 </div>
                 <span>Contas_exe</span>
               </div>
-              <h2>Nova senha</h2>
-              {!done && <p>Escolha uma nova senha para sua conta.</p>}
+              <h2>{t("reset.title")}</h2>
+              {!done && <p>{t("reset.subtitle")}</p>}
             </div>
 
             {done ? (
@@ -91,15 +97,15 @@ export function ResetPassword({ token, onDone, theme }: ResetPasswordProps) {
                 <div className="flex flex-col items-center gap-3 rounded-lg border border-[color:var(--login-form-text)]/20 p-6 text-center">
                   <CheckCircle className="h-8 w-8 text-green-500" />
                   <p className="font-medium text-[color:var(--login-form-text)]">
-                    Senha redefinida com sucesso!
+                    {t("reset.success_title")}
                   </p>
                   <p className="text-sm text-[color:var(--login-form-muted)]">
-                    Todas as sessões anteriores foram encerradas por segurança.
+                    {t("reset.success_sessions")}
                   </p>
                 </div>
                 <button className="login-btn-animated mt-4" type="button" onClick={onDone}>
                   <KeyRound className="h-4 w-4" />
-                  Ir para o login
+                  {t("reset.go_login")}
                 </button>
               </div>
             ) : (
@@ -116,12 +122,12 @@ export function ResetPassword({ token, onDone, theme }: ResetPasswordProps) {
                       onChange={(e) => setPassword(e.target.value)}
                     />
                     <label htmlFor="reset-password">
-                      {"Nova senha".split("").map((char, i) => (
+                      {t("reset.password_label").split("").map((char, i) => (
                         <span key={i} style={{ transitionDelay: `${i * 50}ms` }}>{char}</span>
                       ))}
                     </label>
                     <button
-                      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                      aria-label={showPassword ? t("login.hide_password") : t("login.show_password")}
                       className="animated-field-toggle"
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
@@ -134,7 +140,7 @@ export function ResetPassword({ token, onDone, theme }: ResetPasswordProps) {
                     <ul className="space-y-1">
                       {PASSWORD_RULES.map((rule) => (
                         <li
-                          key={rule.label}
+                          key={rule.labelKey}
                           className={cn(
                             "flex items-center gap-2 text-xs",
                             rule.test(password)
@@ -143,7 +149,7 @@ export function ResetPassword({ token, onDone, theme }: ResetPasswordProps) {
                           )}
                         >
                           <span className="text-[10px]">{rule.test(password) ? "✓" : "○"}</span>
-                          {rule.label}
+                          {t(rule.labelKey)}
                         </li>
                       ))}
                     </ul>
@@ -158,7 +164,7 @@ export function ResetPassword({ token, onDone, theme }: ResetPasswordProps) {
                   disabled={submitting || !allRulesPass}
                 >
                   {submitting ? <Spinner className="h-4 w-4" /> : <KeyRound className="h-4 w-4" />}
-                  {submitting ? "Salvando..." : "Redefinir senha"}
+                  {submitting ? t("reset.saving") : t("reset.submit")}
                 </button>
               </form>
             )}

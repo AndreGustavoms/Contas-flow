@@ -71,14 +71,18 @@ function isReauthCancelled(err: unknown): boolean {
   return err instanceof Error && err.message === "reauth_required";
 }
 
-function timeAgo(iso: string): string {
+// Tempo relativo via i18n com pluralização correta por idioma (i18next resolve
+// _one/_other a partir do count — "há 1 minuto" vs "há 2 minutos", "1分钟前"…).
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
+
+function timeAgo(iso: string, t: TFn): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return "agora mesmo";
-  if (m < 60) return `há ${m} min`;
+  if (m < 1) return t("account.time_now");
+  if (m < 60) return t("account.time_minutes", { count: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `há ${h}h`;
-  return `há ${Math.floor(h / 24)}d`;
+  if (h < 24) return t("account.time_hours", { count: h });
+  return t("account.time_days", { count: Math.floor(h / 24) });
 }
 
 function fmtDate(iso: string): string {
@@ -89,8 +93,8 @@ function fmtDate(iso: string): string {
   });
 }
 
-function parseBrowser(ua: string): string {
-  if (!ua) return "Dispositivo desconhecido";
+function parseBrowser(ua: string, t: TFn): string {
+  if (!ua) return t("account.unknown_device");
   if (/mobile/i.test(ua)) {
     if (/android/i.test(ua)) return "Android";
     if (/iphone|ipad/i.test(ua)) return "iPhone / iPad";
@@ -100,7 +104,7 @@ function parseBrowser(ua: string): string {
   if (/chrome/i.test(ua)) return "Chrome";
   if (/firefox/i.test(ua)) return "Firefox";
   if (/safari/i.test(ua)) return "Safari";
-  return "Navegador";
+  return t("account.generic_browser");
 }
 
 const NAV: { tab: Tab; icon: typeof User; labelKey: string }[] = [
@@ -132,7 +136,7 @@ export function AccountSettings({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
-        aria-label="Fechar"
+        aria-label={t("account.close")}
         className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
         type="button"
         onClick={onClose}
@@ -247,7 +251,7 @@ function PerfilTab({
       setNameSaved(true);
       window.setTimeout(() => setNameSaved(false), 2500);
     } catch {
-      setNameError("Não foi possível salvar.");
+      setNameError(t("account.error_save"));
     } finally {
       setSavingName(false);
     }
@@ -268,8 +272,8 @@ function PerfilTab({
     } catch (err) {
       setEmailError(
         err instanceof Error && err.message === "invalid_email"
-          ? "E-mail inválido."
-          : "Não foi possível salvar.",
+          ? t("account.error_invalid_email")
+          : t("account.error_save"),
       );
     } finally {
       setSavingEmail(false);
@@ -812,7 +816,7 @@ function SessoesTab() {
       const data = await api<{ sessions: SessionInfo[] }>("/api/account/sessions");
       setSessions(data.sessions);
     } catch {
-      setError("Não foi possível carregar as sessões.");
+      setError(t("account.error_load_sessions"));
     } finally {
       setLoading(false);
     }
@@ -827,7 +831,7 @@ function SessoesTab() {
       await api(`/api/account/sessions/${encodeURIComponent(sid)}`, { method: "DELETE" });
       setSessions((s) => s.filter((x) => x.sessionId !== sid));
     } catch {
-      setError("Não foi possível encerrar.");
+      setError(t("account.error_revoke_session"));
     } finally {
       setRevoking(null);
     }
@@ -874,7 +878,7 @@ function SessoesTab() {
                 <div className="flex items-center gap-2">
                   <Monitor className="h-4 w-4 shrink-0 text-[color:var(--muted)]" />
                   <p className="text-sm font-medium text-[color:var(--text)]">
-                    {parseBrowser(s.userAgent)}
+                    {parseBrowser(s.userAgent, t)}
                   </p>
                   {s.current && (
                     <span className="rounded-full bg-[color:var(--accent)] px-2 py-0.5 text-xs font-semibold text-white">
@@ -883,9 +887,9 @@ function SessoesTab() {
                   )}
                 </div>
                 <p className="mt-0.5 text-xs text-[color:var(--muted)]">
-                  {t("account.session_last_active", { time: timeAgo(s.lastSeenAt) })}
+                  {t("account.session_last_active", { time: timeAgo(s.lastSeenAt, t) })}
                   {" · "}
-                  {t("account.session_created", { time: timeAgo(s.createdAt) })}
+                  {t("account.session_created", { time: timeAgo(s.createdAt, t) })}
                 </p>
               </div>
               {!s.current && (

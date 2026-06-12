@@ -218,14 +218,20 @@ export function revokeSession(storageDir, sessionId) {
 }
 
 // Revokes every active session of a user ("log out of all devices"). Returns the
-// number of sessions revoked.
-export function revokeAllForUser(storageDir, userId) {
+// number of sessions revoked. `exceptSessionId` (optional) keeps that one session
+// alive — used when the user changes their own password and must stay logged in
+// on the device where they did it.
+export function revokeAllForUser(storageDir, userId, exceptSessionId = null) {
   return withLock(async () => {
     const sessions = await readSessionsFile(storageDir);
     const now = new Date().toISOString();
     let count = 0;
     for (const session of sessions) {
-      if (session.userId === userId && !session.revokedAt) {
+      if (
+        session.userId === userId &&
+        !session.revokedAt &&
+        session.sessionId !== exceptSessionId
+      ) {
         session.revokedAt = now;
         count += 1;
       }

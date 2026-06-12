@@ -298,6 +298,91 @@ export function findOrCreateGoogleUser(storageDir, profile) {
   });
 }
 
+function githubUsernameBase(profile) {
+  const loginBase = (profile.login ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const nameBase = normalizeUsername(profile.fullName)
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const base = loginBase || nameBase || "github";
+  return base.slice(0, USERNAME_MAX);
+}
+
+function uniqueGithubUsername(users, profile) {
+  const base = githubUsernameBase(profile);
+  const taken = new Set(users.map((u) => u.username));
+  if (!taken.has(base) && !validateUsername(base)) return base;
+  for (let i = 2; i < 1000; i++) {
+    const suffix = `-${i}`;
+    const candidate = `${base.slice(0, USERNAME_MAX - suffix.length)}${suffix}`;
+    if (!taken.has(candidate) && !validateUsername(candidate)) return candidate;
+  }
+  return `github-${randomUUID()}`.slice(0, USERNAME_MAX);
+}
+
+export function findOrCreateGithubUser(storageDir, profile) {
+  return withLock(async () => {
+    const githubId = typeof profile?.id === "string" ? profile.id.trim() : "";
+    const email = normalizeEmail(profile?.email);
+
+    if (!githubId || !email) throw new Error("invalid_github_profile");
+
+    const users = await readUsersFile(storageDir);
+    const linkedUser = users.find((item) => item.github?.id === githubId);
+    const existingEmailUser = users.find(
+      (item) => item.email?.toLowerCase() === email,
+    );
+    const now = new Date().toISOString();
+
+    if (!linkedUser && existingEmailUser) {
+      throw new Error("github_email_already_registered");
+    }
+
+    if (!linkedUser) {
+      const created = {
+        id: randomUUID(),
+        username: uniqueGithubUsername(users, profile),
+        ...(profile.fullName ? { fullName: profile.fullName.trim() } : {}),
+        email,
+        role: "member",
+        passwordHash: await hashPassword(randomBytes(32).toString("hex")),
+        createdAt: now,
+        github: {
+          id: githubId,
+          login: profile.login,
+          email,
+          linkedAt: now,
+          lastLoginAt: now,
+          ...(profile.avatar ? { avatar: profile.avatar } : {}),
+        },
+      };
+      users.push(created);
+      await writeUsersFile(storageDir, users);
+      return { user: publicUser(created), created: true };
+    }
+
+    const emailTaken = users.some(
+      (item) => item.id !== linkedUser.id && item.email?.toLowerCase() === email,
+    );
+    if (!emailTaken) linkedUser.email = email;
+    if (!linkedUser.fullName && profile.fullName) {
+      linkedUser.fullName = profile.fullName.trim();
+    }
+    linkedUser.github = {
+      id: githubId,
+      login: profile.login,
+      email,
+      linkedAt: linkedUser.github?.linkedAt ?? now,
+      lastLoginAt: now,
+      ...(profile.avatar ? { avatar: profile.avatar } : {}),
+    };
+    await writeUsersFile(storageDir, users);
+    return { user: publicUser(linkedUser), created: false };
+  });
+}
+
 // Seeds a bootstrap admin from the legacy env vars when the store is empty, so an
 // existing single-login deployment transparently becomes a one-admin multi-user
 // setup. Returns the (possibly unchanged) user list.

@@ -33,7 +33,10 @@
     "error_field_required": "This field is required.",
     "error_google": "Could not sign in with Google.",
     "error_google_email_exists": "An account already exists with this email. Sign in with username and password.",
-    "google_not_configured": "Google sign-in is not configured yet."
+    "google_not_configured": "Google sign-in is not configured yet.",
+    "error_github": "Could not sign in with GitHub.",
+    "error_github_email_exists": "An account already exists with this email. Sign in with username and password.",
+    "github_not_configured": "GitHub sign-in is not configured yet."
   },
   "account": {
     "title": "My account",

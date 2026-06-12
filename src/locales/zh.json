@@ -31,7 +31,10 @@
     "error_field_required": "此字段为必填项。",
     "error_google": "无法使用 Google 登录。",
     "error_google_email_exists": "此邮箱已存在账户。请使用用户名和密码登录。",
-    "google_not_configured": "尚未配置 Google 登录。"
+    "google_not_configured": "尚未配置 Google 登录。",
+    "error_github": "无法使用 GitHub 登录。",
+    "error_github_email_exists": "此邮箱已存在账户。请使用用户名和密码登录。",
+    "github_not_configured": "尚未配置 GitHub 登录。"
   },
   "account": {
     "title": "我的账户",

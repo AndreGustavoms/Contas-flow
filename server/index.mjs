@@ -11,6 +11,11 @@ import {
   googleAuthConfigured,
 } from "./google-auth.mjs";
 import {
+  buildGithubAuthUrl,
+  exchangeGithubAuthCode,
+  githubAuthConfigured,
+} from "./github-auth.mjs";
+import {
   buildAuthUrl,
   handleOAuthCallback,
   listConnectedChannels,
@@ -25,6 +30,7 @@ import {
   enableTwoFactor,
   ensureSeedAdmin,
   findOrCreateGoogleUser,
+  findOrCreateGithubUser,
   findByEmail,
   findById,
   findByUsername,
@@ -250,6 +256,34 @@ function googleRedirectUri(request) {
   );
 }
 
+const GITHUB_OAUTH_STATE_COOKIE = "contas_github_oauth_state";
+
+function githubOAuthStateCookie(value, maxAge) {
+  const flags = [
+    "HttpOnly",
+    "SameSite=Lax",
+    "Path=/api/auth/github/callback",
+    `Max-Age=${maxAge}`,
+  ];
+  if (cookieSecure) flags.splice(1, 0, "Secure");
+  return `${GITHUB_OAUTH_STATE_COOKIE}=${encodeURIComponent(value)}; ${flags.join("; ")}`;
+}
+
+function setGithubOAuthStateCookie(response, state) {
+  appendSetCookie(response, githubOAuthStateCookie(state, 10 * 60));
+}
+
+function clearGithubOAuthStateCookie(response) {
+  appendSetCookie(response, githubOAuthStateCookie("", 0));
+}
+
+function githubRedirectUri(request) {
+  return (
+    process.env.GITHUB_AUTH_REDIRECT_URI ||
+    `${requestOrigin(request)}/api/auth/github/callback`
+  );
+}
+
 function redirect(response, location) {
   response.writeHead(302, { Location: location });
   response.end();
@@ -318,6 +352,8 @@ function isPublicApi(pathname) {
     pathname === "/api/auth/providers" ||
     pathname === "/api/auth/google" ||
     pathname === "/api/auth/google/callback" ||
+    pathname === "/api/auth/github" ||
+    pathname === "/api/auth/github/callback" ||
     pathname === "/api/auth/reauth" ||
     pathname === "/api/auth/forgot-password" ||
     pathname === "/api/auth/reset-password" ||
@@ -693,6 +729,7 @@ async function handleApi(request, response, url, user, session) {
   if (url.pathname === "/api/auth/providers" && request.method === "GET") {
     sendJson(response, 200, {
       google: googleAuthConfigured(),
+      github: githubAuthConfigured(),
     });
     return;
   }
@@ -781,6 +818,95 @@ async function handleApi(request, response, url, user, session) {
           error.message === "google_email_already_registered"
           ? "/?auth=google_email_exists"
           : "/?auth=google_error",
+      );
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/auth/github" && request.method === "GET") {
+    if (!githubAuthConfigured()) {
+      redirect(response, "/?auth=github_error");
+      return;
+    }
+
+    const state = randomBytes(32).toString("base64url");
+    setGithubOAuthStateCookie(response, state);
+    try {
+      redirect(
+        response,
+        buildGithubAuthUrl({
+          redirectUri: githubRedirectUri(request),
+          state,
+        }),
+      );
+    } catch (error) {
+      clearGithubOAuthStateCookie(response);
+      redirect(response, "/?auth=github_error");
+    }
+    return;
+  }
+
+  if (
+    url.pathname === "/api/auth/github/callback" &&
+    request.method === "GET"
+  ) {
+    const expectedState = parseCookies(request)[GITHUB_OAUTH_STATE_COOKIE];
+    const actualState = url.searchParams.get("state");
+    clearGithubOAuthStateCookie(response);
+
+    if (url.searchParams.get("error")) {
+      redirect(response, "/?auth=github_error");
+      return;
+    }
+
+    if (!stateMatches(actualState, expectedState)) {
+      redirect(response, "/?auth=github_error");
+      return;
+    }
+
+    const code = url.searchParams.get("code");
+    if (!code) {
+      redirect(response, "/?auth=github_error");
+      return;
+    }
+
+    try {
+      const profile = await exchangeGithubAuthCode({
+        code,
+        redirectUri: githubRedirectUri(request),
+      });
+      const result = await findOrCreateGithubUser(storageDir, profile);
+      const ip = clientIp(request);
+      const token = await createSession(storageDir, {
+        userId: result.user.id,
+        ip,
+        userAgent: request.headers["user-agent"],
+      });
+
+      await markReauth(storageDir, token);
+      setSessionCookie(response, token);
+      void logEvent(storageDir, {
+        userId: result.user.id,
+        username: result.user.username,
+        action: "login_github_ok",
+        target: result.created ? "github:new_user" : "github",
+        ip,
+      });
+      redirect(response, "/");
+    } catch (error) {
+      void logEvent(storageDir, {
+        userId: null,
+        username: null,
+        action: "login_github_fail",
+        target: null,
+        ip: clientIp(request),
+      });
+      redirect(
+        response,
+        error instanceof Error &&
+          error.message === "github_email_already_registered"
+          ? "/?auth=github_email_exists"
+          : "/?auth=github_error",
       );
     }
     return;

@@ -61,23 +61,17 @@ export function LocalLogin({
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const authError = params.get("auth");
-    const knownErrors = [
-      "google_error",
-      "google_email_exists",
-      "github_error",
-      "github_email_exists",
-    ];
-    if (!knownErrors.includes(authError ?? "")) return;
 
-    setError(
-      authError === "google_email_exists"
-        ? t("login.error_google_email_exists")
-        : authError === "github_error"
-          ? t("login.error_github")
-          : authError === "github_email_exists"
-            ? t("login.error_github_email_exists")
-            : t("login.error_google"),
-    );
+    const errorMap: Record<string, string> = {
+      google_error:         t("login.error_google"),
+      google_email_exists:  t("login.error_google_email_exists"),
+      github_error:         t("login.error_github"),
+      github_email_exists:  t("login.error_github_email_exists"),
+    };
+
+    if (!(authError && authError in errorMap)) return;
+
+    setError(errorMap[authError]);
     params.delete("auth");
     const query = params.toString();
     window.history.replaceState(

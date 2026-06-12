@@ -93,6 +93,8 @@
     "current_session": "本次会话",
     "revoke_session": "结束",
     "revoke_all_sessions": "结束其他会话",
+    "revoke_all_confirm_other": "结束其他 {{count}} 个活跃会话？它们将需要重新登录。",
+    "revoke_all_confirm_btn": "全部结束",
     "no_sessions": "没有活跃会话。",
     "session_created": "开始于 {{time}}",
     "session_last_active": "{{time}} 活跃",

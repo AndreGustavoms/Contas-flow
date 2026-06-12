@@ -2451,12 +2451,20 @@ td {
 }
 
 .account-settings-panel {
-  min-height: min(520px, calc(100dvh - 32px));
+  max-width: min(960px, calc(100vw - 32px));
+  height: min(700px, calc(100dvh - 48px));
 }
 
-.account-settings-nav,
+.account-settings-nav {
+  min-width: 0;
+  width: 220px;
+  flex-shrink: 0;
+}
+
 .account-settings-content {
   min-width: 0;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .menu-popover {
@@ -2752,6 +2760,35 @@ td {
   .theme-switch input[type="checkbox"]:checked + .theme-switch-inner::before {
     right: auto;
     left: 10px;
+  }
+}
+
+/* Skeleton de carregamento: bloco neutro com shimmer, tingido pelas vars do
+   tema. Usar com width/height utilitários do Tailwind. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--field) 85%, transparent);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--text) 7%, transparent),
+    transparent
+  );
+  animation: skeleton-shimmer 1.4s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 

@@ -39,7 +39,9 @@ import {
   regenerateRecoveryCodes,
   resetTwoFactor,
   setEmail,
+  setFullName,
   setPassword,
+  setUsername,
   startTwoFactorSetup,
   validatePassword,
   validateUsername,
@@ -58,6 +60,7 @@ import {
   createSession,
   hasRecentReauth,
   listAllSessions,
+  listSessionsForUser,
   markReauth,
   pruneSessions,
   resolveAndTouch,
@@ -1287,6 +1290,116 @@ async function handleApi(request, response, url, user, session) {
       return;
     }
     notFound(response);
+    return;
+  }
+
+  // Full profile of the authenticated user (read-only fields + linked providers).
+  if (url.pathname === "/api/account/me" && request.method === "GET") {
+    const full = await findById(storageDir, user.id);
+    sendJson(response, 200, {
+      id: user.id,
+      username: user.username,
+      fullName: full?.fullName ?? null,
+      email: user.email ?? null,
+      role: user.role,
+      createdAt: full?.createdAt ?? null,
+      linkedProviders: {
+        google: Boolean(full?.google),
+        github: Boolean(full?.github),
+      },
+    });
+    return;
+  }
+
+  // Update own full name (no reauth — not security-sensitive).
+  if (url.pathname === "/api/account/profile" && request.method === "PUT") {
+    const body = await readBody(request);
+    const fullName = asString(body.fullName).trim() || null;
+    await setFullName(storageDir, user.id, fullName);
+    sendJson(response, 200, { ok: true, fullName });
+    return;
+  }
+
+  // Change own password (reauth required).
+  if (url.pathname === "/api/account/password" && request.method === "PUT") {
+    if (!requireRecentReauth(session, response)) return;
+    const body = await readBody(request);
+    const current = asString(body.current);
+    const password = asString(body.password);
+    const full = await findById(storageDir, user.id);
+    if (!full) { notFound(response); return; }
+    const valid = await verifyPassword(current, full.passwordHash);
+    if (!valid) { badRequest(response, "invalid_current_password"); return; }
+    const pwErr = validatePassword(password, full.username);
+    if (pwErr) { badRequest(response, pwErr); return; }
+    await setPassword(storageDir, user.id, password);
+    void logEvent(storageDir, {
+      userId: user.id, username: user.username,
+      action: "password_changed", target: "self", ip: clientIp(request),
+    });
+    sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  // Change own username (reauth required).
+  if (url.pathname === "/api/account/username" && request.method === "PUT") {
+    if (!requireRecentReauth(session, response)) return;
+    const body = await readBody(request);
+    const username = asString(body.username).trim();
+    try {
+      await setUsername(storageDir, user.id, username);
+    } catch (err) {
+      badRequest(response, err instanceof Error ? err.message : "invalid");
+      return;
+    }
+    void logEvent(storageDir, {
+      userId: user.id, username: user.username,
+      action: "username_changed", target: username, ip: clientIp(request),
+    });
+    sendJson(response, 200, { ok: true, username });
+    return;
+  }
+
+  // Delete own account (reauth required; last admin is blocked).
+  if (url.pathname === "/api/account" && request.method === "DELETE") {
+    if (!requireRecentReauth(session, response)) return;
+    if (user.role === "admin") {
+      const allUsers = await listUsers(storageDir);
+      if (allUsers.filter((u) => u.role === "admin").length <= 1) {
+        badRequest(response, "last_admin");
+        return;
+      }
+    }
+    const removed = await deleteUser(storageDir, user.id);
+    if (!removed) { notFound(response); return; }
+    await revokeAllForUser(storageDir, user.id);
+    clearSessionCookie(response);
+    void logEvent(storageDir, {
+      userId: user.id, username: user.username,
+      action: "account_deleted", target: "self", ip: clientIp(request),
+    });
+    sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  // List own active sessions.
+  if (url.pathname === "/api/account/sessions" && request.method === "GET") {
+    const sessions = await listSessionsForUser(storageDir, user.id, session.sessionId);
+    sendJson(response, 200, { sessions });
+    return;
+  }
+
+  // Revoke a specific own session by ID.
+  const ownSessionMatch = url.pathname.match(/^\/api\/account\/sessions\/([^/]+)$/);
+  if (ownSessionMatch && request.method === "DELETE") {
+    const sid = decodeURIComponent(ownSessionMatch[1]);
+    const userSessions = await listSessionsForUser(storageDir, user.id, session.sessionId);
+    if (!userSessions.some((s) => s.sessionId === sid)) {
+      notFound(response);
+      return;
+    }
+    await revokeSession(storageDir, sid);
+    sendJson(response, 200, { ok: true });
     return;
   }
 

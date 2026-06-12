@@ -298,7 +298,17 @@ function PerfilTab({
         {t("account.nav_perfil")}
       </h2>
 
-      {/* Avatar + identity */}
+      {/* Avatar + identity (skeleton até o perfil chegar — nada pisca) */}
+      {!profile ? (
+        <div className="flex items-center gap-4">
+          <div className="skeleton h-16 w-16 !rounded-full" />
+          <div className="grid gap-2">
+            <div className="skeleton h-4 w-40" />
+            <div className="skeleton h-3 w-24" />
+            <div className="skeleton h-3 w-32" />
+          </div>
+        </div>
+      ) : (
       <div className="flex items-center gap-4">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-xl font-bold text-white">
           {initials}
@@ -325,6 +335,7 @@ function PerfilTab({
           )}
         </div>
       </div>
+      )}
 
       {/* Full name */}
       <form onSubmit={saveName} className="grid gap-1.5">
@@ -767,6 +778,8 @@ function SegurancaTab({
               </Button>
             </div>
           </form>
+        ) : !tfaStatus && !tfaError ? (
+          <div className="skeleton h-20 w-full" />
         ) : disabling ? (
           <form className="grid gap-3" onSubmit={confirmDisable}>
             <p className="text-sm text-[color:var(--muted)]">{t("account.two_factor_disable_instruction")}</p>
@@ -834,6 +847,8 @@ function SessoesTab() {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [revoking, setRevoking] = useState<string | null>(null);
+  const [confirmingAll, setConfirmingAll] = useState(false);
+  const [revokingAll, setRevokingAll] = useState(false);
   const [error, setError] = useState("");
 
   async function load() {
@@ -863,10 +878,20 @@ function SessoesTab() {
     }
   }
 
+  // Uma chamada atômica no servidor (DELETE /api/account/sessions) em vez de
+  // N DELETEs; só roda depois da confirmação explícita do usuário.
   async function revokeAll() {
     setError("");
-    const others = sessions.filter((s) => !s.current);
-    for (const s of others) await revoke(s.sessionId);
+    setRevokingAll(true);
+    try {
+      await api("/api/account/sessions", { method: "DELETE" });
+      setSessions((s) => s.filter((x) => x.current));
+      setConfirmingAll(false);
+    } catch {
+      setError(t("account.error_revoke_session"));
+    } finally {
+      setRevokingAll(false);
+    }
   }
 
   const others = sessions.filter((s) => !s.current);
@@ -877,19 +902,37 @@ function SessoesTab() {
         <h2 className="text-lg font-semibold text-[color:var(--text)]">
           {t("account.nav_sessions")}
         </h2>
-        {others.length > 0 && (
-          <Button variant="outline" className="h-8 text-xs" onClick={revokeAll}>
+        {others.length > 0 && !confirmingAll && (
+          <Button variant="outline" className="h-8 text-xs" onClick={() => setConfirmingAll(true)}>
             <LogOut className="h-3.5 w-3.5" />
             {t("account.revoke_all_sessions")}
           </Button>
         )}
       </div>
 
+      {confirmingAll && (
+        <div className="flex flex-col items-stretch justify-between gap-3 rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--field)] p-4 min-[430px]:flex-row min-[430px]:items-center">
+          <p className="text-sm text-[color:var(--text)]">
+            {t("account.revoke_all_confirm", { count: others.length })}
+          </p>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="outline" className="h-8 text-xs" onClick={() => setConfirmingAll(false)}>
+              {t("account.two_factor_cancel")}
+            </Button>
+            <Button variant="outline" className="h-8 text-xs" disabled={revokingAll} onClick={revokeAll}>
+              {revokingAll ? <Spinner className="h-3.5 w-3.5" /> : <LogOut className="h-3.5 w-3.5" />}
+              {t("account.revoke_all_confirm_btn")}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {error && <p className="text-sm text-red-300">{error}</p>}
 
       {loading ? (
-        <div className="flex justify-center py-8">
-          <Spinner className="h-5 w-5" />
+        <div className="space-y-2">
+          <div className="skeleton h-16 w-full" />
+          <div className="skeleton h-16 w-full" />
         </div>
       ) : sessions.length === 0 ? (
         <p className="text-sm text-[color:var(--muted)]">{t("account.no_sessions")}</p>

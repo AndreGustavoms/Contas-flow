@@ -83,7 +83,7 @@ export default function App() {
   }
 
   const floatingToggle = (
-    <div className="fixed right-4 top-4 z-[100]">
+    <div className="floating-theme-toggle fixed right-4 top-4 z-[100]">
       <ThemeToggle value={theme} onChange={changeTheme} />
     </div>
   );

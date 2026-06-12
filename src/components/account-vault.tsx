@@ -1124,7 +1124,7 @@ export function AccountVault({
     <main
       className={cn(
         `theme-${theme}`,
-        "app-shell tech-grid min-h-screen overflow-x-clip",
+        "app-shell tech-grid min-h-[100dvh] overflow-x-clip",
       )}
     >
       <input
@@ -1146,7 +1146,7 @@ export function AccountVault({
           </div>
         </div>
 
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+        <div className="vault-navbar-actions ml-auto flex flex-wrap items-center justify-end gap-2">
           <button
             aria-label={t("vault.export")}
             className="vault-nav-btn"
@@ -1174,14 +1174,14 @@ export function AccountVault({
         </div>
       </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[228px_minmax(0,1fr)]">
+      <div className="vault-shell-grid grid grid-cols-1 lg:grid-cols-[228px_minmax(0,1fr)]">
         {/*
           Sidebar: coluna fixa a partir de lg (1024px). Abaixo disso vira um
           cabeçalho compacto: grupo em cima, plataformas em fileira horizontal
           rolável e ações (equipe/conta/sair) lado a lado — em vez de uma
           pilha de ~600px empurrando o conteúdo para fora da primeira dobra.
         */}
-        <aside className="vault-sidebar relative flex flex-col gap-4 border-b px-4 py-4 lg:sticky lg:top-[73px] lg:h-[calc(100vh-73px)] lg:gap-5 lg:overflow-y-auto lg:border-b-0 lg:py-5 lg:pl-6 lg:pr-4">
+        <aside className="vault-sidebar relative flex flex-col gap-4 border-b px-4 py-4 lg:sticky lg:top-[73px] lg:h-[calc(100dvh-73px)] lg:gap-5 lg:overflow-y-auto lg:border-b-0 lg:py-5 lg:pl-6 lg:pr-4">
           <SidebarSection label={t("vault.group_section")}>
             <GroupSwitcher
               activeGroup={activeGroup}
@@ -1194,7 +1194,7 @@ export function AccountVault({
           </SidebarSection>
 
           <SidebarSection
-            itemsClassName="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 lg:mx-0 lg:block lg:gap-0 lg:space-y-1 lg:overflow-visible lg:px-0 lg:pb-0"
+            itemsClassName="vault-menu-row -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 lg:mx-0 lg:block lg:gap-0 lg:space-y-1 lg:overflow-visible lg:px-0 lg:pb-0"
             label={t("vault.networks_section")}
           >
             <SidebarButton
@@ -1217,7 +1217,7 @@ export function AccountVault({
             ))}
           </SidebarSection>
 
-          <div className="mt-1 flex gap-2 lg:mt-auto lg:flex-col lg:gap-1.5 lg:pt-4">
+          <div className="vault-sidebar-actions mt-1 flex gap-2 lg:mt-auto lg:flex-col lg:gap-1.5 lg:pt-4">
             {isAdmin ? (
               <button
                 className="group/team flex h-11 w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-sm font-semibold text-[color:var(--muted)] transition-all duration-300 hover:translate-x-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
@@ -1257,8 +1257,8 @@ export function AccountVault({
           </div>
         </aside>
 
-        <section className="min-w-0 px-4 py-6 sm:px-6 lg:px-8">
-          <header className="flex flex-col gap-2">
+        <section className="vault-content min-w-0 px-4 py-6 sm:px-6 lg:px-8">
+          <header className="vault-content-header flex flex-col gap-2">
             <div className="accent-pill inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium">
               <RadarTowerIcon className="h-4 w-4" />
               {t("vault.badge")}
@@ -1276,14 +1276,14 @@ export function AccountVault({
             className="vault-card animate-rise mt-6"
             style={{ animationDelay: "60ms" }}
           >
-            <div className="flex flex-col gap-3 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="vault-toolbar flex flex-col gap-3 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="shrink-0">
                 <p className="text-base font-semibold text-[color:var(--text)]">{t("vault.records")}</p>
                 <p className="mt-0.5 text-sm text-[color:var(--muted)]">
                   {filteredAccounts.length} / {accounts.length}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="vault-filters flex flex-wrap items-center gap-2 sm:gap-3">
                 {message && !isAccountModalOpen ? (
                   <span className="accent-pill rounded-full border px-3 py-1 text-xs font-medium">
                     {message}
@@ -1322,7 +1322,7 @@ export function AccountVault({
 
             <div className="border-t border-[color:var(--border)]">
               {filteredAccounts.length ? (
-                <div>
+                <div className="vault-list">
                   {filteredAccounts.map((account, index) => (
                     <AccountRow
                       key={account.id}
@@ -1505,7 +1505,7 @@ function ModalShell({
     // viewport inteiro mesmo com o wrapper rolado.
     <div
       className={cn(
-        "fixed inset-0 flex overflow-y-auto overscroll-contain px-4 py-6",
+        "modal-viewport fixed inset-0 flex overflow-y-auto overscroll-contain px-4 py-6",
         modalLayerClass[layer],
       )}
     >
@@ -1518,8 +1518,12 @@ function ModalShell({
       <section
         aria-modal="true"
         className={cn(
-          "app-panel animate-pop-in relative m-auto w-full overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6",
-          size === "lg" ? "max-w-lg" : size === "md" ? "max-w-md" : "max-w-sm",
+          "modal-panel app-panel animate-pop-in relative m-auto w-full overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6",
+          size === "lg"
+            ? "modal-panel-lg max-w-lg"
+            : size === "md"
+              ? "modal-panel-md max-w-md"
+              : "modal-panel-sm max-w-sm",
         )}
         role="dialog"
       >
@@ -1642,7 +1646,7 @@ function ConfirmDialog({
           </p>
         ) : null}
       </div>
-      <div className="mt-7 grid grid-cols-2 gap-3">
+      <div className="mt-7 grid grid-cols-1 gap-3 md:grid-cols-2">
         <Button type="button" variant="outline" onClick={onCancel}>
           {t("vault.cancel")}
         </Button>
@@ -1735,7 +1739,7 @@ function AccountWizardModal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
+    <div className="modal-viewport fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
       <button
         aria-label={t("vault.close")}
         className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
@@ -1746,7 +1750,7 @@ function AccountWizardModal({
       <section
         aria-labelledby="account-wizard-title"
         aria-modal="true"
-        className="app-panel animate-pop-in relative m-auto w-full max-w-xl overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6"
+        className="modal-panel modal-panel-xl app-panel animate-pop-in relative m-auto w-full max-w-xl overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6"
         role="dialog"
       >
         <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />
@@ -1773,12 +1777,12 @@ function AccountWizardModal({
           </Button>
         </div>
 
-        <div className="mt-5 grid grid-cols-8 gap-1.5">
+        <div className="mt-5 flex gap-1.5">
           {wizardSteps.map((label, index) => (
             <span
               aria-label={label}
               className={cn(
-                "h-1.5 rounded-full transition duration-300",
+                "h-1.5 flex-1 rounded-full transition duration-300",
                 index <= step
                   ? "bg-[color:var(--accent)]"
                   : "bg-[color:var(--surface-soft)]",
@@ -1804,7 +1808,7 @@ function AccountWizardModal({
           </p>
         ) : null}
 
-        <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mobile-bottom-actions mt-7 flex flex-col-reverse gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2">
             {editing ? (
               <Button
@@ -2019,7 +2023,7 @@ type ChoiceGridProps = {
 };
 
 function ChoiceGrid({ children }: ChoiceGridProps) {
-  return <div className="grid gap-2 sm:grid-cols-2">{children}</div>;
+  return <div className="grid gap-2 md:grid-cols-2">{children}</div>;
 }
 
 type ChoiceButtonProps = {
@@ -2093,7 +2097,7 @@ function StatusTabs({ onChange, tabs, value }: StatusTabsProps) {
   return (
     <nav
       aria-label="Status"
-      className="mt-5 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-[color:var(--border)] bg-[color:var(--nav-bg)] p-1 shadow-[inset_0_1px_0_var(--inset-light)] backdrop-blur-xl"
+      className="status-tabs mt-5 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-[color:var(--border)] bg-[color:var(--nav-bg)] p-1 shadow-[inset_0_1px_0_var(--inset-light)] backdrop-blur-xl"
     >
       {tabs.map((tab) => {
         const active = tab.value === value;
@@ -2227,7 +2231,7 @@ function GroupSwitcher({
       </div>
 
       {open === "list" ? (
-        <div className="animate-pop-in absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_24px_70px_var(--accent-glow)] backdrop-blur-2xl">
+        <div className="menu-popover animate-pop-in absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_24px_70px_var(--accent-glow)] backdrop-blur-2xl">
           <div className="max-h-60 overflow-y-auto pr-1">
             {groups.map((group) => {
               const selected = group.id === activeGroup?.id;
@@ -2259,7 +2263,7 @@ function GroupSwitcher({
       ) : null}
 
       {open === "actions" ? (
-        <div className="animate-pop-in absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_24px_70px_var(--accent-glow)] backdrop-blur-2xl">
+        <div className="menu-popover animate-pop-in absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_24px_70px_var(--accent-glow)] backdrop-blur-2xl">
           <p className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
             {t("vault.manage_groups")}
           </p>
@@ -2694,7 +2698,7 @@ function CustomSelect({
       </button>
 
       {open ? (
-        <div className="animate-pop-in absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_24px_70px_var(--accent-glow)] backdrop-blur-2xl">
+        <div className="menu-popover animate-pop-in absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_24px_70px_var(--accent-glow)] backdrop-blur-2xl">
           <div className="max-h-64 overflow-y-auto pr-1">
             {options.map((option) => {
               const selected = option.value === value;
@@ -2757,7 +2761,7 @@ function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
   return (
     <div
       className={cn(
-        "spotlight-card relative animate-row group grid gap-3 px-4 py-3 transition-colors duration-300 sm:grid-cols-[minmax(0,1fr)_auto]",
+        "account-row-card spotlight-card relative animate-row group grid gap-3 px-4 py-3 transition-colors duration-300 md:grid-cols-[minmax(0,1fr)_auto]",
         isActive
           ? "bg-[color:var(--accent-surface)] shadow-[inset_3px_0_0_var(--accent)]"
           : "hover:bg-[color:var(--surface-soft)]",
@@ -2871,7 +2875,7 @@ function ReauthModal({
           onChange={(event) => setPassword(event.target.value)}
         />
         {error ? <p className="text-sm text-red-300">{error}</p> : null}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Button type="button" variant="outline" onClick={onCancel}>
             {t("vault.reauth_cancel")}
           </Button>
@@ -2926,7 +2930,7 @@ function QuickViewModal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
+    <div className="modal-viewport fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
       <button
         aria-label={t("vault.close")}
         className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
@@ -2937,7 +2941,7 @@ function QuickViewModal({
       <section
         aria-labelledby="account-quickview-title"
         aria-modal="true"
-        className="app-panel animate-pop-in relative m-auto w-full max-w-md overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6"
+        className="modal-panel modal-panel-md app-panel animate-pop-in relative m-auto w-full max-w-md overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6"
         role="dialog"
       >
         <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />

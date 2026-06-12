@@ -129,7 +129,7 @@ export function AccountSettings({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
+    <div className="modal-viewport fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
       <button
         aria-label="Fechar"
         className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
@@ -139,13 +139,12 @@ export function AccountSettings({
       <section
         aria-modal="true"
         role="dialog"
-        className="app-panel animate-pop-in relative m-auto flex w-full max-w-3xl overflow-hidden rounded-[28px] border backdrop-blur-2xl"
-        style={{ minHeight: "520px" }}
+        className="modal-panel modal-panel-3xl account-settings-panel app-panel animate-pop-in relative m-auto flex w-full max-w-3xl overflow-hidden rounded-[28px] border backdrop-blur-2xl"
       >
         <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />
 
         {/* Sidebar */}
-        <nav className="flex w-52 shrink-0 flex-col border-r border-[color:var(--border)] p-4 pt-5">
+        <nav className="account-settings-nav flex w-52 shrink-0 flex-col border-r border-[color:var(--border)] p-4 pt-5">
           <div className="mb-5 flex items-center justify-between">
             <span className="text-sm font-semibold text-[color:var(--text)]">
               {t("account.title")}
@@ -173,7 +172,7 @@ export function AccountSettings({
         </nav>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="account-settings-content flex-1 overflow-y-auto p-6">
           {tab === "perfil" && (
             <PerfilTab withReauth={withReauth} user={user} />
           )}
@@ -321,14 +320,14 @@ function PerfilTab({
         <label className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
           {t("account.full_name_label")}
         </label>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 min-[430px]:flex-row">
           <Input
             className="h-10 flex-1 rounded-xl px-3"
             placeholder={t("account.full_name_placeholder")}
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
           />
-          <Button type="submit" variant="outline" disabled={savingName} className="h-10 shrink-0">
+          <Button type="submit" variant="outline" disabled={savingName} className="h-10 w-full shrink-0 min-[430px]:w-auto">
             {savingName ? <Spinner className="h-4 w-4" /> : t("account.save")}
           </Button>
         </div>
@@ -344,7 +343,7 @@ function PerfilTab({
         </label>
         <p className="text-xs text-[color:var(--muted)]">{t("account.recovery_email_desc")}</p>
         {emailLoaded && (
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 min-[430px]:flex-row">
             <Input
               type="email"
               className="h-10 flex-1 rounded-xl px-3"
@@ -352,7 +351,7 @@ function PerfilTab({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <Button type="submit" variant="outline" disabled={savingEmail} className="h-10 shrink-0">
+            <Button type="submit" variant="outline" disabled={savingEmail} className="h-10 w-full shrink-0 min-[430px]:w-auto">
               {savingEmail ? <Spinner className="h-4 w-4" /> : t("account.save")}
             </Button>
           </div>
@@ -367,7 +366,7 @@ function PerfilTab({
           <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
             {t("account.linked_providers")}
           </p>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <ProviderChip
               linked={profile.linkedProviders.google}
               label="Google"
@@ -645,7 +644,7 @@ function SegurancaTab({
             <p className="mt-1 text-xs text-[color:var(--muted)]">
               {t("account.two_factor_save_codes_instruction")}
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-sm text-[color:var(--text)]">
+            <div className="mt-3 grid grid-cols-1 gap-2 font-mono text-sm text-[color:var(--text)] md:grid-cols-2">
               {freshCodes.map((c) => (
                 <span key={c} className="rounded-lg bg-[color:var(--surface-soft)] px-2.5 py-1.5 text-center">
                   {c}
@@ -686,7 +685,7 @@ function SegurancaTab({
                 onChange={(e) => setEnableCode(e.target.value)}
               />
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <Button type="button" variant="outline" onClick={() => setSetup(null)}>
                 {t("account.two_factor_cancel")}
               </Button>
@@ -706,7 +705,7 @@ function SegurancaTab({
               value={disableCode}
               onChange={(e) => setDisableCode(e.target.value)}
             />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <Button type="button" variant="outline" onClick={() => setDisabling(false)}>
                 {t("account.two_factor_cancel")}
               </Button>
@@ -721,7 +720,7 @@ function SegurancaTab({
             </div>
           </form>
         ) : (
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4">
+          <div className="flex flex-col items-stretch justify-between gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4 min-[430px]:flex-row min-[430px]:items-center">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-[color:var(--text)]">
                 {tfaStatus?.enabled ? t("account.two_factor_enabled") : t("account.two_factor_disabled")}
@@ -744,7 +743,7 @@ function SegurancaTab({
                 </Button>
               </div>
             ) : (
-              <Button className="shrink-0" variant="neon" disabled={tfaBusy} onClick={beginSetup}>
+              <Button className="w-full shrink-0 min-[430px]:w-auto" variant="neon" disabled={tfaBusy} onClick={beginSetup}>
                 {tfaBusy ? <Spinner className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
                 {t("account.two_factor_enable")}
               </Button>
@@ -802,7 +801,7 @@ function SessoesTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 min-[430px]:flex-row min-[430px]:items-center min-[430px]:justify-between">
         <h2 className="text-lg font-semibold text-[color:var(--text)]">
           {t("account.nav_sessions")}
         </h2>
@@ -827,7 +826,7 @@ function SessoesTab() {
           {sessions.map((s) => (
             <div
               key={s.sessionId}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4"
+              className="flex flex-col items-stretch justify-between gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4 min-[430px]:flex-row min-[430px]:items-center"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -894,7 +893,7 @@ function PreferenciasTab({
         <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
           {t("account.theme_label")}
         </p>
-        <div className="flex gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {(["white", "dark"] as const).map((th) => (
             <button
               key={th}

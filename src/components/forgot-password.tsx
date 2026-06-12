@@ -38,7 +38,7 @@ export function ForgotPassword({ onBack, theme }: ForgotPasswordProps) {
   }
 
   return (
-    <main className={cn(`theme-${theme}`, "app-shell login-shell min-h-screen")}>
+    <main className={cn(`theme-${theme}`, "app-shell login-shell min-h-[100dvh]")}>
       <div className="login-layout">
         <section className="login-form-panel">
           <LangTerminal />

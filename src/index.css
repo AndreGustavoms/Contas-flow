@@ -2219,7 +2219,6 @@ td {
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  grid-template-columns: minmax(0, 1fr);
 }
 
 /* Sidebar: glass limpo sem glow colorido */
@@ -2227,11 +2226,6 @@ td {
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  gap: var(--layout-gap);
-  padding-block: var(--card-gap);
-  padding-inline:
-    max(var(--page-padding-x), env(safe-area-inset-left, 0px))
-    max(var(--page-padding-x), env(safe-area-inset-right, 0px));
   background: color-mix(in srgb, var(--sidebar) 80%, transparent);
   border-right: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   -webkit-backdrop-filter: blur(20px) saturate(140%);
@@ -2241,19 +2235,11 @@ td {
 .vault-sidebar-actions {
   width: 100%;
   max-width: 100%;
-  gap: var(--element-gap);
 }
 
 .vault-content {
   width: 100%;
   min-width: 0;
-  max-width: var(--container-max);
-  margin-inline: auto;
-  padding:
-    var(--page-padding-y)
-    max(var(--page-padding-x), env(safe-area-inset-right, 0px))
-    calc(var(--page-padding-y) + env(safe-area-inset-bottom, 0px))
-    max(var(--page-padding-x), env(safe-area-inset-left, 0px));
 }
 
 .vault-content-header {
@@ -2261,14 +2247,12 @@ td {
 }
 
 .vault-toolbar {
-  gap: var(--card-gap);
-  padding: var(--card-padding);
+  width: 100%;
 }
 
 .vault-filters {
   width: 100%;
   max-width: 100%;
-  gap: var(--element-gap);
 }
 
 .vault-list {
@@ -2578,7 +2562,24 @@ td {
   }
 
   .vault-content {
-    max-width: var(--container-max);
+    max-width: 100%;
+    padding:
+      var(--page-padding-y)
+      max(var(--page-padding-x), env(safe-area-inset-right, 0px))
+      calc(var(--page-padding-y) + env(safe-area-inset-bottom, 0px))
+      max(var(--page-padding-x), env(safe-area-inset-left, 0px));
+  }
+
+  .vault-sidebar {
+    gap: var(--layout-gap);
+    padding-block: var(--card-gap);
+    padding-inline:
+      max(var(--page-padding-x), env(safe-area-inset-left, 0px))
+      max(var(--page-padding-x), env(safe-area-inset-right, 0px));
+  }
+
+  .vault-sidebar-actions {
+    gap: var(--element-gap);
   }
 
   .vault-toolbar {

@@ -132,20 +132,23 @@ function isReauthCancelled(error: unknown): boolean {
   return error instanceof Error && error.message === "reauth_required";
 }
 
-// "há 5 min", "há 2 h", "há 3 d" — coarse relative time for last activity.
-function relativeTime(ms: number): string {
+// Tempo relativo via i18n com plural por idioma (mesmas chaves do painel
+// Minha conta: account.time_*).
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
+
+function relativeTime(ms: number, t: TFn): string {
   const diff = Date.now() - ms;
   const min = Math.round(diff / 60000);
-  if (min < 1) return "agora";
-  if (min < 60) return `há ${min} min`;
+  if (min < 1) return t("account.time_now");
+  if (min < 60) return t("account.time_minutes", { count: min });
   const hours = Math.round(min / 60);
-  if (hours < 24) return `há ${hours} h`;
-  return `há ${Math.round(hours / 24)} d`;
+  if (hours < 24) return t("account.time_hours", { count: hours });
+  return t("account.time_days", { count: Math.round(hours / 24) });
 }
 
 // Best-effort short device label from the user-agent string.
-function deviceLabel(userAgent: string): string {
-  if (!userAgent) return "Dispositivo desconhecido";
+function deviceLabel(userAgent: string, t: TFn): string {
+  if (!userAgent) return t("team.unknown_device");
   const browser =
     /Edg/.test(userAgent)
       ? "Edge"
@@ -157,7 +160,7 @@ function deviceLabel(userAgent: string): string {
             ? "Firefox"
             : /Safari/.test(userAgent)
               ? "Safari"
-              : "Navegador";
+              : t("team.generic_browser");
   const os = /Windows/.test(userAgent)
     ? "Windows"
     : /Android/.test(userAgent)
@@ -209,7 +212,7 @@ export function UsersDialog({
       const data = await requestJson<{ users: ManagedUser[] }>(API_USERS);
       setUsers(data.users);
     } catch {
-      setError("Não foi possível carregar os usuários.");
+      setError(t("team.error_load_users"));
     } finally {
       setLoading(false);
     }
@@ -276,7 +279,7 @@ export function UsersDialog({
       const data = await requestJson<{ events: AuditEvent[] }>(
         `${API_AUDIT}?${params.toString()}`,
       );
-      const escape = (v: string) => `"${v.replaceAll('"', '""')}"`;
+      const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
       const lines = [
         ["timestamp", "usuario", "acao", "alvo"].join(";"),
         ...data.events.map((e) =>
@@ -308,7 +311,7 @@ export function UsersDialog({
       await loadSessions();
       await loadEvents();
     } catch {
-      setError("Não foi possível encerrar a sessão.");
+      setError(t("team.error_end_session"));
     }
   }
 
@@ -325,7 +328,7 @@ export function UsersDialog({
       await loadEvents();
     } catch (err) {
       if (isReauthCancelled(err)) return;
-      setError("Não foi possível encerrar as sessões.");
+      setError(t("team.error_end_sessions"));
     }
   }
 
@@ -388,7 +391,7 @@ export function UsersDialog({
       await loadEvents();
     } catch (err) {
       if (isReauthCancelled(err)) return;
-      setError("Não foi possível resetar o 2FA.");
+      setError(t("team.error_reset_2fa"));
     }
   }
 
@@ -416,7 +419,7 @@ export function UsersDialog({
       await loadEvents();
     } catch (err) {
       if (isReauthCancelled(err)) return;
-      setError("Não foi possível baixar o backup.");
+      setError(t("team.error_backup"));
     }
   }
 
@@ -425,7 +428,7 @@ export function UsersDialog({
     // items-center o topo ficava cortado e inalcançável no mobile.
     <div className="modal-viewport fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
       <button
-        aria-label="Fechar"
+        aria-label={t("team.close")}
         className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
         type="button"
         onClick={onClose}
@@ -441,11 +444,11 @@ export function UsersDialog({
           <div className="flex items-center gap-2.5">
             <Shield className="h-5 w-5 text-[color:var(--accent)]" />
             <h2 className="text-xl font-semibold tracking-normal text-[color:var(--text)]">
-              Equipe
+              {t("team.title")}
             </h2>
           </div>
           <Button
-            aria-label="Fechar"
+            aria-label={t("team.close")}
             size="icon"
             variant="ghost"
             onClick={onClose}
@@ -455,8 +458,7 @@ export function UsersDialog({
         </div>
 
         <p className="mt-1.5 text-sm text-[color:var(--muted)]">
-          Crie logins para o time. Cada pessoa vê só os próprios grupos; o admin
-          vê todos.
+          {t("team.description")}
         </p>
 
         {/* Create user */}
@@ -467,7 +469,7 @@ export function UsersDialog({
           <div className="grid gap-3 md:grid-cols-2">
             <label className="grid gap-1.5">
               <span className="text-xs font-medium text-[color:var(--muted)]">
-                Usuário
+                {t("team.username_label")}
               </span>
               <Input
                 autoComplete="off"
@@ -479,7 +481,7 @@ export function UsersDialog({
             </label>
             <label className="grid gap-1.5">
               <span className="text-xs font-medium text-[color:var(--muted)]">
-                Senha
+                {t("team.password_label")}
               </span>
               <Input
                 autoComplete="new-password"
@@ -496,12 +498,12 @@ export function UsersDialog({
             <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[color:var(--text)]">
               <Switch
                 checked={newRole === "admin"}
-                label="Tornar admin"
+                label={t("team.make_admin")}
                 onChange={(event) =>
                   setNewRole(event.target.checked ? "admin" : "member")
                 }
               />
-              Tornar admin (vê tudo)
+              {t("team.make_admin")}
             </label>
             <Button
               className="w-full shrink-0 min-[430px]:w-auto"
@@ -514,7 +516,7 @@ export function UsersDialog({
               ) : (
                 <UserPlus className="h-4 w-4" />
               )}
-              Criar
+              {t("team.create")}
             </Button>
           </div>
         </form>
@@ -529,11 +531,11 @@ export function UsersDialog({
         <div className="mt-5 space-y-2">
           {loading ? (
             <p className="py-6 text-center text-sm text-[color:var(--muted)]">
-              Carregando…
+              {t("team.loading")}
             </p>
           ) : users.length === 0 ? (
             <p className="py-6 text-center text-sm text-[color:var(--muted)]">
-              Nenhum usuário ainda.
+              {t("team.no_users")}
             </p>
           ) : (
             users.map((user) => {
@@ -548,7 +550,7 @@ export function UsersDialog({
                       {user.username}
                       {isSelf ? (
                         <span className="ml-2 text-xs font-normal text-[color:var(--muted)]">
-                          (você)
+                          {t("team.you")}
                         </span>
                       ) : null}
                       {user.twoFactorEnabled ? (
@@ -559,7 +561,7 @@ export function UsersDialog({
                       ) : null}
                     </p>
                     <p className="text-xs text-[color:var(--muted)]">
-                      {user.role === "admin" ? "Administrador" : "Membro"}
+                      {user.role === "admin" ? t("team.role_admin") : t("team.role_member")}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-1">
@@ -569,11 +571,11 @@ export function UsersDialog({
                         type="button"
                         onClick={() => resetUserTwoFactor(user)}
                       >
-                        Resetar 2FA
+                        {t("team.reset_2fa")}
                       </button>
                     ) : null}
                     <Button
-                      aria-label={`Remover ${user.username}`}
+                      aria-label={t("team.remove_user", { username: user.username })}
                       className={cn(isSelf && "pointer-events-none opacity-40")}
                       disabled={isSelf}
                       size="icon"
@@ -596,12 +598,12 @@ export function UsersDialog({
           <div className="mb-2 flex items-center gap-2.5">
             <Monitor className="h-4 w-4 text-[color:var(--accent)]" />
             <h3 className="text-sm font-semibold text-[color:var(--text)]">
-              Sessões ativas
+              {t("team.active_sessions")}
             </h3>
           </div>
           {sessions.length === 0 ? (
             <p className="rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-3.5 py-3 text-xs text-[color:var(--muted)]">
-              Nenhuma sessão ativa.
+              {t("team.no_sessions")}
             </p>
           ) : (
             <div className="space-y-2">
@@ -620,7 +622,7 @@ export function UsersDialog({
                       <p className="truncate text-sm font-semibold text-[color:var(--text)]">
                         {user.username}
                         <span className="ml-2 text-xs font-normal text-[color:var(--muted)]">
-                          {list.length} sessã{list.length === 1 ? "o" : "es"}
+                          {t("team.sessions_count", { count: list.length })}
                         </span>
                       </p>
                       <button
@@ -629,7 +631,7 @@ export function UsersDialog({
                         onClick={() => endAllSessions(user)}
                       >
                         <LogOut className="h-3.5 w-3.5" />
-                        Sair de todos
+                        {t("team.end_all_sessions")}
                       </button>
                     </div>
                     <ul className="mt-2 space-y-1.5">
@@ -640,24 +642,24 @@ export function UsersDialog({
                         >
                           <div className="min-w-0">
                             <p className="truncate text-xs font-medium text-[color:var(--text)]">
-                              {deviceLabel(session.userAgent)}
+                              {deviceLabel(session.userAgent, t)}
                               {session.current ? (
                                 <span className="ml-2 text-[color:var(--accent)]">
-                                  este dispositivo
+                                  {t("team.this_device")}
                                 </span>
                               ) : null}
                             </p>
                             <p className="truncate text-[11px] text-[color:var(--muted)]">
-                              ativo {relativeTime(session.lastSeenAt)}
+                              {t("team.active_since", { time: relativeTime(session.lastSeenAt, t) })}
                             </p>
                           </div>
                           <button
-                            aria-label="Encerrar sessão"
+                            aria-label={t("team.end_session_label")}
                             className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--muted)] transition hover:bg-red-500/10 hover:text-red-200"
                             type="button"
                             onClick={() => endSession(session)}
                           >
-                            Encerrar
+                            {t("team.end_session")}
                           </button>
                         </li>
                       ))}
@@ -673,10 +675,10 @@ export function UsersDialog({
         <div className="mt-5 flex flex-col items-stretch justify-between gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4 min-[430px]:flex-row min-[430px]:items-center">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-[color:var(--text)]">
-              Backup completo
+              {t("team.backup_title")}
             </p>
             <p className="text-xs text-[color:var(--muted)]">
-              Baixa todos os grupos e contas. Guarde em local seguro.
+              {t("team.backup_description")}
             </p>
           </div>
           <button
@@ -685,7 +687,7 @@ export function UsersDialog({
             onClick={downloadBackup}
           >
             <Download className="h-4 w-4" />
-            Baixar
+            {t("team.backup_download")}
           </button>
         </div>
 

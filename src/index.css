@@ -362,60 +362,6 @@ canvas {
   background: rgba(255, 255, 255, 0.96);
 }
 
-.login-brand-copy {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-
-.login-brand-copy h1 {
-  display: none;
-  margin: 0;
-  color: var(--login-brand-text);
-  font-size: clamp(2.25rem, 4vw, 3.6rem);
-  font-weight: 800;
-  letter-spacing: 0;
-  line-height: 1;
-  text-shadow: none;
-}
-
-.login-brand-copy p {
-  display: none;
-  margin-top: 0.85rem;
-  color: var(--login-brand-muted);
-  font-size: clamp(1rem, 1.5vw, 1.25rem);
-  line-height: 1.55;
-}
-
-.login-brand-hero-logo {
-  display: block;
-  height: 100%;
-  width: 100%;
-  max-width: none;
-  max-height: none;
-  aspect-ratio: auto;
-  object-fit: cover;
-  object-position: center 20%;
-  border-radius: 0;
-  transform: none;
-}
-
-/* Overlay que esconde texto genérico da imagem hero e melhora profundidade */
-.login-brand-copy::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.18) 30%, transparent 60%),
-    linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, transparent 20%);
-  pointer-events: none;
-  z-index: 1;
-}
-
 .login-terminal {
   position: absolute;
   bottom: 2rem;

@@ -36,6 +36,10 @@ dev-server*.log
 api-server*.log
 local-server*.log
 
+# --- Python (cache do startapp.py) ---
+__pycache__/
+*.pyc
+
 # --- Sistema / diversos ---
 .DS_Store
 gitignore.md

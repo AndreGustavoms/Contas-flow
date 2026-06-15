@@ -39,6 +39,7 @@ local-server*.log
 # --- Python (cache do startapp.py) ---
 __pycache__/
 *.pyc
+.startapp-pids.json
 
 # --- Sistema / diversos ---
 .DS_Store

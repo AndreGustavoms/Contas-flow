@@ -9,6 +9,8 @@ Uso: `python startapp.py` (ou duplo-clique em startapp.cmd).
 """
 
 import os
+import json
+import signal
 import subprocess
 import sys
 import threading
@@ -22,6 +24,8 @@ REPO = os.path.dirname(os.path.abspath(__file__))
 API_PORT = os.environ.get("PORT", "8787")
 UI_PORT = "5175"
 UI = f"http://127.0.0.1:{UI_PORT}"
+API = f"http://127.0.0.1:{API_PORT}"
+PID_FILE = os.path.join(REPO, ".startapp-pids.json")
 
 # Paleta da marca (dark, quadrado, minimalista).
 BG = "#070a12"
@@ -42,16 +46,72 @@ def node_exe():
     return which("node")
 
 
-def server_up():
-    """True se o Vite ja responde (servidor no ar)."""
+def url_up(url):
     try:
-        urllib.request.urlopen(f"{UI}/", timeout=1)
+        urllib.request.urlopen(url, timeout=1)
         return True
     except urllib.error.HTTPError:
         # Respondeu com 4xx/5xx => esta no ar.
         return True
     except Exception:
         return False
+
+
+def api_up():
+    """True se a API responde ao healthcheck."""
+    return url_up(f"{API}/api/health")
+
+
+def ui_up():
+    """True se o Vite responde."""
+    return url_up(f"{UI}/")
+
+
+def server_up():
+    """True se API e Vite ja respondem."""
+    return api_up() and ui_up()
+
+
+def read_pids():
+    try:
+        with open(PID_FILE, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except Exception:
+        return []
+    pids = data.get("pids", [])
+    return [int(pid) for pid in pids if isinstance(pid, int) or str(pid).isdigit()]
+
+
+def write_pids(pids):
+    try:
+        with open(PID_FILE, "w", encoding="utf-8") as fh:
+            json.dump({"pids": sorted(set(pids))}, fh)
+    except Exception:
+        pass
+
+
+def pid_alive(pid):
+    if os.name == "nt":
+        result = subprocess.run(
+            ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        return str(pid) in result.stdout
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+    except Exception:
+        return False
+
+
+def prune_pids():
+    live = [pid for pid in read_pids() if pid_alive(pid)]
+    write_pids(live)
+    return live
 
 
 def start_server():
@@ -71,34 +131,43 @@ def start_server():
         creationflags=flags,
         close_fds=True,
     )
-    subprocess.Popen([node, "server/index.mjs"], env=env, **common)
-    subprocess.Popen(
-        [
-            node,
-            "node_modules/vite/bin/vite.js",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            UI_PORT,
-        ],
-        **common,
-    )
+    pids = prune_pids()
+    if not api_up():
+        api_proc = subprocess.Popen([node, "server/index.mjs"], env=env, **common)
+        pids.append(api_proc.pid)
+    if not ui_up():
+        ui_proc = subprocess.Popen(
+            [
+                node,
+                "node_modules/vite/bin/vite.js",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                UI_PORT,
+            ],
+            **common,
+        )
+        pids.append(ui_proc.pid)
+    write_pids(pids)
     return True
 
 
 def stop_server():
-    if os.name == "nt":
-        subprocess.run(
-            ["taskkill", "/F", "/IM", "node.exe"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    else:
-        subprocess.run(
-            ["pkill", "-f", "node"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+    for pid in read_pids():
+        if not pid_alive(pid):
+            continue
+        if os.name == "nt":
+            subprocess.run(
+                ["taskkill", "/F", "/PID", str(pid)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        else:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
+    write_pids([])
 
 
 class StartApp:
@@ -165,7 +234,7 @@ class StartApp:
         self._card(
             wrap,
             "Parar servidor",
-            "Encerra o servidor local (todos os processos node).",
+            "Encerra apenas os processos iniciados por este app.",
             self.stop,
             accent=DANGER,
         )

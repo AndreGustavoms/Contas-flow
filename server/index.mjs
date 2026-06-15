@@ -2342,6 +2342,7 @@ async function handleApi(request, response, url, user, session) {
     }
 
     if (request.method === "PUT") {
+      if (!requireRecentReauth(session, response)) return;
       const body = await readBody(request);
       const existing = group.accounts[accountIndex];
       // The listing sends the password masked (""), so an edit that didn't touch
@@ -2360,6 +2361,7 @@ async function handleApi(request, response, url, user, session) {
     }
 
     if (request.method === "DELETE") {
+      if (!requireRecentReauth(session, response)) return;
       group.accounts.splice(accountIndex, 1);
       await writeVault(vaultUserId, db);
       sendJson(response, 200, { ok: true });

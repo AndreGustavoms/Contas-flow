@@ -150,7 +150,7 @@ export function TimePicker({ value, onChange, disabled }: TimePickerProps) {
         onClick={() => !disabled && setOpen((v) => !v)}
         className={cn(
           "flex h-11 w-full items-center gap-2.5 rounded-xl border px-3.5 text-sm transition-all duration-200 outline-none",
-          "bg-[color:var(--field)] text-left",
+          "bg-[color:var(--page-bg)] text-left",
           open
             ? "border-[color:var(--accent)] ring-2 ring-[color:var(--accent)]/20 text-[color:var(--text)]"
             : "border-[color:var(--border)] hover:border-[color:var(--accent-border)] text-[color:var(--text)]",

@@ -74,7 +74,7 @@ export function Select<T extends string = string>({
       {open && (
         <ul
           role="listbox"
-          className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-[color:var(--accent-border)] bg-[color:var(--surface-soft)] shadow-[0_8px_32px_-8px_var(--accent-glow)] backdrop-blur-sm"
+          className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-[color:var(--accent-border)] bg-[color:var(--page-bg)] shadow-[0_8px_32px_-8px_var(--accent-glow),0_4px_16px_-4px_rgba(0,0,0,.7)]"
         >
           {options.map((opt) => {
             const active = opt.value === value;

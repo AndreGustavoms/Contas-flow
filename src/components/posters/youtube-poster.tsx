@@ -25,6 +25,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { DatePicker } from "../ui/date-picker";
+import { TimePicker } from "../ui/time-picker";
 import { Select } from "../ui/select";
 import { Spinner } from "../ui/spinner";
 import { YouTubeIcon } from "../platform-icons";
@@ -603,7 +604,7 @@ export function YouTubePoster() {
                 min={new Date().toISOString().slice(0, 10)}
                 onChange={(v) => updateSchedulePart("date", v)}
               />
-              <input aria-label="Hora" type="time" className={fieldCls} value={scheduleTime} onChange={(e) => updateSchedulePart("time", e.target.value)} />
+              <TimePicker value={scheduleTime} onChange={(v) => updateSchedulePart("time", v)} />
             </div>
             {schedule && (
               <p className="text-[11px] text-[color:var(--muted)]">{t("post.youtube.schedule_note")}</p>

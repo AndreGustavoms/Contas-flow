@@ -2477,6 +2477,12 @@ async function handleApi(request, response, url, user, session) {
       groups = allVaults.flatMap(({ db }) => db.groups);
     } else {
       const db = await readVault(user.id);
+      // Primeiro acesso: cria grupo padrão automaticamente.
+      if (db.groups.length === 0) {
+        const defaultGroup = normalizeGroup({ name: "Geral", ownerId: user.id, accounts: [] });
+        db.groups.push(defaultGroup);
+        await writeVault(user.id, db);
+      }
       groups = db.groups;
     }
     sendJson(response, 200, { groups: groups.map(groupSummary) });

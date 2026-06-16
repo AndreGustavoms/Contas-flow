@@ -654,6 +654,7 @@
       "privacy_unlisted": "Não listado",
       "privacy_public": "Público",
       "schedule": "Agendar publicação",
+      "schedule_subtitle": "O YouTube publica automaticamente na data e hora escolhidas.",
       "schedule_note": "Agendado: o vídeo é enviado como privado e o YouTube publica automaticamente no horário escolhido.",
       "publish": "Publicar agora",
       "schedule_btn": "Agendar publicação",

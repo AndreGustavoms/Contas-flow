@@ -624,6 +624,7 @@
       "privacy_unlisted": "不公开",
       "privacy_public": "公开",
       "schedule": "定时发布",
+      "schedule_subtitle": "YouTube 将在所选日期和时间自动发布。",
       "schedule_note": "定时：视频以私享方式上传，YouTube 会在所选时间自动公开。",
       "publish": "立即发布",
       "schedule_btn": "定时发布",

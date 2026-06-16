@@ -558,50 +558,56 @@ export function YouTubePoster() {
             </section>
           )}
 
-          {/* ── Privacidade + Agendamento ── */}
-          <section className="border-t border-[color:var(--border)] py-6 grid gap-5 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[color:var(--muted)]">
-                <Shield className="h-3.5 w-3.5" />
-                {t("post.youtube.privacy")}
-              </span>
-              <Select<Privacy>
-                value={privacy}
-                disabled={Boolean(schedule)}
-                onChange={setPrivacy}
-                options={[
-                  { value: "private", label: t("post.youtube.privacy_private") },
-                  { value: "unlisted", label: t("post.youtube.privacy_unlisted") },
-                  { value: "public", label: t("post.youtube.privacy_public") },
-                ]}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[color:var(--muted)]">
-                  <Calendar className="h-3.5 w-3.5" />
+          {/* ── Privacidade ── */}
+          <section className="border-t border-[color:var(--border)] py-6">
+            <span className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-[color:var(--muted)]">
+              <Shield className="h-3.5 w-3.5" />
+              {t("post.youtube.privacy")}
+            </span>
+            <Select<Privacy>
+              value={privacy}
+              disabled={Boolean(schedule)}
+              onChange={setPrivacy}
+              options={[
+                { value: "private", label: t("post.youtube.privacy_private") },
+                { value: "unlisted", label: t("post.youtube.privacy_unlisted") },
+                { value: "public", label: t("post.youtube.privacy_public") },
+              ]}
+            />
+          </section>
+
+          {/* ── Agendamento ── */}
+          <section className="border-t border-[color:var(--border)] py-6 grid gap-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-base font-semibold text-[color:var(--text)]">
                   {t("post.youtube.schedule")}
-                </span>
-                {schedule && (
-                  <button
-                    className="text-[11px] font-semibold text-[color:var(--muted)] transition hover:text-[color:var(--text)]"
-                    type="button"
-                    onClick={clearSchedule}
-                  >
-                    Limpar
-                  </button>
-                )}
+                </p>
+                <p className="mt-0.5 text-[11px] text-[color:var(--muted)]">
+                  {t("post.youtube.schedule_subtitle")}
+                </p>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <DatePicker
-                  value={scheduleDate}
-                  min={new Date().toISOString().slice(0, 10)}
-                  onChange={(v) => updateSchedulePart("date", v)}
-                />
-                <input aria-label="Hora" type="time" className={fieldCls} value={scheduleTime} onChange={(e) => updateSchedulePart("time", e.target.value)} />
-              </div>
-              {schedule && <p className="text-[11px] text-[color:var(--muted)]">{t("post.youtube.schedule_note")}</p>}
+              {schedule && (
+                <button
+                  type="button"
+                  onClick={clearSchedule}
+                  className="text-[11px] font-semibold text-[color:var(--muted)] transition hover:text-[color:var(--text)]"
+                >
+                  Limpar
+                </button>
+              )}
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <DatePicker
+                value={scheduleDate}
+                min={new Date().toISOString().slice(0, 10)}
+                onChange={(v) => updateSchedulePart("date", v)}
+              />
+              <input aria-label="Hora" type="time" className={fieldCls} value={scheduleTime} onChange={(e) => updateSchedulePart("time", e.target.value)} />
+            </div>
+            {schedule && (
+              <p className="text-[11px] text-[color:var(--muted)]">{t("post.youtube.schedule_note")}</p>
+            )}
           </section>
 
           {/* ── Progresso ── */}

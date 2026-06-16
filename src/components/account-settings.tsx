@@ -32,7 +32,13 @@ import { type SessionUser } from "../App";
 import { LANGUAGES } from "../i18n";
 import i18n from "../i18n";
 
-type Tab = "perfil" | "segurança" | "sessões" | "preferências" | "conta";
+type Tab =
+  | "perfil"
+  | "segurança"
+  | "sessões"
+  | "conexões"
+  | "preferências"
+  | "conta";
 
 type AccountSettingsProps = {
   embedded?: boolean;
@@ -166,6 +172,7 @@ const NAV: { tab: Tab; icon: typeof User; labelKey: string }[] = [
   { tab: "perfil", icon: User, labelKey: "account.nav_perfil" },
   { tab: "segurança", icon: Lock, labelKey: "account.nav_security" },
   { tab: "sessões", icon: Monitor, labelKey: "account.nav_sessions" },
+  { tab: "conexões", icon: Globe, labelKey: "account.nav_connections" },
   { tab: "preferências", icon: Settings, labelKey: "account.nav_preferences" },
   { tab: "conta", icon: Settings, labelKey: "account.nav_account" },
 ];
@@ -243,6 +250,7 @@ export function AccountSettings({
         {tab === "perfil" && <PerfilTab withReauth={withReauth} user={user} />}
         {tab === "segurança" && <SegurancaTab withReauth={withReauth} />}
         {tab === "sessões" && <SessoesTab />}
+        {tab === "conexões" && <ConexoesTab />}
         {tab === "preferências" && (
           <PreferenciasTab theme={theme} onThemeChange={onThemeChange} />
         )}
@@ -664,6 +672,9 @@ function SegurancaTab({
   const [disableCode, setDisableCode] = useState("");
   const [copied, setCopied] = useState(false);
   const [codesCopied, setCodesCopied] = useState(false);
+  // O QR e a chave ficam ocultos por padrão (anti shoulder-surfing); o usuário
+  // revela só na hora de escanear/copiar.
+  const [secretRevealed, setSecretRevealed] = useState(false);
 
   useEffect(() => {
     api<TfaStatus>("/api/account/2fa")
@@ -712,6 +723,7 @@ function SegurancaTab({
         }),
       );
       setSetup(result);
+      setSecretRevealed(false);
       setFreshCodes(null);
       setEnableCode("");
     } catch (err) {
@@ -964,8 +976,25 @@ function SegurancaTab({
               {t("account.two_factor_scan_instruction")}
             </p>
             <div className="flex justify-center">
-              <div className="rounded-2xl bg-white p-3 shadow-[0_8px_30px_rgba(0,0,0,0.25)]">
-                <QrCode value={setup.otpauthUri} size={176} />
+              <div className="relative rounded-2xl bg-white p-3 shadow-[0_8px_30px_rgba(0,0,0,0.25)]">
+                <div
+                  className={cn(
+                    "transition",
+                    !secretRevealed && "blur-md",
+                  )}
+                >
+                  <QrCode value={setup.otpauthUri} size={176} />
+                </div>
+                {!secretRevealed && (
+                  <button
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-black/10 text-sm font-semibold text-black"
+                    type="button"
+                    onClick={() => setSecretRevealed(true)}
+                  >
+                    <Eye className="h-5 w-5" />
+                    {t("account.two_factor_reveal")}
+                  </button>
+                )}
               </div>
             </div>
             <p className="text-xs text-[color:var(--muted)]">
@@ -973,11 +1002,30 @@ function SegurancaTab({
             </p>
             <div className="flex items-center gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] p-3">
               <code className="min-w-0 flex-1 break-all font-mono text-sm text-[color:var(--text)]">
-                {setup.secret}
+                {secretRevealed
+                  ? setup.secret
+                  : "•••• •••• •••• •••• ••••"}
               </code>
               <button
-                aria-label={t("account.two_factor_copy_key")}
+                aria-label={
+                  secretRevealed
+                    ? t("account.two_factor_hide")
+                    : t("account.two_factor_reveal")
+                }
                 className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--muted)] transition hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
+                type="button"
+                onClick={() => setSecretRevealed((current) => !current)}
+              >
+                {secretRevealed ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+              <button
+                aria-label={t("account.two_factor_copy_key")}
+                className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--muted)] transition hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)] disabled:opacity-40"
+                disabled={!secretRevealed}
                 type="button"
                 onClick={copySecret}
               >

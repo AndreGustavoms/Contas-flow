@@ -1325,6 +1325,11 @@ export function AccountVault({
                 alt=""
                 className="h-full w-full object-cover"
                 src={navProfile.avatarUrl}
+                onError={() =>
+                  setNavProfile((current) =>
+                    current ? { ...current, avatarUrl: null } : current,
+                  )
+                }
               />
             ) : (
               navInitial

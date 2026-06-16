@@ -452,6 +452,15 @@ function PerfilTab({
                 alt={t("account.avatar_alt")}
                 className="h-full w-full object-cover"
                 src={avatarUrl}
+                onError={() => {
+                  setProfile((current) =>
+                    current ? { ...current, avatarUrl: null } : current,
+                  );
+                  onProfileChange?.({
+                    fullName: profile?.fullName ?? null,
+                    avatarUrl: null,
+                  });
+                }}
               />
             ) : (
               <span className="flex h-full w-full items-center justify-center">

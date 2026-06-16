@@ -471,8 +471,19 @@ function isValidAvatarUrl(value) {
   if (value === null) return true;
   if (typeof value !== "string") return false;
   if (value.length > 750_000) return false;
-  if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(value)) {
-    return true;
+  const dataMatch = /^data:image\/(?:png|jpe?g|webp|gif);base64,([a-z0-9+/=]+)$/i.exec(
+    value,
+  );
+  if (dataMatch) {
+    try {
+      const bytes = Buffer.from(dataMatch[1], "base64");
+      return bytes.length > 0 && bytes.toString("base64").replace(/=+$/, "") === dataMatch[1].replace(/=+$/, "");
+    } catch {
+      return false;
+    }
+  }
+  if (/^data:/i.test(value)) {
+    return false;
   }
   if (value.length > 1000) return false;
   try {

@@ -66,22 +66,41 @@ export function SocialPoster({ onClose }: { onClose: () => void }) {
         <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wide text-[color:var(--muted)]">
           {t("post.networks")}
         </p>
-        {NETWORKS.map(({ id, label, Icon, accent }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setActive(id)}
-            className={cn(
-              "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition",
-              active === id
-                ? "bg-[color:var(--field)] text-[color:var(--text)]"
-                : "text-[color:var(--muted)] hover:bg-[color:var(--field)] hover:text-[color:var(--text)]",
-            )}
-          >
-            <Icon className="h-4 w-4 shrink-0" style={{ color: accent }} />
-            {label}
-          </button>
-        ))}
+        {NETWORKS.map(({ id, label, Icon, accent }) => {
+          const isActive = active === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setActive(id)}
+              className={cn(
+                "group relative flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                isActive
+                  ? "bg-[color:var(--field)] text-[color:var(--text)]"
+                  : "text-[color:var(--muted)] hover:bg-[color:var(--field)] hover:text-[color:var(--text)]",
+              )}
+            >
+              {isActive && (
+                <span
+                  className="absolute left-0 top-0 h-full w-0.5 rounded-r"
+                  style={{
+                    background: accent,
+                    boxShadow: `0 0 8px ${accent}99`,
+                  }}
+                />
+              )}
+              <span
+                className={cn(
+                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-all duration-200",
+                  isActive ? "opacity-100" : "opacity-60 group-hover:opacity-100",
+                )}
+              >
+                <Icon className="h-4 w-4" style={{ color: accent }} />
+              </span>
+              {label}
+            </button>
+          );
+        })}
       </nav>
 
       {/* Painel da rede selecionada */}

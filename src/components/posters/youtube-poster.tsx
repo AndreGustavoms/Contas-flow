@@ -12,8 +12,10 @@ import {
   Clock,
   ExternalLink,
   FileVideo2,
+  Film,
   Plus,
   Shield,
+  Smartphone,
   Upload,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -28,6 +30,7 @@ import { YouTubeIcon } from "../platform-icons";
 
 type Channel = { id: string; title: string; connectedAt: string };
 type Privacy = "public" | "unlisted" | "private";
+type VideoType = "video" | "short";
 
 type HistoryItem = {
   videoId: string | null;
@@ -99,6 +102,7 @@ export function YouTubePoster() {
   const { t } = useTranslation();
   const [channels, setChannels] = useState<Channel[] | null>(null);
   const [channelId, setChannelId] = useState("");
+  const [videoType, setVideoType] = useState<VideoType>("video");
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -200,6 +204,7 @@ export function YouTubePoster() {
             .filter(Boolean),
           publishAt,
           privacyStatus: privacy,
+          videoType,
         }),
       });
       if (!res.ok) throw new Error("publish_failed");
@@ -360,6 +365,63 @@ export function YouTubePoster() {
                 {selected && (
                   <CheckCircle2 className="h-4 w-4 shrink-0 text-red-400/80" />
                 )}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ── Tipo ── */}
+      <section className="border-t border-[color:var(--border)] py-6">
+        <SectionLabel>{t("post.youtube.video_type")}</SectionLabel>
+        <div className="grid grid-cols-2 gap-2">
+          {(
+            [
+              {
+                value: "video" as VideoType,
+                icon: Film,
+                label: t("post.youtube.type_video"),
+                hint: t("post.youtube.type_video_hint"),
+              },
+              {
+                value: "short" as VideoType,
+                icon: Smartphone,
+                label: t("post.youtube.type_short"),
+                hint: t("post.youtube.type_short_hint"),
+              },
+            ] as const
+          ).map(({ value, icon: Icon, label, hint }) => {
+            const active = videoType === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setVideoType(value)}
+                className={cn(
+                  "group relative flex flex-col gap-2 overflow-hidden rounded-xl border px-4 py-3 text-left transition-all duration-200",
+                  active
+                    ? "border-[color:var(--accent-border)] bg-gradient-to-br from-[color:var(--accent-surface)] to-transparent"
+                    : "border-[color:var(--border)] hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)]",
+                )}
+              >
+                {active && (
+                  <div className="absolute left-0 top-0 h-full w-0.5 rounded-r bg-[color:var(--accent)] shadow-[0_0_10px_var(--accent-glow)]" />
+                )}
+                <span
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200",
+                    active
+                      ? "bg-[color:var(--accent)] text-[color:var(--accent-foreground)] shadow-[0_4px_14px_-4px_var(--accent)]"
+                      : "border border-[color:var(--border)] text-[color:var(--muted)] group-hover:border-[color:var(--accent-border)] group-hover:text-[color:var(--accent)]",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-[color:var(--text)]">{label}</p>
+                  <p className="mt-0.5 text-[11px] text-[color:var(--muted)]">{hint}</p>
+                </div>
               </button>
             );
           })}

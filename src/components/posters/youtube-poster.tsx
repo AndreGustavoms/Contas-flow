@@ -117,6 +117,7 @@ export function YouTubePoster() {
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleTime, setScheduleTime] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [videoDim, setVideoDim] = useState<{ w: number; h: number } | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
 
   // Community
@@ -140,9 +141,10 @@ export function YouTubePoster() {
   const communityImageRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!file) { setPreviewUrl(null); return; }
+    if (!file) { setPreviewUrl(null); setVideoDim(null); return; }
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
+    setVideoDim(null);
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
@@ -487,11 +489,43 @@ export function YouTubePoster() {
                 </p>
               </div>
             </button>
-            {previewUrl && (
-              <div className="mt-3 overflow-hidden rounded-xl border border-[color:var(--accent-border)] bg-black shadow-[0_8px_32px_-8px_var(--accent-glow)]">
-                <video src={previewUrl} className="max-h-56 w-full object-contain" controls muted />
-              </div>
-            )}
+            {previewUrl && (() => {
+              const ratio = videoDim ? videoDim.w / videoDim.h : null;
+              const vertical = ratio !== null ? ratio < 1 : videoType === "short";
+              let displayW: number;
+              let displayH: number;
+              if (ratio) {
+                if (vertical) { displayH = 260; displayW = Math.round(260 * ratio); }
+                else { displayW = 300; displayH = Math.round(300 / ratio); }
+              } else {
+                displayW = vertical ? 146 : 300; displayH = vertical ? 260 : 169;
+              }
+              return (
+                <div className="mt-4 flex flex-col items-center gap-2">
+                  <div
+                    className="relative overflow-hidden rounded-xl border border-[color:var(--accent-border)] bg-black shadow-[0_8px_32px_-8px_var(--accent-glow)]"
+                    style={{ width: displayW, height: displayH }}
+                  >
+                    <video
+                      src={previewUrl}
+                      className="h-full w-full object-contain"
+                      controls
+                      muted
+                      onLoadedMetadata={(e) => {
+                        const v = e.currentTarget;
+                        if (v.videoWidth && v.videoHeight)
+                          setVideoDim({ w: v.videoWidth, h: v.videoHeight });
+                      }}
+                    />
+                    {videoDim && (
+                      <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[9px] text-white/70">
+                        {videoDim.w}×{videoDim.h}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </section>
 
           {/* ── Conteúdo: título, descrição, tags ── */}

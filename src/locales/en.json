@@ -448,9 +448,11 @@
     "leave_panel": "Leave panel",
     "tabs": {
       "overview": "Overview",
-      "data": "Stored data",
-      "users": "Users & sessions",
-      "audit": "Audit & logs"
+      "users": "Users",
+      "sessions": "Sessions",
+      "security": "Security",
+      "audit": "Audit",
+      "data": "Data"
     },
     "status": {
       "active": "Active",
@@ -524,7 +526,8 @@
       "no_events": "No events.",
       "all_levels": "All levels",
       "logs_note": "in memory ? clears on each deploy",
-      "no_logs": "No logs."
+      "no_logs": "No logs.",
+      "subtitle": "Record of who did what."
     },
     "users": {
       "load_error": "Could not load users/sessions.",
@@ -553,6 +556,25 @@
       "end": "end",
       "generic_browser": "browser",
       "unknown_device": "unknown device"
+    },
+    "sessions": {
+      "title": "Active sessions",
+      "subtitle": "{{count}} active session(s) right now.",
+      "no_sessions": "No active sessions.",
+      "load_error": "Could not load sessions.",
+      "revoke_error": "Could not end the session.",
+      "unknown_user": "Unknown user",
+      "location_unknown": "Unknown location",
+      "started": "Started: {{date}}",
+      "last_active": "Active: {{date}}",
+      "end": "End"
+    },
+    "security": {
+      "title": "Security",
+      "subtitle": "Site security posture and server logs.",
+      "load_error": "Could not load.",
+      "adoption": "2FA adoption",
+      "users_with_2fa": "Users with 2FA"
     }
   }
 }

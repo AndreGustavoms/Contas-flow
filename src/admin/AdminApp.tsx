@@ -10,8 +10,10 @@ import {
   LayoutDashboard,
   Lock,
   LogOut,
+  Monitor,
   ScrollText,
   ShieldAlert,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -22,6 +24,8 @@ import { adminRequest, isReauthRequired } from "./api";
 import { OverviewTab } from "./tabs/overview-tab";
 import { DataTab } from "./tabs/data-tab";
 import { UsersTab } from "./tabs/users-tab";
+import { SessionsTab } from "./tabs/sessions-tab";
+import { SecurityTab } from "./tabs/security-tab";
 import { AuditTab } from "./tabs/audit-tab";
 
 // Painel superadmin, montado SOMENTE na rota /admin (ver main.tsx). É um app
@@ -31,14 +35,16 @@ import { AuditTab } from "./tabs/audit-tab";
 // superadmin -> tela 404 (selado); superadmin -> reauth obrigatório -> painel.
 
 type Phase = "checking" | "login" | "denied" | "reauth" | "ready";
-type TabKey = "overview" | "data" | "users" | "audit";
+type TabKey = "overview" | "users" | "sessions" | "security" | "audit" | "data";
 
 const TABS: { key: TabKey; labelKey: string; icon: typeof LayoutDashboard }[] =
   [
     { key: "overview", labelKey: "admin.tabs.overview", icon: LayoutDashboard },
-    { key: "data", labelKey: "admin.tabs.data", icon: Database },
     { key: "users", labelKey: "admin.tabs.users", icon: Users },
+    { key: "sessions", labelKey: "admin.tabs.sessions", icon: Monitor },
+    { key: "security", labelKey: "admin.tabs.security", icon: ShieldCheck },
     { key: "audit", labelKey: "admin.tabs.audit", icon: ScrollText },
+    { key: "data", labelKey: "admin.tabs.data", icon: Database },
   ];
 
 export type WithReauth = <T>(action: () => Promise<T>) => Promise<T>;
@@ -276,11 +282,13 @@ export default function AdminApp() {
       <main className="min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:h-screen">
         <div className="mx-auto w-full max-w-5xl">
           {tab === "overview" && <OverviewTab />}
-          {tab === "data" && <DataTab withReauth={withReauth} />}
           {tab === "users" && (
             <UsersTab withReauth={withReauth} currentUsername={username} />
           )}
+          {tab === "sessions" && <SessionsTab />}
+          {tab === "security" && <SecurityTab />}
           {tab === "audit" && <AuditTab />}
+          {tab === "data" && <DataTab withReauth={withReauth} />}
         </div>
       </main>
 

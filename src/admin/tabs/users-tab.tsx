@@ -129,17 +129,6 @@ export function UsersTab({
     }
   }
 
-  async function revokeSession(sid: string) {
-    try {
-      await adminRequest(`/api/sessions/${encodeURIComponent(sid)}`, {
-        method: "DELETE",
-      });
-      await reload();
-    } catch {
-      setError(t("admin.users.revoke_session_error"));
-    }
-  }
-
   async function revokeAll(u: AdminUser) {
     try {
       await withReauth(() =>
@@ -305,80 +294,10 @@ export function UsersTab({
                   </div>
                 )}
               </div>
-
-              {userSessions.length > 0 ? (
-                <ul className="mt-2 space-y-1 border-t border-[color:var(--border)] pt-2">
-                  {userSessions.map((s) => (
-                    <li
-                      key={s.sessionId}
-                      className="flex items-center justify-between gap-2 text-xs"
-                    >
-                      <span className="truncate text-[color:var(--muted)]">
-                        {shortUa(
-                          s.userAgent,
-                          t("admin.users.generic_browser"),
-                          t("admin.users.unknown_device"),
-                        )}
-                        {s.location ? (
-                          <span className="ml-2 text-[color:var(--muted)]">
-                            · {s.location}
-                          </span>
-                        ) : null}
-                        {s.ip ? (
-                          <span className="ml-2 font-mono text-[color:var(--muted)]">
-                            · {s.ip}
-                          </span>
-                        ) : null}
-                        {s.current ? (
-                          <span className="ml-2 text-[color:var(--accent)]">
-                            {t("admin.users.this_device")}
-                          </span>
-                        ) : null}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => revokeSession(s.sessionId)}
-                        className="shrink-0 rounded-[4px] px-2 py-0.5 text-[color:var(--muted)] transition hover:text-red-400"
-                      >
-                        {t("admin.users.end")}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
             </div>
           );
         })}
       </div>
     </div>
   );
-}
-
-function shortUa(
-  ua: string,
-  fallbackBrowser: string,
-  unknownDevice: string,
-): string {
-  if (!ua) return unknownDevice;
-  const browser = /Edg/.test(ua)
-    ? "Edge"
-    : /Chrome/.test(ua)
-      ? "Chrome"
-      : /Firefox/.test(ua)
-        ? "Firefox"
-        : /Safari/.test(ua)
-          ? "Safari"
-          : fallbackBrowser;
-  const os = /Windows/.test(ua)
-    ? "Windows"
-    : /Android/.test(ua)
-      ? "Android"
-      : /iPhone|iPad/.test(ua)
-        ? "iOS"
-        : /Mac/.test(ua)
-          ? "macOS"
-          : /Linux/.test(ua)
-            ? "Linux"
-            : "";
-  return os ? `${browser} · ${os}` : browser;
 }

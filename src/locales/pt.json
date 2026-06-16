@@ -447,10 +447,12 @@
     "superadmin_user": "superadmin ? {{username}}",
     "leave_panel": "Sair do painel",
     "tabs": {
-      "overview": "Vis?o geral",
-      "data": "Dados armazenados",
-      "users": "Usu?rios & sess?es",
-      "audit": "Auditoria & logs"
+      "overview": "Visão geral",
+      "users": "Usuários",
+      "sessions": "Sessões",
+      "security": "Segurança",
+      "audit": "Auditoria",
+      "data": "Dados"
     },
     "status": {
       "active": "Ativo",
@@ -524,7 +526,8 @@
       "no_events": "Nenhum evento.",
       "all_levels": "Todos os n?veis",
       "logs_note": "em mem?ria ? zera a cada deploy",
-      "no_logs": "Sem logs."
+      "no_logs": "Sem logs.",
+      "subtitle": "Registro de quem fez o quê."
     },
     "users": {
       "load_error": "Falha ao carregar usu?rios/sess?es.",
@@ -553,6 +556,25 @@
       "end": "encerrar",
       "generic_browser": "navegador",
       "unknown_device": "dispositivo desconhecido"
+    },
+    "sessions": {
+      "title": "Sessões ativas",
+      "subtitle": "{{count}} sessão(ões) ativa(s) no momento.",
+      "no_sessions": "Nenhuma sessão ativa.",
+      "load_error": "Não foi possível carregar as sessões.",
+      "revoke_error": "Não foi possível encerrar a sessão.",
+      "unknown_user": "Usuário desconhecido",
+      "location_unknown": "Localização desconhecida",
+      "started": "Início: {{date}}",
+      "last_active": "Ativa: {{date}}",
+      "end": "Encerrar"
+    },
+    "security": {
+      "title": "Segurança",
+      "subtitle": "Postura de segurança do site e logs do servidor.",
+      "load_error": "Não foi possível carregar.",
+      "adoption": "Adoção de 2FA",
+      "users_with_2fa": "Usuários com 2FA"
     }
   }
 }

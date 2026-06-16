@@ -26,27 +26,6 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function StatusRow({ label, ok }: { label: string; ok: boolean }) {
-  const { t } = useTranslation();
-  return (
-    <div className="flex items-center justify-between border-b border-[color:var(--border)] py-2 last:border-0">
-      <span className="text-sm text-[color:var(--text)]">{label}</span>
-      <span
-        className={`flex items-center gap-1.5 text-xs font-medium ${
-          ok ? "text-[color:var(--accent)]" : "text-[color:var(--muted)]"
-        }`}
-      >
-        <span
-          className={`h-2 w-2 rounded-full ${
-            ok ? "bg-[color:var(--accent)]" : "bg-[color:var(--muted)]"
-          }`}
-        />
-        {ok ? t("admin.status.active") : t("admin.status.inactive")}
-      </span>
-    </div>
-  );
-}
-
 export function OverviewTab() {
   const { t } = useTranslation();
   const [data, setData] = useState<Overview | null>(null);
@@ -110,29 +89,7 @@ export function OverviewTab() {
         />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className="admin-card p-4">
-          <h2 className="mb-2 text-sm font-semibold text-[color:var(--text)]">
-            {t("admin.overview.security_integrations")}
-          </h2>
-          <StatusRow
-            label={t("admin.overview.encryption_at_rest")}
-            ok={data.system.encryptionEnabled}
-          />
-          <StatusRow
-            label={t("admin.overview.google_login")}
-            ok={data.system.providers.google}
-          />
-          <StatusRow
-            label={t("admin.overview.github_login")}
-            ok={data.system.providers.github}
-          />
-          <StatusRow
-            label={t("admin.overview.public_registration")}
-            ok={data.system.registrationsOpen}
-          />
-        </div>
-
+      <div className="grid gap-3">
         <div className="admin-card p-4">
           <h2 className="mb-2 text-sm font-semibold text-[color:var(--text)]">
             {t("admin.overview.system")}

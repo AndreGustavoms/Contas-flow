@@ -1,41 +1,27 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, FileDown, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { adminRequest, type AuditEvent, type ServerLog } from "../api";
+import { adminRequest, type AuditEvent } from "../api";
 
-// Aba "Auditoria & logs": o registro de segurança persistente (/api/audit, com
-// filtros/paginação/CSV) e os logs operacionais voláteis do servidor
-// (/api/admin-panel/logs).
+// Aba "Auditoria": o registro de segurança persistente de quem-fez-o-quê
+// (/api/audit, com filtros/paginação/CSV). Os logs operacionais do servidor
+// ficam na aba "Segurança".
 
 const PAGE_SIZE = 30;
 
 export function AuditTab() {
   const { t } = useTranslation();
-  const [view, setView] = useState<"audit" | "logs">("audit");
   return (
     <div className="space-y-4">
-      <header className="flex items-center justify-between">
+      <header>
         <h1 className="text-xl font-semibold text-[color:var(--text)]">
           {t("admin.audit.title")}
         </h1>
-        <div className="flex gap-1">
-          <button
-            type="button"
-            onClick={() => setView("audit")}
-            className={`admin-tab ${view === "audit" ? "admin-tab-active" : ""}`}
-          >
-            {t("admin.audit.audit")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("logs")}
-            className={`admin-tab ${view === "logs" ? "admin-tab-active" : ""}`}
-          >
-            {t("admin.audit.server_logs")}
-          </button>
-        </div>
+        <p className="text-sm text-[color:var(--muted)]">
+          {t("admin.audit.subtitle")}
+        </p>
       </header>
-      {view === "audit" ? <AuditPanel /> : <LogsPanel />}
+      <AuditPanel />
     </div>
   );
 }
@@ -208,84 +194,6 @@ function AuditPanel() {
           </button>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function LogsPanel() {
-  const { t } = useTranslation();
-  const [logs, setLogs] = useState<ServerLog[]>([]);
-  const [level, setLevel] = useState("");
-
-  async function load() {
-    try {
-      const qs = level ? `?level=${level}` : "";
-      const data = await adminRequest<{ logs: ServerLog[] }>(
-        `/api/admin-panel/logs${qs}`,
-      );
-      setLogs(data.logs);
-    } catch {
-      setLogs([]);
-    }
-  }
-
-  useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [level]);
-
-  const color: Record<ServerLog["level"], string> = {
-    info: "text-[color:var(--muted)]",
-    warn: "text-amber-400",
-    error: "text-red-400",
-  };
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <select
-          className="admin-input"
-          value={level}
-          onChange={(e) => setLevel(e.target.value)}
-        >
-          <option value="">{t("admin.audit.all_levels")}</option>
-          <option value="info">info</option>
-          <option value="warn">warn</option>
-          <option value="error">error</option>
-        </select>
-        <button type="button" onClick={load} className="admin-chip-btn">
-          <RefreshCw className="h-3.5 w-3.5" />
-          {t("admin.refresh")}
-        </button>
-        <span className="text-[11px] text-[color:var(--muted)]">
-          {t("admin.audit.logs_note")}
-        </span>
-      </div>
-
-      <div className="admin-card max-h-[60vh] overflow-y-auto p-2 font-mono text-xs">
-        {logs.length === 0 ? (
-          <p className="px-2 py-3 text-[color:var(--muted)]">
-            {t("admin.audit.no_logs")}
-          </p>
-        ) : (
-          logs.map((l, i) => (
-            <div
-              key={`${l.ts}-${i}`}
-              className="flex gap-2 border-b border-[color:var(--border)] px-2 py-1 last:border-0"
-            >
-              <span className="shrink-0 text-[color:var(--muted)]">
-                {new Date(l.ts).toLocaleTimeString()}
-              </span>
-              <span className={`shrink-0 uppercase ${color[l.level]}`}>
-                {l.level}
-              </span>
-              <span className="truncate text-[color:var(--text)]">
-                {l.message}
-              </span>
-            </div>
-          ))
-        )}
-      </div>
     </div>
   );
 }

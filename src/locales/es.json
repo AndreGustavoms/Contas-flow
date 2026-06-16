@@ -446,9 +446,11 @@
     "leave_panel": "Salir del panel",
     "tabs": {
       "overview": "Vista general",
-      "data": "Datos almacenados",
-      "users": "Usuarios y sesiones",
-      "audit": "Auditor?a y logs"
+      "users": "Usuarios",
+      "sessions": "Sesiones",
+      "security": "Seguridad",
+      "audit": "Auditoría",
+      "data": "Datos"
     },
     "status": {
       "active": "Activo",
@@ -522,7 +524,8 @@
       "no_events": "Ning?n evento.",
       "all_levels": "All levels",
       "logs_note": "in memory ? clears on each deploy",
-      "no_logs": "Sin logs."
+      "no_logs": "Sin logs.",
+      "subtitle": "Registro de quién hizo qué."
     },
     "users": {
       "load_error": "Could not load users/sessions.",
@@ -551,6 +554,25 @@
       "end": "cerrar",
       "generic_browser": "browser",
       "unknown_device": "unknown device"
+    },
+    "sessions": {
+      "title": "Sesiones activas",
+      "subtitle": "{{count}} sesión(es) activa(s) ahora.",
+      "no_sessions": "Sin sesiones activas.",
+      "load_error": "No se pudieron cargar las sesiones.",
+      "revoke_error": "No se pudo cerrar la sesión.",
+      "unknown_user": "Usuario desconocido",
+      "location_unknown": "Ubicación desconocida",
+      "started": "Inicio: {{date}}",
+      "last_active": "Activa: {{date}}",
+      "end": "Cerrar"
+    },
+    "security": {
+      "title": "Seguridad",
+      "subtitle": "Postura de seguridad del sitio y logs del servidor.",
+      "load_error": "No se pudo cargar.",
+      "adoption": "Adopción de 2FA",
+      "users_with_2fa": "Usuarios con 2FA"
     }
   }
 }

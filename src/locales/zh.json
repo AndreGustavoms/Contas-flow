@@ -440,10 +440,12 @@
     "superadmin_user": "superadmin ? {{username}}",
     "leave_panel": "????",
     "tabs": {
-      "overview": "??",
-      "data": "????",
-      "users": "?????",
-      "audit": "?????"
+      "overview": "概览",
+      "users": "用户",
+      "sessions": "会话",
+      "security": "安全",
+      "audit": "审计",
+      "data": "数据"
     },
     "status": {
       "active": "??",
@@ -517,7 +519,8 @@
       "no_events": "?????",
       "all_levels": "All levels",
       "logs_note": "in memory ? clears on each deploy",
-      "no_logs": "?????"
+      "no_logs": "?????",
+      "subtitle": "谁做了什么的记录。"
     },
     "users": {
       "load_error": "Could not load users/sessions.",
@@ -546,6 +549,25 @@
       "end": "??",
       "generic_browser": "browser",
       "unknown_device": "unknown device"
+    },
+    "sessions": {
+      "title": "活动会话",
+      "subtitle": "当前有 {{count}} 个活动会话。",
+      "no_sessions": "没有活动会话。",
+      "load_error": "无法加载会话。",
+      "revoke_error": "无法结束会话。",
+      "unknown_user": "未知用户",
+      "location_unknown": "未知位置",
+      "started": "开始：{{date}}",
+      "last_active": "活跃：{{date}}",
+      "end": "结束"
+    },
+    "security": {
+      "title": "安全",
+      "subtitle": "站点安全状况与服务器日志。",
+      "load_error": "无法加载。",
+      "adoption": "2FA 采用率",
+      "users_with_2fa": "启用 2FA 的用户"
     }
   }
 }

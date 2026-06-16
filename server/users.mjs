@@ -662,7 +662,9 @@ export async function findByUsername(storageDir, username) {
   const target = normalizeUsername(username);
   if (!target) return null;
   const users = await readUsersFile(storageDir);
-  return users.find((user) => normalizeUsername(user.username) === target) ?? null;
+  return (
+    users.find((user) => normalizeUsername(user.username) === target) ?? null
+  );
 }
 
 export async function findByUsernameOrEmail(storageDir, login) {

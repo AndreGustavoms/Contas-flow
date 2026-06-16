@@ -472,13 +472,16 @@ function isValidAvatarUrl(value) {
   if (value === null) return true;
   if (typeof value !== "string") return false;
   if (value.length > 750_000) return false;
-  const dataMatch = /^data:image\/(?:png|jpe?g|webp|gif);base64,([a-z0-9+/=]+)$/i.exec(
-    value,
-  );
+  const dataMatch =
+    /^data:image\/(?:png|jpe?g|webp|gif);base64,([a-z0-9+/=]+)$/i.exec(value);
   if (dataMatch) {
     try {
       const bytes = Buffer.from(dataMatch[1], "base64");
-      return bytes.length > 0 && bytes.toString("base64").replace(/=+$/, "") === dataMatch[1].replace(/=+$/, "");
+      return (
+        bytes.length > 0 &&
+        bytes.toString("base64").replace(/=+$/, "") ===
+          dataMatch[1].replace(/=+$/, "")
+      );
     } catch {
       return false;
     }
@@ -944,7 +947,11 @@ async function handleApi(request, response, url, user, session) {
           redirect(response, "/?auth=login_required");
           return;
         }
-        const linked = await linkGoogleProvider(storageDir, current.id, profile);
+        const linked = await linkGoogleProvider(
+          storageDir,
+          current.id,
+          profile,
+        );
         if (!linked) {
           redirect(response, "/?connection=google_error");
           return;
@@ -1056,7 +1063,11 @@ async function handleApi(request, response, url, user, session) {
           redirect(response, "/?auth=login_required");
           return;
         }
-        const linked = await linkGithubProvider(storageDir, current.id, profile);
+        const linked = await linkGithubProvider(
+          storageDir,
+          current.id,
+          profile,
+        );
         if (!linked) {
           redirect(response, "/?connection=github_error");
           return;
@@ -1518,7 +1529,10 @@ async function handleApi(request, response, url, user, session) {
       email: user.email ?? null,
       avatarUrl: full?.avatarRemoved
         ? null
-        : (full?.avatarUrl ?? full?.google?.picture ?? full?.github?.avatar ?? null),
+        : (full?.avatarUrl ??
+          full?.google?.picture ??
+          full?.github?.avatar ??
+          null),
       role: user.role,
       createdAt: full?.createdAt ?? null,
       linkedProviders: {
@@ -1537,7 +1551,10 @@ async function handleApi(request, response, url, user, session) {
       fullName: full?.fullName ?? null,
       avatarUrl: full?.avatarRemoved
         ? null
-        : (full?.avatarUrl ?? full?.google?.picture ?? full?.github?.avatar ?? null),
+        : (full?.avatarUrl ??
+          full?.google?.picture ??
+          full?.github?.avatar ??
+          null),
     });
     return;
   }
@@ -2419,10 +2436,14 @@ async function handleApi(request, response, url, user, session) {
   // DELETE /api/youtube/video — apaga o vídeo do YouTube e remove do histórico.
   if (url.pathname === "/api/youtube/video" && request.method === "DELETE") {
     const body = await readBody(request);
-    const channelId = typeof body.channelId === "string" ? body.channelId.trim() : "";
+    const channelId =
+      typeof body.channelId === "string" ? body.channelId.trim() : "";
     const videoId = typeof body.videoId === "string" ? body.videoId.trim() : "";
     if (!channelId || !videoId) {
-      sendJson(response, 400, { error: "invalid_request", message: "channelId e videoId são obrigatórios." });
+      sendJson(response, 400, {
+        error: "invalid_request",
+        message: "channelId e videoId são obrigatórios.",
+      });
       return;
     }
     try {
@@ -2433,7 +2454,10 @@ async function handleApi(request, response, url, user, session) {
       if (code === "channel_not_connected") {
         sendJson(response, 404, { error: "channel_not_connected" });
       } else {
-        recordLog("error", `youtube: falha ao deletar vídeo ${videoId} (${code})`);
+        recordLog(
+          "error",
+          `youtube: falha ao deletar vídeo ${videoId} (${code})`,
+        );
         sendJson(response, 500, { error: "youtube_delete", message: code });
       }
     }
@@ -2479,7 +2503,11 @@ async function handleApi(request, response, url, user, session) {
       const db = await readVault(user.id);
       // Primeiro acesso: cria grupo padrão automaticamente.
       if (db.groups.length === 0) {
-        const defaultGroup = normalizeGroup({ name: "Geral", ownerId: user.id, accounts: [] });
+        const defaultGroup = normalizeGroup({
+          name: "Geral",
+          ownerId: user.id,
+          accounts: [],
+        });
         db.groups.push(defaultGroup);
         await writeVault(user.id, db);
       }

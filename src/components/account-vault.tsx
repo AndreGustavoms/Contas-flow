@@ -118,7 +118,6 @@ function slugify(value: string) {
   );
 }
 
-
 const selectTriggerClass =
   "group flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-3 text-sm font-medium text-[color:var(--text)] shadow-[inset_0_1px_0_var(--inset-light),0_16px_34px_var(--field-shadow)] outline-none backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] focus:border-[color:var(--accent)] focus:ring-4 focus:ring-[color:var(--focus-ring)] sm:h-10";
 
@@ -1991,11 +1990,7 @@ function AccountWizardModal({
         <div className="mobile-bottom-actions mt-7 flex flex-col-reverse gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2">
             {editing ? (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={onDelete}
-              >
+              <Button type="button" variant="ghost" onClick={onDelete}>
                 <Trash2 className="h-4 w-4" />
                 {t("vault.delete")}
               </Button>

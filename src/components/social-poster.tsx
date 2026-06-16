@@ -115,13 +115,20 @@ export function SocialPoster({ onClose }: { onClose: () => void }) {
               {isActive && (
                 <span
                   className="absolute left-0 top-0 h-full w-0.5 rounded-r"
-                  style={{ background: accent, boxShadow: `0 0 8px ${accent}99` }}
+                  style={{
+                    background: accent,
+                    boxShadow: `0 0 8px ${accent}99`,
+                  }}
                 />
               )}
-              <span className={cn(
-                "flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-all duration-200",
-                isActive ? "opacity-100" : "opacity-60 group-hover:opacity-80",
-              )}>
+              <span
+                className={cn(
+                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-all duration-200",
+                  isActive
+                    ? "opacity-100"
+                    : "opacity-60 group-hover:opacity-80",
+                )}
+              >
                 <Icon className="h-4 w-4" style={{ color: accent }} />
               </span>
               <span className="min-w-0 flex-1 truncate text-left">{label}</span>

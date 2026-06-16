@@ -5,8 +5,18 @@ import { cn } from "../../lib/utils";
 const DAYS_SHORT = ["D", "S", "T", "Q", "Q", "S", "S"];
 
 const MONTHS_PT = [
-  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
 ];
 
 function parseLocal(value: string): Date | null {
@@ -42,7 +52,13 @@ interface DatePickerProps {
   min?: string;
 }
 
-export function DatePicker({ value, onChange, disabled, placeholder = "dd/mm/aaaa", min }: DatePickerProps) {
+export function DatePicker({
+  value,
+  onChange,
+  disabled,
+  placeholder = "dd/mm/aaaa",
+  min,
+}: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -58,7 +74,8 @@ export function DatePicker({ value, onChange, disabled, placeholder = "dd/mm/aaa
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
@@ -111,9 +128,11 @@ export function DatePicker({ value, onChange, disabled, placeholder = "dd/mm/aaa
   }
 
   function isSameDay(a: Date, b: Date) {
-    return a.getFullYear() === b.getFullYear() &&
+    return (
+      a.getFullYear() === b.getFullYear() &&
       a.getMonth() === b.getMonth() &&
-      a.getDate() === b.getDate();
+      a.getDate() === b.getDate()
+    );
   }
 
   const grid = buildGrid(cursor.year, cursor.month);
@@ -139,14 +158,20 @@ export function DatePicker({ value, onChange, disabled, placeholder = "dd/mm/aaa
           !displayValue && "text-[color:var(--muted)]",
         )}
       >
-        <Calendar className={cn("h-4 w-4 shrink-0", open ? "text-[color:var(--accent)]" : "text-[color:var(--muted)]")} />
-        <span className="flex-1 tabular-nums">{displayValue || placeholder}</span>
+        <Calendar
+          className={cn(
+            "h-4 w-4 shrink-0",
+            open ? "text-[color:var(--accent)]" : "text-[color:var(--muted)]",
+          )}
+        />
+        <span className="flex-1 tabular-nums">
+          {displayValue || placeholder}
+        </span>
       </button>
 
       {/* Calendar dropdown */}
       {open && (
         <div className="absolute z-50 bottom-full mb-2 w-72 overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--page-bg)] shadow-[0_20px_56px_-8px_var(--accent-glow),0_8px_24px_-4px_rgba(0,0,0,.7)]">
-
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[color:var(--border)] px-4 py-3">
             <button

@@ -3,11 +3,13 @@ import { Clock } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
-const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
+const MINUTES = Array.from({ length: 60 }, (_, i) =>
+  String(i).padStart(2, "0"),
+);
 const ITEM_H = 36;
 
 interface TimePickerProps {
-  value: string;       // "HH:MM" or ""
+  value: string; // "HH:MM" or ""
   onChange: (value: string) => void;
   disabled?: boolean;
 }
@@ -41,7 +43,9 @@ function Column({
     ignoreScroll.current = true;
     el.scrollTo({ top: idx * ITEM_H, behavior: "smooth" });
     // Reset after smooth scroll finishes (~400ms).
-    const t = setTimeout(() => { ignoreScroll.current = false; }, 450);
+    const t = setTimeout(() => {
+      ignoreScroll.current = false;
+    }, 450);
     return () => clearTimeout(t);
   }, [idx]);
 
@@ -74,7 +78,11 @@ function Column({
         ref={ref}
         onScroll={onScroll}
         className="overflow-y-scroll overflow-x-hidden"
-        style={{ height: ITEM_H * 5, scrollSnapType: "y mandatory", scrollbarWidth: "none" }}
+        style={{
+          height: ITEM_H * 5,
+          scrollSnapType: "y mandatory",
+          scrollbarWidth: "none",
+        }}
       >
         <div style={{ height: ITEM_H * 2 }} />
         {items.map((item) => (
@@ -121,8 +129,14 @@ export function TimePicker({ value, onChange, disabled }: TimePickerProps) {
       }
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") { commit(); setOpen(false); }
-      if (e.key === "Enter") { commit(); setOpen(false); }
+      if (e.key === "Escape") {
+        commit();
+        setOpen(false);
+      }
+      if (e.key === "Enter") {
+        commit();
+        setOpen(false);
+      }
     }
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKey);
@@ -130,15 +144,21 @@ export function TimePicker({ value, onChange, disabled }: TimePickerProps) {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKey);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, selH, selM]);
 
   function commit() {
     onChange(`${selH}:${selM}`);
   }
 
-  function handleH(v: string) { setSelH(v); onChange(`${v}:${selM}`); }
-  function handleM(v: string) { setSelM(v); onChange(`${selH}:${v}`); }
+  function handleH(v: string) {
+    setSelH(v);
+    onChange(`${v}:${selM}`);
+  }
+  function handleM(v: string) {
+    setSelM(v);
+    onChange(`${selH}:${v}`);
+  }
 
   const display = value ? `${h}:${m}` : "";
 
@@ -158,7 +178,12 @@ export function TimePicker({ value, onChange, disabled }: TimePickerProps) {
           !display && "text-[color:var(--muted)]",
         )}
       >
-        <Clock className={cn("h-4 w-4 shrink-0", open ? "text-[color:var(--accent)]" : "text-[color:var(--muted)]")} />
+        <Clock
+          className={cn(
+            "h-4 w-4 shrink-0",
+            open ? "text-[color:var(--accent)]" : "text-[color:var(--muted)]",
+          )}
+        />
         <span className="flex-1 tabular-nums">{display || "hh:mm"}</span>
       </button>
 
@@ -166,21 +191,32 @@ export function TimePicker({ value, onChange, disabled }: TimePickerProps) {
         <div className="absolute z-50 bottom-full mb-2 w-full overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--page-bg)] shadow-[0_20px_56px_-8px_var(--accent-glow),0_8px_24px_-4px_rgba(0,0,0,.7)]">
           {/* separator label */}
           <div className="flex items-center border-b border-[color:var(--border)] px-4 py-2.5">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)]">Hora</span>
-            <span className="mx-auto text-xs font-bold text-[color:var(--muted)]">:</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)]">Min</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)]">
+              Hora
+            </span>
+            <span className="mx-auto text-xs font-bold text-[color:var(--muted)]">
+              :
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)]">
+              Min
+            </span>
           </div>
 
           <div className="flex gap-0 px-3 py-1">
             <Column items={HOURS} selected={selH} onSelect={handleH} />
-            <div className="flex items-center self-stretch px-1 text-lg font-bold text-[color:var(--muted)]">:</div>
+            <div className="flex items-center self-stretch px-1 text-lg font-bold text-[color:var(--muted)]">
+              :
+            </div>
             <Column items={MINUTES} selected={selM} onSelect={handleM} />
           </div>
 
           <div className="border-t border-[color:var(--border)] px-3 py-3">
             <button
               type="button"
-              onClick={() => { commit(); setOpen(false); }}
+              onClick={() => {
+                commit();
+                setOpen(false);
+              }}
               className="group relative w-full overflow-hidden rounded-xl bg-[color:var(--accent)] py-2.5 text-sm font-bold tracking-wide text-[color:var(--accent-foreground)] shadow-[0_8px_24px_-8px_var(--accent)] transition-all duration-200 hover:brightness-110 hover:shadow-[0_12px_28px_-8px_var(--accent)]"
             >
               <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-500 group-hover:translate-x-full" />

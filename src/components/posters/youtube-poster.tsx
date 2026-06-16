@@ -121,7 +121,9 @@ export function YouTubePoster() {
   const [scheduleDate, setScheduleDate] = useState(today);
   const [scheduleTime, setScheduleTime] = useState("09:00");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [videoDim, setVideoDim] = useState<{ w: number; h: number } | null>(null);
+  const [videoDim, setVideoDim] = useState<{ w: number; h: number } | null>(
+    null,
+  );
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -131,7 +133,11 @@ export function YouTubePoster() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!file) { setPreviewUrl(null); setVideoDim(null); return; }
+    if (!file) {
+      setPreviewUrl(null);
+      setVideoDim(null);
+      return;
+    }
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
     setVideoDim(null);
@@ -147,7 +153,9 @@ export function YouTubePoster() {
   }
 
   function clearSchedule() {
-    setScheduleDate(""); setScheduleTime(""); setSchedule("");
+    setScheduleDate("");
+    setScheduleTime("");
+    setSchedule("");
   }
 
   const loadHistory = useCallback(() => {
@@ -202,7 +210,10 @@ export function YouTubePoster() {
           file: staged.name,
           title: title.trim(),
           description,
-          tags: tags.split(",").map((s) => s.trim()).filter(Boolean),
+          tags: tags
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
           publishAt,
           privacyStatus: privacy,
           videoType,
@@ -225,7 +236,8 @@ export function YouTubePoster() {
     }
   }
 
-  if (channels === null) return <div className="skeleton h-40 w-full rounded-2xl" />;
+  if (channels === null)
+    return <div className="skeleton h-40 w-full rounded-2xl" />;
 
   if (channels.length === 0) {
     return (
@@ -234,10 +246,16 @@ export function YouTubePoster() {
           <YouTubeIcon className="h-7 w-7" />
         </span>
         <div>
-          <h2 className="text-base font-semibold text-[color:var(--text)]">{t("post.youtube.connect_title")}</h2>
-          <p className="mt-1 max-w-sm text-sm text-[color:var(--muted)]">{t("post.youtube.connect_desc")}</p>
+          <h2 className="text-base font-semibold text-[color:var(--text)]">
+            {t("post.youtube.connect_title")}
+          </h2>
+          <p className="mt-1 max-w-sm text-sm text-[color:var(--muted)]">
+            {t("post.youtube.connect_desc")}
+          </p>
         </div>
-        <a className="login-btn-primary px-6" href="/api/youtube/connect">{t("post.youtube.connect_btn")}</a>
+        <a className="login-btn-primary px-6" href="/api/youtube/connect">
+          {t("post.youtube.connect_btn")}
+        </a>
       </div>
     );
   }
@@ -246,7 +264,9 @@ export function YouTubePoster() {
     return (
       <div className="grid place-items-center gap-4 py-12 text-center">
         <CheckCircle2 className="h-10 w-10 text-[color:var(--accent)]" />
-        <h2 className="text-lg font-semibold text-[color:var(--text)]">{t("post.youtube.success")}</h2>
+        <h2 className="text-lg font-semibold text-[color:var(--text)]">
+          {t("post.youtube.success")}
+        </h2>
         <div className="flex gap-3">
           <a
             className="inline-flex items-center gap-1.5 text-sm font-medium text-[color:var(--accent)] hover:underline"
@@ -260,9 +280,14 @@ export function YouTubePoster() {
           <Button
             variant="outline"
             onClick={() => {
-              setDone(null); setChannelId(""); setFile(null);
-              setTitle(""); setDescription(""); setTags("");
-              clearSchedule(); setTab("post");
+              setDone(null);
+              setChannelId("");
+              setFile(null);
+              setTitle("");
+              setDescription("");
+              setTags("");
+              clearSchedule();
+              setTab("post");
             }}
           >
             {t("post.youtube.new_post")}
@@ -278,7 +303,13 @@ export function YouTubePoster() {
   const textareaCls =
     "w-full resize-y rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-4 py-3 text-sm text-[color:var(--text)] outline-none transition-all duration-200 placeholder:text-[color:var(--muted-soft)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent)]/20";
 
-  const SectionLabel = ({ dot, children }: { dot?: "red" | "accent"; children: ReactNode }) => (
+  const SectionLabel = ({
+    dot,
+    children,
+  }: {
+    dot?: "red" | "accent";
+    children: ReactNode;
+  }) => (
     <span className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--muted-soft)]">
       <span
         className={cn(
@@ -293,9 +324,24 @@ export function YouTubePoster() {
   );
 
   const typeCards = [
-    { value: "video" as VideoType, icon: Clapperboard, label: t("post.youtube.type_video"), hint: t("post.youtube.type_video_hint") },
-    { value: "short" as VideoType, icon: Zap, label: t("post.youtube.type_short"), hint: t("post.youtube.type_short_hint") },
-    { value: "community" as VideoType, icon: Users, label: t("post.youtube.type_community"), hint: t("post.youtube.type_community_hint") },
+    {
+      value: "video" as VideoType,
+      icon: Clapperboard,
+      label: t("post.youtube.type_video"),
+      hint: t("post.youtube.type_video_hint"),
+    },
+    {
+      value: "short" as VideoType,
+      icon: Zap,
+      label: t("post.youtube.type_short"),
+      hint: t("post.youtube.type_short_hint"),
+    },
+    {
+      value: "community" as VideoType,
+      icon: Users,
+      label: t("post.youtube.type_community"),
+      hint: t("post.youtube.type_community_hint"),
+    },
   ] as const;
 
   const tabs = [
@@ -331,364 +377,440 @@ export function YouTubePoster() {
         <HistoryList
           channelId={channelId}
           items={history}
-          onDelete={(videoId) => setHistory((prev) => prev.filter((item) => item.videoId !== videoId))}
+          onDelete={(videoId) =>
+            setHistory((prev) =>
+              prev.filter((item) => item.videoId !== videoId),
+            )
+          }
         />
       )}
-      {tab === "post" && <>
-      {/* ── Canal ── */}
-      <section className="pb-6">
-        <div className="flex items-center justify-between">
-          <SectionLabel dot="red">{t("post.youtube.channel")}</SectionLabel>
-          <a
-            className="mb-3 inline-flex h-7 items-center gap-1.5 rounded-lg border border-[color:var(--border)] px-3 text-[11px] font-semibold text-[color:var(--muted)] transition-all duration-200 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)] hover:text-[color:var(--accent-soft)]"
-            href="/api/youtube/connect"
-          >
-            <Plus className="h-3 w-3" />
-            {t("post.youtube.connect_another")}
-          </a>
-        </div>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {channels.map((channel) => {
-            const selected = channel.id === channelId;
-            return (
-              <button
-                key={channel.id}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => setChannelId(channel.id)}
-                className={cn(
-                  "group relative flex items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 text-left transition-all duration-200",
-                  selected
-                    ? "border-red-500/25 bg-gradient-to-r from-red-500/10 to-transparent"
-                    : "border-[color:var(--border)] hover:border-red-500/20 hover:bg-red-500/5",
-                )}
-              >
-                {selected && (
-                  <div className="absolute left-0 top-0 h-full w-0.5 rounded-r bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.7)]" />
-                )}
-                <span
-                  className={cn(
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
-                    selected
-                      ? "bg-red-500 text-white shadow-[0_6px_20px_-6px_rgba(239,68,68,0.8)]"
-                      : "bg-red-500/10 text-red-500 group-hover:bg-red-500/15",
-                  )}
-                >
-                  <YouTubeIcon className="h-4 w-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-[color:var(--text)]">{channel.title}</span>
-                  <span className="block text-[11px] text-[color:var(--muted)]">{fmtConnectedAt(channel.connectedAt)}</span>
-                </span>
-                {selected && <CheckCircle2 className="h-4 w-4 shrink-0 text-red-400/80" />}
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ── Tipo ── */}
-      <section className="border-t border-[color:var(--border)] py-6">
-        <SectionLabel>{t("post.youtube.video_type")}</SectionLabel>
-        <div className="grid grid-cols-3 gap-2">
-          {typeCards.map(({ value, icon: Icon, label, hint }) => {
-            const active = videoType === value;
-            return (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={active}
-                onClick={() => { setVideoType(value); setError(""); }}
-                className={cn(
-                  "group relative flex flex-col gap-2 overflow-hidden rounded-xl border px-4 py-3 text-left transition-all duration-200",
-                  active
-                    ? "border-[color:var(--accent-border)] bg-gradient-to-br from-[color:var(--accent-surface)] to-transparent"
-                    : "border-[color:var(--border)] hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)]",
-                )}
-              >
-                {active && (
-                  <div className="absolute left-0 top-0 h-full w-0.5 rounded-r bg-[color:var(--accent)] shadow-[0_0_10px_var(--accent-glow)]" />
-                )}
-                <span
-                  className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200",
-                    active
-                      ? "bg-[color:var(--accent)] text-[color:var(--accent-foreground)] shadow-[0_4px_14px_-4px_var(--accent)]"
-                      : "border border-[color:var(--border)] text-[color:var(--muted)] group-hover:border-[color:var(--accent-border)] group-hover:text-[color:var(--accent)]",
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-[color:var(--text)]">{label}</p>
-                  <p className="mt-0.5 text-[11px] text-[color:var(--muted)]">{hint}</p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ══════════════════ VÍDEO / SHORT ══════════════════ */}
-      {videoType !== "community" && (
+      {tab === "post" && (
         <>
-          {/* ── Arquivo ── */}
-          <section className="border-t border-[color:var(--border)] py-6">
-            <SectionLabel>{t("post.youtube.video")}</SectionLabel>
-            <input ref={fileInputRef} type="file" accept="video/*" className="hidden" onChange={pickFile} />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className={cn(
-                "group flex w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed py-9 transition-all duration-300",
-                file
-                  ? "border-[color:var(--accent-border)] bg-[color:var(--accent-surface)]"
-                  : "border-[color:var(--border)] hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)]",
-              )}
-            >
-              <span
-                className={cn(
-                  "flex h-12 w-12 items-center justify-center rounded-2xl transition-all duration-300",
-                  file
-                    ? "bg-[color:var(--accent)] text-[color:var(--accent-foreground)] shadow-[0_8px_28px_-8px_var(--accent)]"
-                    : "border border-[color:var(--border)] text-[color:var(--muted)] group-hover:border-[color:var(--accent-border)] group-hover:text-[color:var(--accent)] group-hover:shadow-[0_0_20px_var(--accent-glow)]",
-                )}
+          {/* ── Canal ── */}
+          <section className="pb-6">
+            <div className="flex items-center justify-between">
+              <SectionLabel dot="red">{t("post.youtube.channel")}</SectionLabel>
+              <a
+                className="mb-3 inline-flex h-7 items-center gap-1.5 rounded-lg border border-[color:var(--border)] px-3 text-[11px] font-semibold text-[color:var(--muted)] transition-all duration-200 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)] hover:text-[color:var(--accent-soft)]"
+                href="/api/youtube/connect"
               >
-                <Upload className="h-5 w-5" />
-              </span>
-              <div className="text-center">
-                <p className="text-sm font-semibold text-[color:var(--text)]">
-                  {file ? file.name : t("post.youtube.choose_file")}
-                </p>
-                <p className="mt-0.5 text-xs text-[color:var(--muted)]">
-                  {file ? fmtSize(file.size) : t(videoType === "short" ? "post.youtube.choose_hint_short" : "post.youtube.choose_hint")}
-                </p>
-              </div>
-            </button>
-            {previewUrl && (() => {
-              const ratio = videoDim ? videoDim.w / videoDim.h : null;
-              const vertical = ratio !== null ? ratio < 1 : videoType === "short";
-              let displayW: number;
-              let displayH: number;
-              if (ratio) {
-                if (vertical) { displayH = 260; displayW = Math.round(260 * ratio); }
-                else { displayW = 300; displayH = Math.round(300 / ratio); }
-              } else {
-                displayW = vertical ? 146 : 300; displayH = vertical ? 260 : 169;
-              }
-              return (
-                <div className="mt-4 flex flex-col items-center gap-2">
-                  <div
-                    className="relative overflow-hidden rounded-xl border border-[color:var(--accent-border)] bg-black shadow-[0_8px_32px_-8px_var(--accent-glow)]"
-                    style={{ width: displayW, height: displayH }}
-                  >
-                    <video
-                      src={previewUrl}
-                      className="h-full w-full object-contain"
-                      controls
-                      muted
-                      onLoadedMetadata={(e) => {
-                        const v = e.currentTarget;
-                        if (v.videoWidth && v.videoHeight)
-                          setVideoDim({ w: v.videoWidth, h: v.videoHeight });
-                      }}
-                    />
-                    {videoDim && (
-                      <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[9px] text-white/70">
-                        {videoDim.w}×{videoDim.h}
-                      </span>
+                <Plus className="h-3 w-3" />
+                {t("post.youtube.connect_another")}
+              </a>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {channels.map((channel) => {
+                const selected = channel.id === channelId;
+                return (
+                  <button
+                    key={channel.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setChannelId(channel.id)}
+                    className={cn(
+                      "group relative flex items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 text-left transition-all duration-200",
+                      selected
+                        ? "border-red-500/25 bg-gradient-to-r from-red-500/10 to-transparent"
+                        : "border-[color:var(--border)] hover:border-red-500/20 hover:bg-red-500/5",
                     )}
+                  >
+                    {selected && (
+                      <div className="absolute left-0 top-0 h-full w-0.5 rounded-r bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.7)]" />
+                    )}
+                    <span
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
+                        selected
+                          ? "bg-red-500 text-white shadow-[0_6px_20px_-6px_rgba(239,68,68,0.8)]"
+                          : "bg-red-500/10 text-red-500 group-hover:bg-red-500/15",
+                      )}
+                    >
+                      <YouTubeIcon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-[color:var(--text)]">
+                        {channel.title}
+                      </span>
+                      <span className="block text-[11px] text-[color:var(--muted)]">
+                        {fmtConnectedAt(channel.connectedAt)}
+                      </span>
+                    </span>
+                    {selected && (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-red-400/80" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* ── Tipo ── */}
+          <section className="border-t border-[color:var(--border)] py-6">
+            <SectionLabel>{t("post.youtube.video_type")}</SectionLabel>
+            <div className="grid grid-cols-3 gap-2">
+              {typeCards.map(({ value, icon: Icon, label, hint }) => {
+                const active = videoType === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => {
+                      setVideoType(value);
+                      setError("");
+                    }}
+                    className={cn(
+                      "group relative flex flex-col gap-2 overflow-hidden rounded-xl border px-4 py-3 text-left transition-all duration-200",
+                      active
+                        ? "border-[color:var(--accent-border)] bg-gradient-to-br from-[color:var(--accent-surface)] to-transparent"
+                        : "border-[color:var(--border)] hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)]",
+                    )}
+                  >
+                    {active && (
+                      <div className="absolute left-0 top-0 h-full w-0.5 rounded-r bg-[color:var(--accent)] shadow-[0_0_10px_var(--accent-glow)]" />
+                    )}
+                    <span
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200",
+                        active
+                          ? "bg-[color:var(--accent)] text-[color:var(--accent-foreground)] shadow-[0_4px_14px_-4px_var(--accent)]"
+                          : "border border-[color:var(--border)] text-[color:var(--muted)] group-hover:border-[color:var(--accent-border)] group-hover:text-[color:var(--accent)]",
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-[color:var(--text)]">
+                        {label}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-[color:var(--muted)]">
+                        {hint}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* ══════════════════ VÍDEO / SHORT ══════════════════ */}
+          {videoType !== "community" && (
+            <>
+              {/* ── Arquivo ── */}
+              <section className="border-t border-[color:var(--border)] py-6">
+                <SectionLabel>{t("post.youtube.video")}</SectionLabel>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={pickFile}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={cn(
+                    "group flex w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed py-9 transition-all duration-300",
+                    file
+                      ? "border-[color:var(--accent-border)] bg-[color:var(--accent-surface)]"
+                      : "border-[color:var(--border)] hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)]",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex h-12 w-12 items-center justify-center rounded-2xl transition-all duration-300",
+                      file
+                        ? "bg-[color:var(--accent)] text-[color:var(--accent-foreground)] shadow-[0_8px_28px_-8px_var(--accent)]"
+                        : "border border-[color:var(--border)] text-[color:var(--muted)] group-hover:border-[color:var(--accent-border)] group-hover:text-[color:var(--accent)] group-hover:shadow-[0_0_20px_var(--accent-glow)]",
+                    )}
+                  >
+                    <Upload className="h-5 w-5" />
+                  </span>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-[color:var(--text)]">
+                      {file ? file.name : t("post.youtube.choose_file")}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[color:var(--muted)]">
+                      {file
+                        ? fmtSize(file.size)
+                        : t(
+                            videoType === "short"
+                              ? "post.youtube.choose_hint_short"
+                              : "post.youtube.choose_hint",
+                          )}
+                    </p>
+                  </div>
+                </button>
+                {previewUrl &&
+                  (() => {
+                    const ratio = videoDim ? videoDim.w / videoDim.h : null;
+                    const vertical =
+                      ratio !== null ? ratio < 1 : videoType === "short";
+                    let displayW: number;
+                    let displayH: number;
+                    if (ratio) {
+                      if (vertical) {
+                        displayH = 260;
+                        displayW = Math.round(260 * ratio);
+                      } else {
+                        displayW = 300;
+                        displayH = Math.round(300 / ratio);
+                      }
+                    } else {
+                      displayW = vertical ? 146 : 300;
+                      displayH = vertical ? 260 : 169;
+                    }
+                    return (
+                      <div className="mt-4 flex flex-col items-center gap-2">
+                        <div
+                          className="relative overflow-hidden rounded-xl border border-[color:var(--accent-border)] bg-black shadow-[0_8px_32px_-8px_var(--accent-glow)]"
+                          style={{ width: displayW, height: displayH }}
+                        >
+                          <video
+                            src={previewUrl}
+                            className="h-full w-full object-contain"
+                            controls
+                            muted
+                            onLoadedMetadata={(e) => {
+                              const v = e.currentTarget;
+                              if (v.videoWidth && v.videoHeight)
+                                setVideoDim({
+                                  w: v.videoWidth,
+                                  h: v.videoHeight,
+                                });
+                            }}
+                          />
+                          {videoDim && (
+                            <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[9px] text-white/70">
+                              {videoDim.w}×{videoDim.h}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+              </section>
+
+              {/* ── Conteúdo: título, descrição, tags ── */}
+              <section className="border-t border-[color:var(--border)] py-6 grid gap-4">
+                <label className="grid gap-1.5">
+                  <span className="text-[11px] font-semibold text-[color:var(--muted)]">
+                    {t("post.youtube.field_title")}
+                  </span>
+                  <input
+                    className={fieldCls}
+                    maxLength={100}
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-[11px] font-semibold text-[color:var(--muted)]">
+                    {t("post.youtube.field_description")}
+                  </span>
+                  <textarea
+                    className={cn(textareaCls, "min-h-28")}
+                    maxLength={5000}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-[11px] font-semibold text-[color:var(--muted)]">
+                    {t("post.youtube.field_tags")}
+                  </span>
+                  <input
+                    className={fieldCls}
+                    placeholder={t("post.youtube.tags_placeholder")}
+                    value={tags}
+                    onChange={(e) => setTags(e.target.value)}
+                  />
+                </label>
+              </section>
+
+              {/* ── Specs Short ── */}
+              {videoType === "short" && (
+                <section className="border-t border-[color:var(--border)] py-6">
+                  <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/[0.06] p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-yellow-500/20 text-yellow-400">
+                        <Zap className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-yellow-400/80">
+                        {t("post.youtube.short_specs_label")}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: t("post.youtube.short_spec_ratio") },
+                        { label: t("post.youtube.short_spec_duration") },
+                        { label: t("post.youtube.short_spec_res") },
+                        { label: t("post.youtube.short_spec_hashtag") },
+                        { label: t("post.youtube.short_spec_thumb") },
+                      ].map(({ label }) => (
+                        <span
+                          key={label}
+                          className="inline-flex items-center rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-[11px] font-semibold text-yellow-300/90"
+                        >
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* ── Privacidade ── */}
+              <section className="border-t border-[color:var(--border)] py-6">
+                <span className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-[color:var(--muted)]">
+                  <Shield className="h-3.5 w-3.5" />
+                  {t("post.youtube.privacy")}
+                </span>
+                <Select<Privacy>
+                  value={privacy}
+                  disabled={Boolean(schedule)}
+                  onChange={setPrivacy}
+                  options={[
+                    {
+                      value: "private",
+                      label: t("post.youtube.privacy_private"),
+                    },
+                    {
+                      value: "unlisted",
+                      label: t("post.youtube.privacy_unlisted"),
+                    },
+                    {
+                      value: "public",
+                      label: t("post.youtube.privacy_public"),
+                    },
+                  ]}
+                />
+              </section>
+
+              {/* ── Agendamento ── */}
+              <section className="border-t border-[color:var(--border)] py-6 grid gap-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-base font-semibold text-[color:var(--text)]">
+                      {t("post.youtube.schedule")}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-[color:var(--muted)]">
+                      {t("post.youtube.schedule_subtitle")}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={scheduleEnabled}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      setScheduleEnabled(on);
+                      if (!on) clearSchedule();
+                    }}
+                  />
+                </div>
+
+                {scheduleEnabled && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <DatePicker
+                        value={scheduleDate}
+                        min={new Date().toISOString().slice(0, 10)}
+                        onChange={(v) => updateSchedulePart("date", v)}
+                      />
+                      <TimePicker
+                        value={scheduleTime}
+                        onChange={(v) => updateSchedulePart("time", v)}
+                      />
+                    </div>
+                    {schedule && (
+                      <p className="text-[11px] text-[color:var(--muted)]">
+                        {t("post.youtube.schedule_note")}
+                      </p>
+                    )}
+                  </>
+                )}
+              </section>
+
+              {/* ── Progresso ── */}
+              {progress !== null && (
+                <div className="border-t border-[color:var(--border)] py-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[11px] font-medium text-[color:var(--muted)]">
+                      {t("post.youtube.uploading", {
+                        percent: Math.round(progress * 100),
+                      })}
+                    </span>
+                    <span className="font-mono text-[11px] font-bold text-[color:var(--accent)]">
+                      {Math.round(progress * 100)}%
+                    </span>
+                  </div>
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-[color:var(--field)]">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-[color:var(--accent)] to-[color:var(--accent-hover)] shadow-[0_0_8px_var(--accent-glow)] transition-all duration-300"
+                      style={{ width: `${Math.round(progress * 100)}%` }}
+                    />
                   </div>
                 </div>
-              );
-            })()}
-          </section>
+              )}
 
-          {/* ── Conteúdo: título, descrição, tags ── */}
-          <section className="border-t border-[color:var(--border)] py-6 grid gap-4">
-            <label className="grid gap-1.5">
-              <span className="text-[11px] font-semibold text-[color:var(--muted)]">{t("post.youtube.field_title")}</span>
-              <input className={fieldCls} maxLength={100} value={title} onChange={(e) => setTitle(e.target.value)} />
-            </label>
-            <label className="grid gap-1.5">
-              <span className="text-[11px] font-semibold text-[color:var(--muted)]">{t("post.youtube.field_description")}</span>
-              <textarea
-                className={cn(textareaCls, "min-h-28")}
-                maxLength={5000}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </label>
-            <label className="grid gap-1.5">
-              <span className="text-[11px] font-semibold text-[color:var(--muted)]">{t("post.youtube.field_tags")}</span>
-              <input
-                className={fieldCls}
-                placeholder={t("post.youtube.tags_placeholder")}
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-              />
-            </label>
-          </section>
+              {/* ── Publicar ── */}
+              <section className="border-t border-[color:var(--border)] pt-6 grid gap-3">
+                {error && (
+                  <p className="text-sm font-medium text-red-400">{error}</p>
+                )}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={publish}
+                  className="group relative flex h-12 w-full items-center justify-center gap-2.5 overflow-hidden rounded-xl bg-[color:var(--accent)] text-sm font-bold tracking-wide text-[color:var(--accent-foreground)] shadow-[0_16px_40px_-16px_var(--accent)] transition-all duration-300 hover:brightness-110 hover:shadow-[0_20px_48px_-16px_var(--accent)] disabled:opacity-50 disabled:shadow-none"
+                >
+                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                  {busy ? (
+                    <Spinner className="h-4 w-4" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  {busy
+                    ? progress !== null
+                      ? t("post.youtube.uploading", {
+                          percent: Math.round((progress ?? 0) * 100),
+                        })
+                      : t("post.youtube.publishing")
+                    : schedule
+                      ? t("post.youtube.schedule_btn")
+                      : t("post.youtube.publish")}
+                </button>
+              </section>
+            </>
+          )}
 
-          {/* ── Specs Short ── */}
-          {videoType === "short" && (
-            <section className="border-t border-[color:var(--border)] py-6">
-              <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/[0.06] p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-yellow-500/20 text-yellow-400">
-                    <Zap className="h-3.5 w-3.5" />
-                  </span>
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-yellow-400/80">
-                    {t("post.youtube.short_specs_label")}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { label: t("post.youtube.short_spec_ratio") },
-                    { label: t("post.youtube.short_spec_duration") },
-                    { label: t("post.youtube.short_spec_res") },
-                    { label: t("post.youtube.short_spec_hashtag") },
-                    { label: t("post.youtube.short_spec_thumb") },
-                  ].map(({ label }) => (
-                    <span
-                      key={label}
-                      className="inline-flex items-center rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-[11px] font-semibold text-yellow-300/90"
-                    >
-                      {label}
-                    </span>
-                  ))}
-                </div>
+          {/* ══════════════════ COMUNIDADE ══════════════════ */}
+          {videoType === "community" && (
+            <section className="border-t border-[color:var(--border)] py-8 flex flex-col items-center gap-6 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-orange-500/30 bg-orange-500/10 text-orange-400">
+                <Users className="h-6 w-6" />
               </div>
+              <div className="grid gap-1.5 max-w-xs">
+                <p className="text-sm font-semibold text-[color:var(--text)]">
+                  {t("post.youtube.community_redirect_title")}
+                </p>
+                <p className="text-[12px] leading-relaxed text-[color:var(--muted)]">
+                  {t("post.youtube.community_redirect_body")}
+                </p>
+              </div>
+              <a
+                href="https://studio.youtube.com/"
+                target="_blank"
+                rel="noreferrer"
+                className="group relative flex h-12 items-center justify-center gap-2.5 overflow-hidden rounded-xl bg-[color:var(--accent)] px-6 text-sm font-bold tracking-wide text-[color:var(--accent-foreground)] shadow-[0_16px_40px_-16px_var(--accent)] transition-all duration-300 hover:brightness-110 hover:shadow-[0_20px_48px_-16px_var(--accent)]"
+              >
+                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                <ExternalLink className="h-4 w-4" />
+                {t("post.youtube.community_open_studio")}
+              </a>
             </section>
           )}
-
-          {/* ── Privacidade ── */}
-          <section className="border-t border-[color:var(--border)] py-6">
-            <span className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-[color:var(--muted)]">
-              <Shield className="h-3.5 w-3.5" />
-              {t("post.youtube.privacy")}
-            </span>
-            <Select<Privacy>
-              value={privacy}
-              disabled={Boolean(schedule)}
-              onChange={setPrivacy}
-              options={[
-                { value: "private", label: t("post.youtube.privacy_private") },
-                { value: "unlisted", label: t("post.youtube.privacy_unlisted") },
-                { value: "public", label: t("post.youtube.privacy_public") },
-              ]}
-            />
-          </section>
-
-          {/* ── Agendamento ── */}
-          <section className="border-t border-[color:var(--border)] py-6 grid gap-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-base font-semibold text-[color:var(--text)]">
-                  {t("post.youtube.schedule")}
-                </p>
-                <p className="mt-0.5 text-[11px] text-[color:var(--muted)]">
-                  {t("post.youtube.schedule_subtitle")}
-                </p>
-              </div>
-              <Switch
-                checked={scheduleEnabled}
-                onChange={(e) => {
-                  const on = e.target.checked;
-                  setScheduleEnabled(on);
-                  if (!on) clearSchedule();
-                }}
-              />
-            </div>
-
-            {scheduleEnabled && (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  <DatePicker
-                    value={scheduleDate}
-                    min={new Date().toISOString().slice(0, 10)}
-                    onChange={(v) => updateSchedulePart("date", v)}
-                  />
-                  <TimePicker value={scheduleTime} onChange={(v) => updateSchedulePart("time", v)} />
-                </div>
-                {schedule && (
-                  <p className="text-[11px] text-[color:var(--muted)]">{t("post.youtube.schedule_note")}</p>
-                )}
-              </>
-            )}
-          </section>
-
-          {/* ── Progresso ── */}
-          {progress !== null && (
-            <div className="border-t border-[color:var(--border)] py-4">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-[11px] font-medium text-[color:var(--muted)]">
-                  {t("post.youtube.uploading", { percent: Math.round(progress * 100) })}
-                </span>
-                <span className="font-mono text-[11px] font-bold text-[color:var(--accent)]">
-                  {Math.round(progress * 100)}%
-                </span>
-              </div>
-              <div className="h-1 w-full overflow-hidden rounded-full bg-[color:var(--field)]">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-[color:var(--accent)] to-[color:var(--accent-hover)] shadow-[0_0_8px_var(--accent-glow)] transition-all duration-300"
-                  style={{ width: `${Math.round(progress * 100)}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* ── Publicar ── */}
-          <section className="border-t border-[color:var(--border)] pt-6 grid gap-3">
-            {error && <p className="text-sm font-medium text-red-400">{error}</p>}
-            <button
-              type="button"
-              disabled={busy}
-              onClick={publish}
-              className="group relative flex h-12 w-full items-center justify-center gap-2.5 overflow-hidden rounded-xl bg-[color:var(--accent)] text-sm font-bold tracking-wide text-[color:var(--accent-foreground)] shadow-[0_16px_40px_-16px_var(--accent)] transition-all duration-300 hover:brightness-110 hover:shadow-[0_20px_48px_-16px_var(--accent)] disabled:opacity-50 disabled:shadow-none"
-            >
-              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-              {busy ? <Spinner className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
-              {busy
-                ? progress !== null
-                  ? t("post.youtube.uploading", { percent: Math.round((progress ?? 0) * 100) })
-                  : t("post.youtube.publishing")
-                : schedule
-                  ? t("post.youtube.schedule_btn")
-                  : t("post.youtube.publish")}
-            </button>
-          </section>
         </>
       )}
-
-      {/* ══════════════════ COMUNIDADE ══════════════════ */}
-      {videoType === "community" && (
-        <section className="border-t border-[color:var(--border)] py-8 flex flex-col items-center gap-6 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-orange-500/30 bg-orange-500/10 text-orange-400">
-            <Users className="h-6 w-6" />
-          </div>
-          <div className="grid gap-1.5 max-w-xs">
-            <p className="text-sm font-semibold text-[color:var(--text)]">
-              {t("post.youtube.community_redirect_title")}
-            </p>
-            <p className="text-[12px] leading-relaxed text-[color:var(--muted)]">
-              {t("post.youtube.community_redirect_body")}
-            </p>
-          </div>
-          <a
-            href="https://studio.youtube.com/"
-            target="_blank"
-            rel="noreferrer"
-            className="group relative flex h-12 items-center justify-center gap-2.5 overflow-hidden rounded-xl bg-[color:var(--accent)] px-6 text-sm font-bold tracking-wide text-[color:var(--accent-foreground)] shadow-[0_16px_40px_-16px_var(--accent)] transition-all duration-300 hover:brightness-110 hover:shadow-[0_20px_48px_-16px_var(--accent)]"
-          >
-            <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-            <ExternalLink className="h-4 w-4" />
-            {t("post.youtube.community_open_studio")}
-          </a>
-        </section>
-      )}
-
-      </>}
     </div>
   );
 }
@@ -743,7 +865,12 @@ function HistoryList({
             >
               <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-lg bg-[color:var(--surface-soft)]">
                 {item.thumbnailUrl ? (
-                  <img alt="" className="h-full w-full object-cover" loading="lazy" src={item.thumbnailUrl} />
+                  <img
+                    alt=""
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                    src={item.thumbnailUrl}
+                  />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-[color:var(--muted)]">
                     <FileVideo2 className="h-5 w-5" />
@@ -757,7 +884,9 @@ function HistoryList({
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-[color:var(--text)]">{item.title}</p>
+                <p className="truncate text-sm font-medium text-[color:var(--text)]">
+                  {item.title}
+                </p>
                 <p className="text-[11px] text-[color:var(--muted)]">
                   {new Date(item.uploadedAt).toLocaleString()}
                 </p>
@@ -795,7 +924,11 @@ function HistoryList({
                       onClick={() => handleDelete(item.videoId!)}
                       className="flex h-7 items-center gap-1 rounded-lg bg-red-500/15 px-2 text-[11px] font-semibold text-red-400 transition hover:bg-red-500/25 disabled:opacity-50"
                     >
-                      {isDeleting ? <Spinner className="h-3 w-3" /> : <Trash2 className="h-3 w-3" />}
+                      {isDeleting ? (
+                        <Spinner className="h-3 w-3" />
+                      ) : (
+                        <Trash2 className="h-3 w-3" />
+                      )}
                       {t("post.youtube.delete_confirm")}
                     </button>
                     <button

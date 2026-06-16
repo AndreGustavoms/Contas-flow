@@ -28,7 +28,8 @@ export function Select<T extends string = string>({
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
@@ -83,7 +84,10 @@ export function Select<T extends string = string>({
                 key={opt.value}
                 role="option"
                 aria-selected={active}
-                onClick={() => { onChange(opt.value); setOpen(false); }}
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
                 className={cn(
                   "flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm transition-colors duration-150",
                   active
@@ -92,7 +96,9 @@ export function Select<T extends string = string>({
                 )}
               >
                 <span>{opt.label}</span>
-                {active && <Check className="h-3.5 w-3.5 text-[color:var(--accent)]" />}
+                {active && (
+                  <Check className="h-3.5 w-3.5 text-[color:var(--accent)]" />
+                )}
               </li>
             );
           })}

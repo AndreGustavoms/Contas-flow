@@ -28,6 +28,7 @@ import { DatePicker } from "../ui/date-picker";
 import { TimePicker } from "../ui/time-picker";
 import { Select } from "../ui/select";
 import { Spinner } from "../ui/spinner";
+import { Switch } from "../ui/switch";
 import { YouTubeIcon } from "../platform-icons";
 
 type Channel = { id: string; title: string; connectedAt: string };
@@ -114,6 +115,7 @@ export function YouTubePoster() {
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [privacy, setPrivacy] = useState<Privacy>("private");
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [schedule, setSchedule] = useState("");
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleTime, setScheduleTime] = useState("");
@@ -588,26 +590,30 @@ export function YouTubePoster() {
                   {t("post.youtube.schedule_subtitle")}
                 </p>
               </div>
-              {schedule && (
-                <button
-                  type="button"
-                  onClick={clearSchedule}
-                  className="text-[11px] font-semibold text-[color:var(--muted)] transition hover:text-[color:var(--text)]"
-                >
-                  Limpar
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <DatePicker
-                value={scheduleDate}
-                min={new Date().toISOString().slice(0, 10)}
-                onChange={(v) => updateSchedulePart("date", v)}
+              <Switch
+                checked={scheduleEnabled}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  setScheduleEnabled(on);
+                  if (!on) clearSchedule();
+                }}
               />
-              <TimePicker value={scheduleTime} onChange={(v) => updateSchedulePart("time", v)} />
             </div>
-            {schedule && (
-              <p className="text-[11px] text-[color:var(--muted)]">{t("post.youtube.schedule_note")}</p>
+
+            {scheduleEnabled && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <DatePicker
+                    value={scheduleDate}
+                    min={new Date().toISOString().slice(0, 10)}
+                    onChange={(v) => updateSchedulePart("date", v)}
+                  />
+                  <TimePicker value={scheduleTime} onChange={(v) => updateSchedulePart("time", v)} />
+                </div>
+                {schedule && (
+                  <p className="text-[11px] text-[color:var(--muted)]">{t("post.youtube.schedule_note")}</p>
+                )}
+              </>
             )}
           </section>
 

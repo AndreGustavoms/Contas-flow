@@ -7,18 +7,13 @@ import {
   useState,
 } from "react";
 import {
-  BarChart2,
   Calendar,
   CheckCircle2,
   Clapperboard,
   Clock,
   ExternalLink,
   FileVideo2,
-  Image as ImageIcon,
-  Info,
-  Plus,
   Shield,
-  Type,
   Upload,
   Users,
   X,
@@ -34,7 +29,6 @@ import { YouTubeIcon } from "../platform-icons";
 type Channel = { id: string; title: string; connectedAt: string };
 type Privacy = "public" | "unlisted" | "private";
 type VideoType = "video" | "short" | "community";
-type CommunityContent = "text" | "image" | "poll";
 
 type HistoryItem = {
   videoId: string | null;
@@ -121,24 +115,13 @@ export function YouTubePoster() {
   const [scheduleTime, setScheduleTime] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [videoDim, setVideoDim] = useState<{ w: number; h: number } | null>(null);
-  // Community
-  const [communityContent, setCommunityContent] = useState<CommunityContent>("text");
-  const [communityText, setCommunityText] = useState("");
-  const [communityCaption, setCommunityCaption] = useState("");
-  const [communityImageFile, setCommunityImageFile] = useState<File | null>(null);
-  const [communityImagePreview, setCommunityImagePreview] = useState<string | null>(null);
-  const [pollQuestion, setPollQuestion] = useState("");
-  const [pollOptions, setPollOptions] = useState(["", ""]);
-
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [done, setDone] = useState<{ videoId: string } | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [copied, setCopied] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const communityImageRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!file) { setPreviewUrl(null); setVideoDim(null); return; }
@@ -147,13 +130,6 @@ export function YouTubePoster() {
     setVideoDim(null);
     return () => URL.revokeObjectURL(url);
   }, [file]);
-
-  useEffect(() => {
-    if (!communityImageFile) { setCommunityImagePreview(null); return; }
-    const url = URL.createObjectURL(communityImageFile);
-    setCommunityImagePreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [communityImageFile]);
 
   function updateSchedulePart(part: "date" | "time", value: string) {
     const nextDate = part === "date" ? value : scheduleDate;
@@ -188,32 +164,6 @@ export function YouTubePoster() {
     setDone(null);
     setError("");
     if (f && !title) setTitle(f.name.replace(/\.[^.]+$/, ""));
-  }
-
-  function addPollOption() {
-    if (pollOptions.length < 5) setPollOptions([...pollOptions, ""]);
-  }
-
-  function removePollOption(i: number) {
-    if (pollOptions.length > 2) setPollOptions(pollOptions.filter((_, idx) => idx !== i));
-  }
-
-  function updatePollOption(i: number, value: string) {
-    const next = [...pollOptions];
-    next[i] = value;
-    setPollOptions(next);
-  }
-
-  async function copyToClipboard() {
-    let text = "";
-    if (communityContent === "text") text = communityText;
-    else if (communityContent === "poll") {
-      text = [pollQuestion, ...pollOptions.filter(Boolean).map((o, i) => `${i + 1}. ${o}`)].join("\n");
-    }
-    if (!text) return;
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
   async function publish() {
@@ -666,212 +616,29 @@ export function YouTubePoster() {
 
       {/* ══════════════════ COMUNIDADE ══════════════════ */}
       {videoType === "community" && (
-        <>
-          {/* ── Aviso API ── */}
-          <section className="border-t border-[color:var(--border)] py-6">
-            <div className="flex items-start gap-3 rounded-xl border border-orange-500/20 bg-orange-500/10 px-4 py-3.5">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-orange-400" />
-              <p className="text-[12px] leading-relaxed text-orange-200/80">
-                {t("post.youtube.community_notice")}
-              </p>
-            </div>
-          </section>
-
-          {/* ── Tipo de conteúdo ── */}
-          <section className="border-t border-[color:var(--border)] py-6">
-            <SectionLabel>{t("post.youtube.community_content")}</SectionLabel>
-            <div className="grid grid-cols-3 gap-2">
-              {(
-                [
-                  { value: "text" as CommunityContent, icon: Type, label: t("post.youtube.community_type_text") },
-                  { value: "image" as CommunityContent, icon: ImageIcon, label: t("post.youtube.community_type_image") },
-                  { value: "poll" as CommunityContent, icon: BarChart2, label: t("post.youtube.community_type_poll") },
-                ] as const
-              ).map(({ value, icon: Icon, label }) => {
-                const active = communityContent === value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setCommunityContent(value)}
-                    className={cn(
-                      "group relative flex items-center gap-2.5 overflow-hidden rounded-xl border px-4 py-3 text-left transition-all duration-200",
-                      active
-                        ? "border-[color:var(--accent-border)] bg-gradient-to-br from-[color:var(--accent-surface)] to-transparent"
-                        : "border-[color:var(--border)] hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)]",
-                    )}
-                  >
-                    {active && (
-                      <div className="absolute left-0 top-0 h-full w-0.5 rounded-r bg-[color:var(--accent)] shadow-[0_0_10px_var(--accent-glow)]" />
-                    )}
-                    <span
-                      className={cn(
-                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
-                        active
-                          ? "bg-[color:var(--accent)] text-[color:var(--accent-foreground)] shadow-[0_4px_14px_-4px_var(--accent)]"
-                          : "border border-[color:var(--border)] text-[color:var(--muted)] group-hover:border-[color:var(--accent-border)] group-hover:text-[color:var(--accent)]",
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="text-sm font-semibold text-[color:var(--text)]">{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* ── Texto ── */}
-          {communityContent === "text" && (
-            <section className="border-t border-[color:var(--border)] py-6">
-              <textarea
-                className={cn(textareaCls, "min-h-36")}
-                maxLength={5000}
-                placeholder={t("post.youtube.community_text_placeholder")}
-                value={communityText}
-                onChange={(e) => setCommunityText(e.target.value)}
-              />
-              <p className="mt-1.5 text-right text-[11px] text-[color:var(--muted)]">
-                {communityText.length} / 5000
-              </p>
-            </section>
-          )}
-
-          {/* ── Imagem ── */}
-          {communityContent === "image" && (
-            <section className="border-t border-[color:var(--border)] py-6 grid gap-4">
-              <input
-                ref={communityImageRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => setCommunityImageFile(e.target.files?.[0] ?? null)}
-              />
-              <button
-                type="button"
-                onClick={() => communityImageRef.current?.click()}
-                className={cn(
-                  "group flex w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed py-9 transition-all duration-300",
-                  communityImageFile
-                    ? "border-[color:var(--accent-border)] bg-[color:var(--accent-surface)]"
-                    : "border-[color:var(--border)] hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)]",
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex h-12 w-12 items-center justify-center rounded-2xl transition-all duration-300",
-                    communityImageFile
-                      ? "bg-[color:var(--accent)] text-[color:var(--accent-foreground)] shadow-[0_8px_28px_-8px_var(--accent)]"
-                      : "border border-[color:var(--border)] text-[color:var(--muted)] group-hover:border-[color:var(--accent-border)] group-hover:text-[color:var(--accent)] group-hover:shadow-[0_0_20px_var(--accent-glow)]",
-                  )}
-                >
-                  <ImageIcon className="h-5 w-5" />
-                </span>
-                <div className="text-center">
-                  <p className="text-sm font-semibold text-[color:var(--text)]">
-                    {communityImageFile ? communityImageFile.name : t("post.youtube.community_image_choose")}
-                  </p>
-                  <p className="mt-0.5 text-xs text-[color:var(--muted)]">
-                    {communityImageFile ? fmtSize(communityImageFile.size) : t("post.youtube.community_image_hint")}
-                  </p>
-                </div>
-              </button>
-              {communityImagePreview && (
-                <div className="overflow-hidden rounded-xl border border-[color:var(--accent-border)] shadow-[0_8px_32px_-8px_var(--accent-glow)]">
-                  <img src={communityImagePreview} alt="" className="max-h-64 w-full object-contain" />
-                </div>
-              )}
-              <label className="grid gap-1.5">
-                <span className="text-[11px] font-semibold text-[color:var(--muted)]">
-                  {t("post.youtube.community_caption")}
-                </span>
-                <textarea
-                  className={cn(textareaCls, "min-h-20")}
-                  maxLength={5000}
-                  placeholder={t("post.youtube.community_caption_placeholder")}
-                  value={communityCaption}
-                  onChange={(e) => setCommunityCaption(e.target.value)}
-                />
-              </label>
-            </section>
-          )}
-
-          {/* ── Enquete ── */}
-          {communityContent === "poll" && (
-            <section className="border-t border-[color:var(--border)] py-6 grid gap-4">
-              <label className="grid gap-1.5">
-                <span className="text-[11px] font-semibold text-[color:var(--muted)]">
-                  {t("post.youtube.community_poll_question")}
-                </span>
-                <input
-                  className={fieldCls}
-                  maxLength={500}
-                  placeholder={t("post.youtube.community_poll_question_placeholder")}
-                  value={pollQuestion}
-                  onChange={(e) => setPollQuestion(e.target.value)}
-                />
-              </label>
-              <div className="grid gap-2">
-                {pollOptions.map((opt, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input
-                      className={cn(fieldCls, "flex-1")}
-                      maxLength={65}
-                      placeholder={t("post.youtube.community_poll_option", { n: i + 1 })}
-                      value={opt}
-                      onChange={(e) => updatePollOption(i, e.target.value)}
-                    />
-                    {pollOptions.length > 2 && (
-                      <button
-                        type="button"
-                        onClick={() => removePollOption(i)}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[color:var(--border)] text-[color:var(--muted)] transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {pollOptions.length < 5 ? (
-                <button
-                  type="button"
-                  onClick={addPollOption}
-                  className="flex items-center gap-1.5 rounded-xl border border-dashed border-[color:var(--border)] px-4 py-2.5 text-[12px] font-semibold text-[color:var(--muted)] transition hover:border-[color:var(--accent-border)] hover:text-[color:var(--accent)]"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  {t("post.youtube.community_poll_add")}
-                </button>
-              ) : (
-                <p className="text-[11px] text-[color:var(--muted)]">{t("post.youtube.community_poll_max")}</p>
-              )}
-            </section>
-          )}
-
-          {/* ── Ações ── */}
-          <section className="border-t border-[color:var(--border)] pt-6 grid gap-3">
-            {communityContent !== "image" && (
-              <button
-                type="button"
-                onClick={copyToClipboard}
-                className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[color:var(--border)] text-sm font-semibold text-[color:var(--muted)] transition hover:border-[color:var(--accent-border)] hover:text-[color:var(--accent)]"
-              >
-                {copied ? "✓ Copiado!" : t("post.youtube.community_copy")}
-              </button>
-            )}
-            <a
-              href="https://studio.youtube.com/"
-              target="_blank"
-              rel="noreferrer"
-              className="group relative flex h-12 w-full items-center justify-center gap-2.5 overflow-hidden rounded-xl bg-[color:var(--accent)] text-sm font-bold tracking-wide text-[color:var(--accent-foreground)] shadow-[0_16px_40px_-16px_var(--accent)] transition-all duration-300 hover:brightness-110 hover:shadow-[0_20px_48px_-16px_var(--accent)]"
-            >
-              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-              <ExternalLink className="h-4 w-4" />
-              {t("post.youtube.community_open_studio")}
-            </a>
-          </section>
-        </>
+        <section className="border-t border-[color:var(--border)] py-8 flex flex-col items-center gap-6 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-orange-500/30 bg-orange-500/10 text-orange-400">
+            <Users className="h-6 w-6" />
+          </div>
+          <div className="grid gap-1.5 max-w-xs">
+            <p className="text-sm font-semibold text-[color:var(--text)]">
+              {t("post.youtube.community_redirect_title")}
+            </p>
+            <p className="text-[12px] leading-relaxed text-[color:var(--muted)]">
+              {t("post.youtube.community_redirect_body")}
+            </p>
+          </div>
+          <a
+            href="https://studio.youtube.com/"
+            target="_blank"
+            rel="noreferrer"
+            className="group relative flex h-12 items-center justify-center gap-2.5 overflow-hidden rounded-xl bg-[color:var(--accent)] px-6 text-sm font-bold tracking-wide text-[color:var(--accent-foreground)] shadow-[0_16px_40px_-16px_var(--accent)] transition-all duration-300 hover:brightness-110 hover:shadow-[0_20px_48px_-16px_var(--accent)]"
+          >
+            <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+            <ExternalLink className="h-4 w-4" />
+            {t("post.youtube.community_open_studio")}
+          </a>
+        </section>
       )}
 
       </>}

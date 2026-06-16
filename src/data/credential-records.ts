@@ -26,7 +26,6 @@ export type AccountDraft = Omit<AccountRecord, "id" | "updatedAt">;
 
 export const platformOptions = [
   "Email",
-  "Estrela",
   "Facebook",
   "Instagram",
   "Kwai",
@@ -35,13 +34,14 @@ export const platformOptions = [
 ];
 
 export const roleOptions = [
-  "Administrativo",
+  "Pessoal",
+  "Trabalho",
   "Apoio",
   "Conta estrela",
-  "Financeiro",
   "Nicho",
   "Postagem",
   "Recuperação",
+  "Outros",
 ];
 
 export const ownerOptions = ["Andre"];

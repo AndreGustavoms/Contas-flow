@@ -115,6 +115,7 @@
     "no_sessions": "No active sessions.",
     "session_created": "started {{time}}",
     "session_last_active": "active {{time}}",
+    "session_started_full": "Started on {{date}}",
     "theme_label": "Theme",
     "theme_light": "Light",
     "theme_dark": "Dark",

@@ -113,6 +113,7 @@
     "no_sessions": "Sin sesiones activas.",
     "session_created": "iniciada {{time}}",
     "session_last_active": "activa {{time}}",
+    "session_started_full": "Iniciada el {{date}}",
     "theme_label": "Tema",
     "theme_light": "Claro",
     "theme_dark": "Oscuro",

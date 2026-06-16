@@ -112,6 +112,7 @@
     "no_sessions": "没有活跃会话。",
     "session_created": "开始于 {{time}}",
     "session_last_active": "{{time}} 活跃",
+    "session_started_full": "开始于 {{date}}",
     "theme_label": "主题",
     "theme_light": "浅色",
     "theme_dark": "深色",

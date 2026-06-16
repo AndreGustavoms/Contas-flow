@@ -9,6 +9,7 @@ import {
   Lock,
   LogOut,
   Mail,
+  MapPin,
   Monitor,
   Pencil,
   RotateCcw,
@@ -73,6 +74,7 @@ type SessionInfo = {
   createdAt: string;
   lastSeenAt: string;
   userAgent: string;
+  location: string | null;
 };
 
 type TfaStatus = { enabled: boolean; recoveryCodesRemaining: number };
@@ -112,6 +114,14 @@ function fmtDate(iso: string): string {
     year: "numeric",
     month: "long",
     day: "numeric",
+  });
+}
+
+// Data + hora exatas, no idioma do usuário (para detalhe/tooltip de sessão).
+function fmtDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    dateStyle: "short",
+    timeStyle: "short",
   });
 }
 
@@ -1352,13 +1362,31 @@ function SessoesTab() {
                     </span>
                   )}
                 </div>
-                <p className="mt-0.5 text-xs text-[color:var(--muted)]">
+                {s.location && (
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-[color:var(--muted)]">
+                    <MapPin className="h-3.5 w-3.5 shrink-0" />
+                    {s.location}
+                  </p>
+                )}
+                <p
+                  className="mt-0.5 text-xs text-[color:var(--muted)]"
+                  title={`${t("account.session_created", {
+                    time: fmtDateTime(s.createdAt),
+                  })} · ${t("account.session_last_active", {
+                    time: fmtDateTime(s.lastSeenAt),
+                  })}`}
+                >
                   {t("account.session_last_active", {
                     time: timeAgo(s.lastSeenAt, t),
                   })}
                   {" · "}
                   {t("account.session_created", {
                     time: timeAgo(s.createdAt, t),
+                  })}
+                </p>
+                <p className="mt-0.5 text-xs text-[color:var(--muted)]/80">
+                  {t("account.session_started_full", {
+                    date: fmtDateTime(s.createdAt),
                   })}
                 </p>
               </div>

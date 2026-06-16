@@ -18,6 +18,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
+import geoip from "fast-geoip";
 import { decryptField, encryptField } from "./crypto.mjs";
 
 export const SESSION_IDLE_MS = 3 * 60 * 60 * 1000; // 3h sem uso = logout
@@ -70,6 +71,10 @@ async function readSessionsFile(storageDir) {
         session.userAgent != null
           ? decryptField(session.userAgent)
           : session.userAgent,
+      location:
+        session.location != null
+          ? decryptField(session.location)
+          : session.location,
     }));
   } catch {
     return [];
@@ -88,6 +93,10 @@ async function writeSessionsFile(storageDir, sessions) {
       session.userAgent != null
         ? encryptField(session.userAgent)
         : session.userAgent,
+    location:
+      session.location != null
+        ? encryptField(session.location)
+        : session.location,
   }));
   await writeFile(
     sessionStoreFile(storageDir),
@@ -107,6 +116,40 @@ function hashIp(ip) {
 // Truncate the user-agent for display and to bound stored size.
 function clampUserAgent(userAgent) {
   return typeof userAgent === "string" ? userAgent.slice(0, 256) : "";
+}
+
+// --- Approximate location ---
+// We deliberately keep the no-raw-IP principle: the IP is used ONCE, at login, to
+// derive an approximate "City, CC" string (offline GeoIP), and only that coarse
+// string is stored (encrypted at rest). The raw IP is never persisted.
+
+// Private/loopback ranges carry no useful geo — skip the lookup for them.
+function isPrivateIp(ip) {
+  const v4 = ip.replace(/^::ffff:/i, "");
+  return (
+    ip === "::1" ||
+    v4.startsWith("127.") ||
+    v4.startsWith("10.") ||
+    v4.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(v4) ||
+    /^(fe80:|fc00:|fd)/i.test(ip)
+  );
+}
+
+async function resolveLocation(ip) {
+  if (!ip || typeof ip !== "string" || ip === "unknown") return null;
+  if (isPrivateIp(ip)) return null;
+  try {
+    const geo = await geoip.lookup(ip.replace(/^::ffff:/i, ""));
+    if (!geo) return null;
+    const city = typeof geo.city === "string" ? geo.city.trim() : "";
+    const country = typeof geo.country === "string" ? geo.country.trim() : "";
+    if (city && country) return `${city}, ${country}`;
+    if (country) return country;
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 // --- Expiration helpers ---
@@ -136,6 +179,7 @@ function publicSession(session, currentSessionId) {
     lastSeenAt: session.lastSeenAt,
     expiresAt: session.expiresAt,
     userAgent: session.userAgent ?? "",
+    location: session.location ?? null,
     current: session.sessionId === currentSessionId,
   };
 }
@@ -149,6 +193,7 @@ export function createSession(storageDir, { userId, ip, userAgent }) {
     const sessions = await readSessionsFile(storageDir);
     const now = Date.now();
     const sessionId = randomUUID() + randomUUID().replaceAll("-", "");
+    const location = await resolveLocation(ip);
     const session = {
       sessionId,
       userId,
@@ -156,6 +201,7 @@ export function createSession(storageDir, { userId, ip, userAgent }) {
       lastSeenAt: now,
       expiresAt: now + SESSION_ABSOLUTE_MS,
       userAgent: clampUserAgent(userAgent),
+      location, // approximate "City, CC" derived from the IP at login (no raw IP)
       ipHash: hashIp(ip),
       revokedAt: null,
       reauthAt: null, // last time the user re-typed their password (epoch ms)

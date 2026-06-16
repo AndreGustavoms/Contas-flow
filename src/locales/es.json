@@ -639,6 +639,8 @@
       "error_no_title": "Escribe un título.",
       "error_schedule_past": "Elige una fecha/hora futura.",
       "error_too_large": "Video demasiado grande (máx. 2 GB).",
+      "tab_post": "Publicar",
+      "tab_history": "Historial",
       "history": "Historial de subidas",
       "channel_connected_at": "Conectado el {{date}}",
       "channel_selected": "Seleccionado"

@@ -27,6 +27,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
+import { Select } from "../ui/select";
 import { Spinner } from "../ui/spinner";
 import { YouTubeIcon } from "../platform-icons";
 
@@ -99,9 +100,12 @@ function fmtConnectedAt(value: string): string {
   });
 }
 
+type Tab = "post" | "history";
+
 export function YouTubePoster() {
   const { t } = useTranslation();
 
+  const [tab, setTab] = useState<Tab>("post");
   const [channels, setChannels] = useState<Channel[] | null>(null);
   const [channelId, setChannelId] = useState("");
   const [videoType, setVideoType] = useState<VideoType>("video");
@@ -251,6 +255,7 @@ export function YouTubePoster() {
       const data: { videoId: string } = await res.json();
       setDone({ videoId: data.videoId });
       loadHistory();
+      setTab("history");
     } catch (err) {
       setError(
         err instanceof Error && err.message === "file_too_large"
@@ -300,14 +305,11 @@ export function YouTubePoster() {
             onClick={() => {
               setDone(null); setChannelId(""); setFile(null);
               setTitle(""); setDescription(""); setTags("");
-              clearSchedule();
+              clearSchedule(); setTab("post");
             }}
           >
             {t("post.youtube.new_post")}
           </Button>
-        </div>
-        <div className="w-full border-t border-[color:var(--border)] pt-5 text-left">
-          <HistoryList items={history} />
         </div>
       </div>
     );
@@ -339,8 +341,37 @@ export function YouTubePoster() {
     { value: "community" as VideoType, icon: Users, label: t("post.youtube.type_community"), hint: t("post.youtube.type_community_hint") },
   ] as const;
 
+  const tabs = [
+    { id: "post" as Tab, label: t("post.youtube.tab_post") },
+    { id: "history" as Tab, label: t("post.youtube.tab_history") },
+  ];
+
   return (
     <div>
+      {/* ── Abas ── */}
+      <div className="mb-6 flex gap-0 border-b border-[color:var(--border)]">
+        {tabs.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            className={cn(
+              "relative px-5 py-2.5 text-sm font-semibold transition-colors duration-200",
+              tab === id
+                ? "text-[color:var(--text)]"
+                : "text-[color:var(--muted)] hover:text-[color:var(--text)]",
+            )}
+          >
+            {label}
+            {tab === id && (
+              <span className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-[color:var(--accent)] shadow-[0_0_8px_var(--accent-glow)]" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {tab === "history" && <HistoryList items={history} />}
+      {tab === "post" && <>
       {/* ── Canal ── */}
       <section className="pb-6">
         <div className="flex items-center justify-between">
@@ -555,16 +586,16 @@ export function YouTubePoster() {
                 <Shield className="h-3.5 w-3.5" />
                 {t("post.youtube.privacy")}
               </span>
-              <select
-                className={cn(fieldCls, "cursor-pointer")}
+              <Select<Privacy>
                 value={privacy}
                 disabled={Boolean(schedule)}
-                onChange={(e) => setPrivacy(e.target.value as Privacy)}
-              >
-                <option value="private">{t("post.youtube.privacy_private")}</option>
-                <option value="unlisted">{t("post.youtube.privacy_unlisted")}</option>
-                <option value="public">{t("post.youtube.privacy_public")}</option>
-              </select>
+                onChange={setPrivacy}
+                options={[
+                  { value: "private", label: t("post.youtube.privacy_private") },
+                  { value: "unlisted", label: t("post.youtube.privacy_unlisted") },
+                  { value: "public", label: t("post.youtube.privacy_public") },
+                ]}
+              />
             </div>
             <div className="grid gap-1.5">
               <div className="flex items-center justify-between">
@@ -843,7 +874,7 @@ export function YouTubePoster() {
         </>
       )}
 
-      <HistoryList items={history} />
+      </>}
     </div>
   );
 }

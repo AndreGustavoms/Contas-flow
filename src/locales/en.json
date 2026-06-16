@@ -641,6 +641,8 @@
       "error_no_title": "Enter a title.",
       "error_schedule_past": "Pick a future date/time.",
       "error_too_large": "Video too large (max 2 GB).",
+      "tab_post": "Post",
+      "tab_history": "History",
       "history": "Upload history",
       "channel_connected_at": "Connected on {{date}}",
       "channel_selected": "Selected"

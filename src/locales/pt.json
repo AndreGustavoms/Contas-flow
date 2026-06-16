@@ -664,6 +664,8 @@
       "error_no_title": "Informe um título.",
       "error_schedule_past": "Escolha uma data/hora futura.",
       "error_too_large": "Vídeo muito grande (máx. 2 GB).",
+      "tab_post": "Postar",
+      "tab_history": "Histórico",
       "history": "Histórico de uploads",
       "channel_connected_at": "Conectado em {{date}}",
       "channel_selected": "Selecionado"

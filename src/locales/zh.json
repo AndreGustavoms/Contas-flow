@@ -634,6 +634,8 @@
       "error_no_title": "请输入标题。",
       "error_schedule_past": "请选择将来的日期/时间。",
       "error_too_large": "视频过大（最大 2 GB）。",
+      "tab_post": "发布",
+      "tab_history": "历史",
       "history": "上传历史",
       "channel_connected_at": "{{date}} ???",
       "channel_selected": "???"

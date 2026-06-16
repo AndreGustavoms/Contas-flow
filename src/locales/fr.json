@@ -340,7 +340,8 @@
     "error_import_format": "Format invalide",
     "import_group_name": "Comptes importés {{date}}",
     "toast_imported": "Importé dans \"{{group}}\"",
-    "error_backup_invalid": "Sauvegarde invalide"
+    "error_backup_invalid": "Sauvegarde invalide",
+    "post": "Publier"
   },
   "platforms": {
     "Email": "E-mail",
@@ -573,6 +574,45 @@
       "load_error": "Impossible de charger.",
       "adoption": "Adoption de la 2FA",
       "users_with_2fa": "Utilisateurs avec 2FA"
+    }
+  },
+  "post": {
+    "title": "Publier",
+    "networks": "Réseaux",
+    "close": "Fermer",
+    "youtube": {
+      "heading": "Publier sur YouTube",
+      "subtitle": "Téléversez une vidéo et publiez-la ou planifiez-la sur votre chaîne.",
+      "channel": "Chaîne",
+      "video": "Vidéo",
+      "choose_file": "Choisir une vidéo depuis l'ordinateur",
+      "choose_hint": "MP4, MOV, etc. — envoyée directement depuis le navigateur.",
+      "field_title": "Titre",
+      "field_description": "Description",
+      "field_tags": "Tags",
+      "tags_placeholder": "séparés par des virgules",
+      "privacy": "Confidentialité",
+      "privacy_private": "Privée",
+      "privacy_unlisted": "Non répertoriée",
+      "privacy_public": "Publique",
+      "schedule": "Planifier",
+      "schedule_note": "Planifié : la vidéo est envoyée en privé et YouTube la publie automatiquement à l'heure choisie.",
+      "publish": "Publier maintenant",
+      "schedule_btn": "Planifier",
+      "publishing": "Publication…",
+      "uploading": "Envoi de la vidéo… {{percent}} %",
+      "success": "Vidéo envoyée sur YouTube !",
+      "view": "Ouvrir dans YouTube Studio",
+      "new_post": "Nouvelle publication",
+      "connect_title": "Connectez une chaîne YouTube",
+      "connect_desc": "Pour publier, connectez un compte YouTube via Google.",
+      "connect_btn": "Connecter YouTube",
+      "error": "Impossible de publier. Réessayez.",
+      "error_no_channel": "Sélectionnez une chaîne.",
+      "error_no_file": "Choisissez une vidéo.",
+      "error_no_title": "Saisissez un titre.",
+      "error_schedule_past": "Choisissez une date/heure future.",
+      "error_too_large": "Vidéo trop volumineuse (max 2 Go)."
     }
   }
 }

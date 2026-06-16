@@ -35,6 +35,7 @@ import {
   Plus,
   Save,
   Search,
+  Send,
   ShieldAlert,
   ShieldCheck,
   Trash2,
@@ -67,6 +68,7 @@ import { Spinner } from "./ui/spinner";
 import { Toast } from "./ui/toast";
 import { UsersDialog } from "./users-dialog";
 import { AccountSettings } from "./account-settings";
+import { SocialPoster } from "./social-poster";
 import { Button } from "./ui/button";
 import { ThemeToggle } from "./theme-toggle";
 import { Input } from "./ui/input";
@@ -470,6 +472,7 @@ export function AccountVault({
   const [dataToolsOpen, setDataToolsOpen] = useState(false);
   const [usersDialogOpen, setUsersDialogOpen] = useState(false);
   const [accountSettingsOpen, setAccountSettingsOpen] = useState(false);
+  const [posterOpen, setPosterOpen] = useState(false);
   const configurationMenuRef = useRef<HTMLDivElement>(null);
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
   const [wizardStep, setWizardStep] = useState(0);
@@ -748,6 +751,16 @@ export function AccountVault({
   const configurationItems = useMemo(
     () =>
       [
+        {
+          href: undefined,
+          icon: Send,
+          label: t("vault.post"),
+          onClick: () => {
+            setConfigurationOpen(false);
+            setPosterOpen(true);
+          },
+          visible: true,
+        },
         {
           href: undefined,
           icon: UserCog,
@@ -1617,6 +1630,10 @@ export function AccountVault({
           user={user}
           onProfileChange={setNavProfile}
         />
+      ) : null}
+
+      {posterOpen ? (
+        <SocialPoster onClose={() => setPosterOpen(false)} />
       ) : null}
 
       {toast ? (

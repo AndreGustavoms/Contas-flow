@@ -342,7 +342,8 @@
     "error_import_format": "Formato inválido",
     "import_group_name": "Contas importadas {{date}}",
     "toast_imported": "Importado para \"{{group}}\"",
-    "error_backup_invalid": "Backup inválido"
+    "error_backup_invalid": "Backup inválido",
+    "post": "Postar"
   },
   "platforms": {
     "Email": "Email",
@@ -575,6 +576,45 @@
       "load_error": "Não foi possível carregar.",
       "adoption": "Adoção de 2FA",
       "users_with_2fa": "Usuários com 2FA"
+    }
+  },
+  "post": {
+    "title": "Postar",
+    "networks": "Redes",
+    "close": "Fechar",
+    "youtube": {
+      "heading": "Publicar no YouTube",
+      "subtitle": "Envie um vídeo e publique ou agende no seu canal.",
+      "channel": "Canal",
+      "video": "Vídeo",
+      "choose_file": "Escolher vídeo do computador",
+      "choose_hint": "MP4, MOV, etc. — enviado direto pelo navegador.",
+      "field_title": "Título",
+      "field_description": "Descrição",
+      "field_tags": "Tags",
+      "tags_placeholder": "separadas por vírgula",
+      "privacy": "Privacidade",
+      "privacy_private": "Privado",
+      "privacy_unlisted": "Não listado",
+      "privacy_public": "Público",
+      "schedule": "Agendar publicação",
+      "schedule_note": "Agendado: o vídeo é enviado como privado e o YouTube publica automaticamente no horário escolhido.",
+      "publish": "Publicar agora",
+      "schedule_btn": "Agendar publicação",
+      "publishing": "Publicando…",
+      "uploading": "Enviando vídeo… {{percent}}%",
+      "success": "Vídeo enviado ao YouTube!",
+      "view": "Abrir no YouTube Studio",
+      "new_post": "Nova publicação",
+      "connect_title": "Conecte um canal do YouTube",
+      "connect_desc": "Para publicar, conecte uma conta do YouTube via Google.",
+      "connect_btn": "Conectar YouTube",
+      "error": "Não foi possível publicar. Tente de novo.",
+      "error_no_channel": "Selecione um canal.",
+      "error_no_file": "Escolha um vídeo.",
+      "error_no_title": "Informe um título.",
+      "error_schedule_past": "Escolha uma data/hora futura.",
+      "error_too_large": "Vídeo muito grande (máx. 2 GB)."
     }
   }
 }

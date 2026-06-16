@@ -21,6 +21,7 @@ import {
   handleOAuthCallback,
   listConnectedChannels,
   listUploadableFiles,
+  stageUpload,
   uploadVideo,
   uploadsDirectory,
 } from "./youtube.mjs";
@@ -2278,6 +2279,35 @@ async function handleApi(request, response, url, user, session) {
     return;
   }
 
+  // Browser upload: stream the raw request body straight to a staged file on the
+  // server (bypasses the 1 MB JSON cap — videos are far larger). The original
+  // file name comes in the X-Upload-Filename header (sanitized server-side). The
+  // returned `name` is then passed to POST /api/youtube/upload to publish.
+  if (url.pathname === "/api/youtube/uploads" && request.method === "POST") {
+    try {
+      let originalName = asString(request.headers["x-upload-filename"]);
+      try {
+        originalName = decodeURIComponent(originalName);
+      } catch {
+        /* keep raw if it isn't valid percent-encoding */
+      }
+      const staged = await stageUpload(originalName, request);
+      sendJson(response, 200, staged);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "unknown";
+      if (code === "file_too_large") {
+        response.setHeader("Connection", "close");
+        sendJson(response, 413, { error: "file_too_large" });
+      } else if (code === "invalid_file") {
+        sendJson(response, 400, { error: "invalid_file" });
+      } else {
+        recordLog("error", `youtube: falha ao receber upload (${code})`);
+        sendJson(response, 500, { error: "upload_failed" });
+      }
+    }
+    return;
+  }
+
   // Upload (optionally scheduled via publishAt). The body carries only a bare
   // file NAME, which youtube.mjs resolves inside the uploads directory — never a
   // caller-supplied absolute path, so this can't be used to read arbitrary
@@ -2310,6 +2340,10 @@ async function handleApi(request, response, url, user, session) {
         publishAt:
           typeof body.publishAt === "string" && body.publishAt.trim()
             ? body.publishAt.trim()
+            : undefined,
+        privacyStatus:
+          typeof body.privacyStatus === "string"
+            ? body.privacyStatus.trim()
             : undefined,
       });
       recordLog(

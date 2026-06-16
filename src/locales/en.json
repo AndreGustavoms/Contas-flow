@@ -342,7 +342,8 @@
     "error_import_format": "Invalid format",
     "import_group_name": "Imported accounts {{date}}",
     "toast_imported": "Imported to \"{{group}}\"",
-    "error_backup_invalid": "Invalid backup"
+    "error_backup_invalid": "Invalid backup",
+    "post": "Post"
   },
   "platforms": {
     "Email": "Email",
@@ -575,6 +576,45 @@
       "load_error": "Could not load.",
       "adoption": "2FA adoption",
       "users_with_2fa": "Users with 2FA"
+    }
+  },
+  "post": {
+    "title": "Post",
+    "networks": "Networks",
+    "close": "Close",
+    "youtube": {
+      "heading": "Publish to YouTube",
+      "subtitle": "Upload a video and publish or schedule it on your channel.",
+      "channel": "Channel",
+      "video": "Video",
+      "choose_file": "Choose a video from your computer",
+      "choose_hint": "MP4, MOV, etc. — uploaded straight from your browser.",
+      "field_title": "Title",
+      "field_description": "Description",
+      "field_tags": "Tags",
+      "tags_placeholder": "comma-separated",
+      "privacy": "Privacy",
+      "privacy_private": "Private",
+      "privacy_unlisted": "Unlisted",
+      "privacy_public": "Public",
+      "schedule": "Schedule",
+      "schedule_note": "Scheduled: the video is uploaded as private and YouTube publishes it automatically at the chosen time.",
+      "publish": "Publish now",
+      "schedule_btn": "Schedule",
+      "publishing": "Publishing…",
+      "uploading": "Uploading video… {{percent}}%",
+      "success": "Video uploaded to YouTube!",
+      "view": "Open in YouTube Studio",
+      "new_post": "New post",
+      "connect_title": "Connect a YouTube channel",
+      "connect_desc": "To publish, connect a YouTube account via Google.",
+      "connect_btn": "Connect YouTube",
+      "error": "Could not publish. Try again.",
+      "error_no_channel": "Select a channel.",
+      "error_no_file": "Choose a video.",
+      "error_no_title": "Enter a title.",
+      "error_schedule_past": "Pick a future date/time.",
+      "error_too_large": "Video too large (max 2 GB)."
     }
   }
 }

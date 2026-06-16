@@ -335,7 +335,8 @@
     "error_import_format": "格式无效",
     "import_group_name": "已导入账户 {{date}}",
     "toast_imported": "已导入到「{{group}}」",
-    "error_backup_invalid": "备份无效"
+    "error_backup_invalid": "备份无效",
+    "post": "发布"
   },
   "platforms": {
     "Email": "邮箱",
@@ -568,6 +569,45 @@
       "load_error": "无法加载。",
       "adoption": "2FA 采用率",
       "users_with_2fa": "启用 2FA 的用户"
+    }
+  },
+  "post": {
+    "title": "发布",
+    "networks": "平台",
+    "close": "关闭",
+    "youtube": {
+      "heading": "发布到 YouTube",
+      "subtitle": "上传视频并在你的频道发布或定时发布。",
+      "channel": "频道",
+      "video": "视频",
+      "choose_file": "从电脑选择视频",
+      "choose_hint": "MP4、MOV 等 — 直接从浏览器上传。",
+      "field_title": "标题",
+      "field_description": "描述",
+      "field_tags": "标签",
+      "tags_placeholder": "用逗号分隔",
+      "privacy": "隐私",
+      "privacy_private": "私享",
+      "privacy_unlisted": "不公开",
+      "privacy_public": "公开",
+      "schedule": "定时发布",
+      "schedule_note": "定时：视频以私享方式上传，YouTube 会在所选时间自动公开。",
+      "publish": "立即发布",
+      "schedule_btn": "定时发布",
+      "publishing": "发布中…",
+      "uploading": "上传视频中… {{percent}}%",
+      "success": "视频已上传到 YouTube！",
+      "view": "在 YouTube Studio 打开",
+      "new_post": "新建发布",
+      "connect_title": "连接 YouTube 频道",
+      "connect_desc": "要发布，请通过 Google 连接 YouTube 账号。",
+      "connect_btn": "连接 YouTube",
+      "error": "无法发布，请重试。",
+      "error_no_channel": "请选择频道。",
+      "error_no_file": "请选择视频。",
+      "error_no_title": "请输入标题。",
+      "error_schedule_past": "请选择将来的日期/时间。",
+      "error_too_large": "视频过大（最大 2 GB）。"
     }
   }
 }

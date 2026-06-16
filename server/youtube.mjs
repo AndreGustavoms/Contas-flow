@@ -11,9 +11,18 @@
 //   - When this moves to a public domain, set YOUTUBE_REDIRECT_URI to the
 //     https callback and re-run the consent flow. No code changes needed.
 
-import { createReadStream } from "node:fs";
-import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { createReadStream, createWriteStream } from "node:fs";
+import {
+  mkdir,
+  readFile,
+  readdir,
+  stat,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { basename, join, resolve, sep } from "node:path";
+import { Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { google } from "googleapis";
 import { decryptField, encryptField } from "./crypto.mjs";
@@ -225,12 +234,58 @@ export async function listUploadableFiles() {
   }
 }
 
+// Cap for a single staged video. Browser→server streaming bypasses the JSON
+// body cap, but we still bound it so a runaway upload can't fill the disk.
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+
+// Turn an arbitrary client filename into a safe, unique, bare name confined to
+// the uploads dir (timestamp prefix avoids collisions; only [A-Za-z0-9._-]).
+function safeUploadName(name) {
+  const base = basename(typeof name === "string" ? name : "").trim();
+  const cleaned = base
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .replace(/^\.+/, "")
+    .slice(-180);
+  return `${Date.now()}-${cleaned || "video"}`;
+}
+
+// Streams an incoming request body straight to a file in the uploads dir, so a
+// large video never has to be buffered in memory. Returns { name, size }. Aborts
+// (and cleans up the partial file) past MAX_UPLOAD_BYTES.
+export async function stageUpload(originalName, source) {
+  await ensureUploadsDir();
+  const name = safeUploadName(originalName);
+  const dest = resolveUploadPath(name); // validates confinement
+
+  let size = 0;
+  const counter = new Transform({
+    transform(chunk, _enc, cb) {
+      size += chunk.length;
+      if (size > MAX_UPLOAD_BYTES) {
+        cb(new Error("file_too_large"));
+        return;
+      }
+      cb(null, chunk);
+    },
+  });
+
+  try {
+    await pipeline(source, counter, createWriteStream(dest));
+  } catch (error) {
+    await unlink(dest).catch(() => {});
+    throw error;
+  }
+  return { name, size };
+}
+
 // ----- Upload (with optional scheduling via publishAt) -----
 //
 // options: { channelId, file, title, description, tags, publishAt }
 // `file` is a bare file name staged inside the uploads directory (see above).
 // If publishAt (ISO 8601, future) is given, the video is uploaded as private
 // and YouTube flips it to public automatically at that time.
+const PRIVACY_STATUSES = new Set(["public", "unlisted", "private"]);
+
 export async function uploadVideo({
   channelId,
   file,
@@ -238,6 +293,7 @@ export async function uploadVideo({
   description = "",
   tags = [],
   publishAt,
+  privacyStatus = "private",
 }) {
   const filePath = resolveUploadPath(file);
   try {
@@ -249,9 +305,15 @@ export async function uploadVideo({
   const auth = await clientForChannel(channelId);
   const youtube = google.youtube({ version: "v3", auth });
 
+  // A scheduled video MUST start private; YouTube flips it public at publishAt.
+  // Otherwise honor the chosen privacy (defaulting to private if unrecognized).
   const status = publishAt
     ? { privacyStatus: "private", publishAt }
-    : { privacyStatus: "private" };
+    : {
+        privacyStatus: PRIVACY_STATUSES.has(privacyStatus)
+          ? privacyStatus
+          : "private",
+      };
 
   const response = await youtube.videos.insert({
     part: ["snippet", "status"],

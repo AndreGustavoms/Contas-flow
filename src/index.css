@@ -1675,20 +1675,18 @@ td {
   /* Transparente com um leve veu + blur medio para boa legibilidade. */
   background: var(--navbar-glass, transparent);
   border-color: color-mix(in srgb, var(--border) 50%, transparent);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
-  backdrop-filter: blur(14px) saturate(150%);
-  box-shadow:
-    0 18px 50px -28px var(--accent-glow),
-    inset 0 1px 0 var(--inset-light);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  box-shadow: inset 0 1px 0 var(--inset-light);
 }
 
-/* Per-theme glass tints kept subtle so the navbar reads as near-transparent. */
+/* Quase sólida pra o conteúdo não vazar atrás ao rolar. */
 .theme-dark .app-navbar {
-  --navbar-glass: rgba(7, 10, 18, 0.08);
+  --navbar-glass: rgba(7, 10, 18, 0.95);
 }
 
 .theme-white .app-navbar {
-  --navbar-glass: rgba(248, 250, 253, 0.14);
+  --navbar-glass: rgba(248, 250, 253, 0.95);
 }
 
 .app-panel {
@@ -2248,9 +2246,19 @@ td {
    ========================================================================= */
 
 /* Navbar do vault: mesmo glassmorphism da tela de login */
+.vault-app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+}
+
 .vault-navbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  /* Recua pela largura da scrollbar do conteúdo pra não cobri-la. */
+  right: var(--content-scrollbar-width, 0px);
   z-index: 40;
   display: flex;
   align-items: center;
@@ -2262,13 +2270,26 @@ td {
     max(var(--page-padding-x), env(safe-area-inset-right, 0px))
     var(--header-padding-y)
     max(var(--page-padding-x), env(safe-area-inset-left, 0px));
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  background: var(--panel);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  backdrop-filter: blur(20px) saturate(160%);
-  box-shadow:
-    0 1px 0 var(--inset-light),
-    0 8px 32px -16px rgba(0, 0, 0, 0.18);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  border-bottom: 1px solid transparent;
+}
+
+/* Mais transparente e sem blur — não distorce o conteúdo atrás. */
+.theme-dark .vault-navbar {
+  background: rgba(8, 13, 26, 0.35);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.theme-white .vault-navbar {
+  background: rgba(248, 250, 253, 0.35);
+  border-bottom-color: rgba(15, 23, 42, 0.08);
+}
+
+.vault-brand img {
+  border: 1px solid var(--border);
+  background: var(--field);
 }
 
 .vault-navbar-actions {
@@ -2280,6 +2301,10 @@ td {
   width: 100%;
   min-width: 0;
   max-width: 100%;
+  flex: 1 1 100%;
+  min-height: 0;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 /* Sidebar: glass limpo sem glow colorido */
@@ -2287,10 +2312,14 @@ td {
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  background: color-mix(in srgb, var(--sidebar) 80%, transparent);
-  border-right: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  backdrop-filter: blur(20px) saturate(140%);
+  min-height: 0;
+  padding-top: calc(var(--header-min-height) + var(--card-gap));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: color-mix(in srgb, var(--page-bg) 88%, var(--sidebar));
+  border-right: 1px solid var(--border);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .vault-sidebar-actions {
@@ -2298,9 +2327,42 @@ td {
   max-width: 100%;
 }
 
+@media (min-width: 1024px) {
+  .vault-sidebar {
+    position: static !important;
+    top: auto !important;
+    /* Começa fisicamente abaixo da navbar fixa (margin, não padding — padding
+       é sobrescrito pelo Tailwind e a navbar acaba cobrindo o topo). */
+    margin-top: var(--header-min-height);
+    height: calc(100dvh - var(--header-min-height)) !important;
+    max-height: calc(100dvh - var(--header-min-height));
+    padding-top: var(--card-gap) !important;
+  }
+
+  .vault-content {
+    padding-top: 0;
+  }
+}
+
 .vault-content {
   width: 100%;
   min-width: 0;
+  min-height: 0;
+  padding-top: var(--header-min-height);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+/* Desktop: o scroller (e a scrollbar) começam ABAIXO da navbar — usa margin
+   em vez de padding, senão a barra sobe atrás da navbar fixa. Fica depois da
+   regra base de propósito pra vencer a ordem de cascata. */
+@media (min-width: 1024px) {
+  .vault-content {
+    padding-top: 0;
+    margin-top: var(--header-min-height);
+    height: calc(100dvh - var(--header-min-height));
+  }
 }
 
 .vault-content-header {
@@ -2326,19 +2388,41 @@ td {
   max-width: 100%;
 }
 
+.vault-section-rule {
+  height: 1px;
+  width: 100%;
+  margin-top: 1rem;
+  background: linear-gradient(
+    90deg,
+    var(--border),
+    color-mix(in srgb, var(--border) 55%, transparent),
+    transparent
+  );
+}
+
+.account-row-card {
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.account-row-card:last-child {
+  border-bottom: 0;
+}
+
+.account-row-card::before {
+  background: none;
+}
+
 /* Card principal do vault — painel neutro com sombra sutil */
 .vault-card {
   width: 100%;
   max-width: 100%;
-  background: var(--panel);
-  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  border-radius: var(--radius-card);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
-  backdrop-filter: blur(24px) saturate(150%);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--inset-light) 50%, transparent) inset,
-    0 8px 24px -8px rgba(0, 0, 0, 0.25);
-  overflow: hidden;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  overflow: visible;
 }
 
 /* Botão primário do vault — branco/cinza escuro, sem cor de marca */
@@ -2349,17 +2433,15 @@ td {
   gap: 0.5em;
   padding: 0 1.25rem;
   min-height: var(--button-min-height);
-  border-radius: var(--radius-button);
-  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
-  background: var(--surface-soft);
-  color: var(--text);
+  border-radius: 6px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent);
+  color: var(--accent-foreground);
   font-size: 0.875rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow:
-    inset 0 1px 0 var(--inset-light),
-    0 4px 12px -4px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease,
@@ -2367,11 +2449,9 @@ td {
 }
 
 .vault-btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  background: var(--field-hover);
-  box-shadow:
-    inset 0 1px 0 var(--inset-light),
-    0 8px 20px -6px rgba(0, 0, 0, 0.28);
+  transform: translateY(-1px);
+  background: var(--accent-hover);
+  box-shadow: none;
 }
 
 .vault-btn-primary:active {
@@ -2392,8 +2472,8 @@ td {
   gap: 0.4rem;
   padding: 0 0.875rem;
   min-width: var(--tap-target);
-  min-height: var(--button-min-height);
-  border-radius: 0.625rem;
+  min-height: 38px;
+  border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
@@ -2401,6 +2481,32 @@ td {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.vault-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  min-height: 40px;
+  padding: 0 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--field);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.vault-btn-secondary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--accent-border);
+  background: var(--field-hover);
 }
 
 .vault-nav-btn:hover {
@@ -2538,6 +2644,12 @@ td {
   overflow-y: auto;
 }
 
+/* Separador entre os grupos de dados de cada aba (ex.: Alterar senha / 2FA). */
+.account-settings-content section + section {
+  border-top: 1px solid color-mix(in srgb, var(--border), var(--text) 28%);
+  padding-top: 1.5rem;
+}
+
 .menu-popover {
   max-width: calc(100vw - 32px);
   max-height: var(--menu-max-height);
@@ -2626,7 +2738,7 @@ td {
   }
 
   .vault-navbar {
-    position: sticky;
+    position: fixed;
     flex-wrap: nowrap;
   }
 
@@ -2642,7 +2754,7 @@ td {
 
   .vault-content {
     max-width: 100%;
-    padding: var(--page-padding-y)
+    padding: var(--header-min-height)
       max(var(--page-padding-x), env(safe-area-inset-right, 0px))
       calc(var(--page-padding-y) + env(safe-area-inset-bottom, 0px))
       max(var(--page-padding-x), env(safe-area-inset-left, 0px));
@@ -2650,7 +2762,8 @@ td {
 
   .vault-sidebar {
     gap: var(--layout-gap);
-    padding-block: var(--card-gap);
+    padding-block: calc(var(--header-min-height) + var(--card-gap))
+      var(--card-gap);
     padding-inline: max(var(--page-padding-x), env(safe-area-inset-left, 0px))
       max(var(--page-padding-x), env(safe-area-inset-right, 0px));
   }
@@ -2679,8 +2792,7 @@ td {
     padding: var(--card-gap);
   }
 
-  .vault-menu-row,
-  .status-tabs {
+  .vault-menu-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--element-gap);
@@ -2690,8 +2802,7 @@ td {
     padding-inline: 0;
   }
 
-  .vault-menu-row > *,
-  .status-tabs > * {
+  .vault-menu-row > * {
     width: 100%;
     min-width: 0;
     justify-content: space-between;
@@ -2754,8 +2865,7 @@ td {
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
-  .vault-menu-row,
-  .status-tabs {
+  .vault-menu-row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--element-gap);
@@ -2765,8 +2875,7 @@ td {
     padding-inline: 0;
   }
 
-  .vault-menu-row > *,
-  .status-tabs > * {
+  .vault-menu-row > * {
     width: 100%;
     min-width: 0;
     justify-content: space-between;
@@ -2784,8 +2893,7 @@ td {
   }
 
   /* Blur mais leve em telas pequenas: backdrop-filter alto é caro em GPU
-     mobile e custa scroll fps. */
-  .vault-navbar,
+     mobile e custa scroll fps. Navbar fica de fora pra não distorcer o fundo. */
   .vault-sidebar,
   .vault-card {
     -webkit-backdrop-filter: blur(10px) saturate(140%);

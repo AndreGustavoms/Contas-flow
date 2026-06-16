@@ -43,6 +43,7 @@ import {
   regenerateRecoveryCodes,
   resetSuperadminPasswordFromEnv,
   resetTwoFactor,
+  setAvatarUrl,
   setEmail,
   setFullName,
   setPassword,
@@ -456,6 +457,22 @@ async function ensureStorage() {
 
 function asString(value) {
   return typeof value === "string" ? value : "";
+}
+
+function isValidAvatarUrl(value) {
+  if (value === null) return true;
+  if (typeof value !== "string") return false;
+  if (value.length > 750_000) return false;
+  if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(value)) {
+    return true;
+  }
+  if (value.length > 1000) return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function normalizeRecord(input = {}, existing = {}) {
@@ -1371,6 +1388,9 @@ async function handleApi(request, response, url, user, session) {
       username: user.username,
       fullName: full?.fullName ?? null,
       email: user.email ?? null,
+      avatarUrl: full?.avatarRemoved
+        ? null
+        : (full?.avatarUrl ?? full?.google?.picture ?? full?.github?.avatar ?? null),
       role: user.role,
       createdAt: full?.createdAt ?? null,
       linkedProviders: {
@@ -1384,13 +1404,26 @@ async function handleApi(request, response, url, user, session) {
   // Update own full name (no reauth — not security-sensitive).
   if (url.pathname === "/api/account/profile" && request.method === "PUT") {
     const body = await readBody(request);
-    const fullName = asString(body.fullName).trim() || null;
-    if (fullName && fullName.length > 120) {
-      badRequest(response, "fullname_too_long");
-      return;
+    let fullName;
+    if (Object.hasOwn(body, "fullName")) {
+      fullName = asString(body.fullName).trim() || null;
+      if (fullName && fullName.length > 120) {
+        badRequest(response, "fullname_too_long");
+        return;
+      }
+      await setFullName(storageDir, user.id, fullName);
     }
-    await setFullName(storageDir, user.id, fullName);
-    sendJson(response, 200, { ok: true, fullName });
+
+    let avatarUrl;
+    if (Object.hasOwn(body, "avatarUrl")) {
+      avatarUrl = asString(body.avatarUrl).trim() || null;
+      if (!isValidAvatarUrl(avatarUrl)) {
+        badRequest(response, "invalid_avatar");
+        return;
+      }
+      await setAvatarUrl(storageDir, user.id, avatarUrl);
+    }
+    sendJson(response, 200, { ok: true, fullName, avatarUrl });
     return;
   }
 

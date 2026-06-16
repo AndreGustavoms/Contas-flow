@@ -180,10 +180,6 @@ const platformMeta: Record<string, PlatformMeta> = {
     color: "#3B82F6",
     icon: Mail,
   },
-  Estrela: {
-    color: "#FBBF24",
-    icon: SharpStarIcon,
-  },
 };
 
 function createId() {
@@ -271,7 +267,7 @@ function isAccountRecord(value: unknown): value is AccountRecord {
 
 function toDraft(account: AccountRecord): AccountDraft {
   return {
-    platform: normalizeLegacyOption(account.platform, "Estrela"),
+    platform: normalizeLegacyOption(account.platform, platformOptions[0]),
     role: normalizeLegacyOption(account.role, roleOptions[0]),
     owner: account.owner,
     label: account.label,
@@ -291,7 +287,7 @@ function toDraft(account: AccountRecord): AccountDraft {
 function normalizeDraft(draft: AccountDraft): AccountDraft {
   return {
     ...draft,
-    platform: normalizeLegacyOption(draft.platform, "Estrela"),
+    platform: normalizeLegacyOption(draft.platform, platformOptions[0]),
     role: normalizeLegacyOption(draft.role, roleOptions[0]),
     owner: draft.owner.trim() || "Andre",
     label: draft.label.trim(),
@@ -312,8 +308,8 @@ function normalizeLegacyOption(value: string, fallback: string) {
     return fallback;
   }
 
-  if (["Outra", "Outro", "Outros"].includes(normalized)) {
-    return "Estrela";
+  if (["Outra", "Outro"].includes(normalized)) {
+    return fallback;
   }
 
   return normalized;
@@ -322,7 +318,7 @@ function normalizeLegacyOption(value: string, fallback: string) {
 function migrateAccount(account: AccountRecord): AccountRecord {
   return {
     ...account,
-    platform: normalizeLegacyOption(account.platform, "Estrela"),
+    platform: normalizeLegacyOption(account.platform, platformOptions[0]),
     role: normalizeLegacyOption(account.role, roleOptions[0]),
   };
 }
@@ -396,6 +392,49 @@ export function AccountVault({
   // Re-auth modal state. When a critical action gets 403 reauth_required, we open
   // this modal; the resolver is fulfilled once the user re-authenticates so the
   // pending action can retry. `reauthError` shows a wrong-password message.
+  // Mede a largura da scrollbar do conteúdo pra navbar fixa não cobri-la.
+  const contentRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const update = () => {
+      const width = el.offsetWidth - el.clientWidth;
+      el.style.setProperty("--content-scrollbar-width", `${width}px`);
+      document.documentElement.style.setProperty(
+        "--content-scrollbar-width",
+        `${width}px`,
+      );
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    // Observa o filho interno: a scrollbar aparece quando ele cresce, mas isso
+    // não muda a border-box do scroller (o ResizeObserver dele não dispararia).
+    if (el.firstElementChild) observer.observe(el.firstElementChild);
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+  // Perfil (nome + foto) pra exibir na navbar à esquerda.
+  const [navProfile, setNavProfile] = useState<{
+    fullName: string | null;
+    avatarUrl: string | null;
+  } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    requestJson<{ fullName: string | null; avatarUrl: string | null }>(
+      "/api/account/profile",
+    )
+      .then((p) => {
+        if (alive) setNavProfile({ fullName: p.fullName, avatarUrl: p.avatarUrl });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   const reauthResolverRef = useRef<((ok: boolean) => void) | null>(null);
   // The single in-flight reauth prompt, shared by concurrent callers so a second
   // request doesn't orphan the first's resolver.
@@ -427,8 +466,11 @@ export function AccountVault({
     value: string;
   } | null>(null);
   const [confirmDeleteGroup, setConfirmDeleteGroup] = useState(false);
+  const [configurationOpen, setConfigurationOpen] = useState(false);
+  const [dataToolsOpen, setDataToolsOpen] = useState(false);
   const [usersDialogOpen, setUsersDialogOpen] = useState(false);
   const [accountSettingsOpen, setAccountSettingsOpen] = useState(false);
+  const configurationMenuRef = useRef<HTMLDivElement>(null);
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
   const [wizardStep, setWizardStep] = useState(0);
   const [quickViewAccount, setQuickViewAccount] =
@@ -679,27 +721,20 @@ export function AccountVault({
     }
   }
 
-  const accountPlatforms = useMemo(
-    () =>
-      alphabetize(
-        Array.from(new Set(accounts.map((account) => account.platform))),
-      ),
-    [accounts],
-  );
-
   const accountRoles = useMemo(
     () =>
-      alphabetize(Array.from(new Set(accounts.map((account) => account.role)))),
+      alphabetize(
+        Array.from(
+          new Set([
+            ...roleOptions,
+            ...accounts.map((account) => account.role),
+          ]),
+        ),
+      ),
     [accounts],
   );
 
-  const sidebarPlatforms = useMemo(
-    () =>
-      alphabetize(
-        Array.from(new Set([...platformOptions, ...accountPlatforms])),
-      ),
-    [accountPlatforms],
-  );
+  const sidebarPlatforms = platformOptions;
 
   const platformCounts = useMemo(
     () =>
@@ -709,6 +744,78 @@ export function AccountVault({
       }, {}),
     [accounts],
   );
+
+  const configurationItems = useMemo(
+    () =>
+      [
+        {
+          href: undefined,
+          icon: UserCog,
+          label: t("vault.account"),
+          onClick: () => {
+            setConfigurationOpen(false);
+            setAccountSettingsOpen(true);
+          },
+          visible: true,
+        },
+        {
+          href: undefined,
+          icon: Users,
+          label: t("vault.team"),
+          onClick: () => {
+            setConfigurationOpen(false);
+            setUsersDialogOpen(true);
+          },
+          visible: isAdmin,
+        },
+        {
+          href: undefined,
+          icon: Download,
+          label: t("vault.data_tools"),
+          onClick: () => {
+            setConfigurationOpen(false);
+            setDataToolsOpen(true);
+          },
+          visible: true,
+        },
+        {
+          href: "/admin",
+          icon: ShieldAlert,
+          label: t("vault.panel"),
+          onClick: undefined,
+          visible: isSuperadmin,
+        },
+      ]
+        .filter((item) => item.visible)
+        .sort((a, b) => textCollator.compare(a.label, b.label)),
+    [isAdmin, isSuperadmin, t],
+  );
+
+  useEffect(() => {
+    if (!configurationOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!configurationMenuRef.current?.contains(event.target as Node)) {
+        setConfigurationOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setConfigurationOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [configurationOpen]);
 
   const filteredAccounts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -1160,7 +1267,7 @@ export function AccountVault({
     <main
       className={cn(
         `theme-${theme}`,
-        "app-shell tech-grid min-h-[100dvh] overflow-x-clip",
+        "app-shell vault-app-shell tech-grid h-[100dvh] overflow-hidden",
       )}
     >
       <input
@@ -1172,53 +1279,40 @@ export function AccountVault({
       />
 
       <nav className="vault-navbar">
-        <div className="flex min-w-0 items-center gap-3">
-          <BrandLogo />
-          {/* O nome some abaixo de 420px para a navbar caber em uma linha. */}
-          <div className="hidden min-w-0 min-[420px]:block">
-            <p className="truncate font-mono text-sm font-semibold tracking-wide text-[color:var(--text)]">
-              Contas_exe
-            </p>
-          </div>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[color:var(--accent-border)] bg-[color:var(--accent)] text-xs font-bold text-white">
+            {navProfile?.avatarUrl ? (
+              <img
+                alt=""
+                className="h-full w-full object-cover"
+                src={navProfile.avatarUrl}
+              />
+            ) : (
+              (navProfile?.fullName ?? user?.username ?? "?")
+                .trim()
+                .charAt(0)
+                .toUpperCase()
+            )}
+          </span>
+          <p className="max-w-[42vw] truncate text-sm font-semibold tracking-wide text-[color:var(--text)] sm:max-w-xs">
+            {navProfile?.fullName ?? user?.username ?? "Usuario"}
+          </p>
         </div>
 
         <div className="vault-navbar-actions ml-auto flex flex-wrap items-center justify-end gap-2">
-          <button
-            aria-label={t("vault.export")}
-            className="vault-nav-btn"
-            title={t("vault.export")}
-            type="button"
-            onClick={exportBackup}
-          >
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">{t("vault.export")}</span>
-          </button>
-          <button
-            aria-label={t("vault.import")}
-            className="vault-nav-btn"
-            title={t("vault.import")}
-            type="button"
-            onClick={() => importInputRef.current?.click()}
-          >
-            <Upload className="h-4 w-4" />
-            <span className="hidden sm:inline">{t("vault.import")}</span>
-          </button>
-
-          <span className="mx-1 hidden h-7 w-px bg-[color:var(--border)] lg:block" />
-
           <ThemeToggle value={theme} onChange={onThemeChange} />
         </div>
       </nav>
 
-      <div className="vault-shell-grid grid grid-cols-1 lg:grid-cols-[228px_minmax(0,1fr)]">
+      <div className="vault-shell-grid grid grid-cols-1 lg:grid-cols-[264px_minmax(0,1fr)]">
         {/*
           Sidebar: coluna fixa a partir de lg (1024px). Abaixo disso vira um
           cabeçalho compacto: grupo em cima, plataformas em fileira horizontal
           rolável e ações (equipe/conta/sair) lado a lado — em vez de uma
           pilha de ~600px empurrando o conteúdo para fora da primeira dobra.
         */}
-        <aside className="vault-sidebar relative flex flex-col gap-4 border-b px-4 py-4 lg:sticky lg:top-[73px] lg:h-[calc(100dvh-73px)] lg:gap-5 lg:overflow-y-auto lg:border-b-0 lg:py-5 lg:pl-6 lg:pr-4">
-          <SidebarSection label={t("vault.group_section")}>
+        <aside className="vault-sidebar relative flex flex-col gap-5 overflow-x-hidden border-b px-4 py-4 lg:overflow-y-auto lg:border-b-0 lg:pb-7 lg:pl-5 lg:pr-5">
+          <SidebarSection>
             <GroupSwitcher
               activeGroup={activeGroup}
               groups={groups}
@@ -1254,77 +1348,75 @@ export function AccountVault({
           </SidebarSection>
 
           <div className="vault-sidebar-actions mt-1 flex gap-2 lg:mt-auto lg:flex-col lg:gap-1.5 lg:pt-4">
-            {isAdmin ? (
+            <div className="relative w-full" ref={configurationMenuRef}>
               <button
-                className="group/team flex h-11 w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-sm font-semibold text-[color:var(--muted)] transition-all duration-300 hover:translate-x-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
+                aria-expanded={configurationOpen}
+                aria-haspopup="menu"
+                className="group/config flex h-11 w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-sm font-semibold text-[color:var(--muted)] transition-colors duration-200 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
                 type="button"
-                onClick={() => setUsersDialogOpen(true)}
+                onClick={() => setConfigurationOpen((current) => !current)}
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] text-[color:var(--accent)] transition duration-300 group-hover/team:bg-[color:var(--field-hover)]">
-                  <Users className="h-5 w-5" />
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] text-[color:var(--accent)] transition duration-300 group-hover/config:bg-[color:var(--field-hover)]">
+                  <Settings className="h-5 w-5" />
                 </span>
-                <span className="truncate">{t("vault.team")}</span>
+                <span className="truncate">{t("vault.configuration")}</span>
               </button>
-            ) : null}
 
-            {isSuperadmin ? (
-              <a
-                className="group/admin flex h-11 w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-sm font-semibold text-[color:var(--muted)] transition-all duration-300 hover:translate-x-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
-                href="/admin"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] text-[color:var(--accent)] transition duration-300 group-hover/admin:bg-[color:var(--field-hover)]">
-                  <ShieldAlert className="h-5 w-5" />
-                </span>
-                <span className="truncate">Painel</span>
-              </a>
-            ) : null}
+              {configurationOpen ? (
+                <div
+                  className="menu-popover animate-pop-in absolute bottom-[calc(100%+8px)] left-0 right-0 z-50 w-full max-w-full overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--panel-strong)] p-2 shadow-[0_24px_70px_rgba(0,0,0,0.38)] backdrop-blur-2xl lg:bottom-[calc(100%+10px)]"
+                  role="menu"
+                >
+                  <p className="px-3 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
+                    {t("vault.configuration")}
+                  </p>
+                  <div className="grid gap-1">
+                    {configurationItems.map((item) =>
+                      item.href ? (
+                        <a
+                          className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-[color:var(--text)] transition duration-150 hover:bg-[color:var(--surface-soft)]"
+                          href={item.href}
+                          key={item.label}
+                          role="menuitem"
+                          onClick={() => setConfigurationOpen(false)}
+                        >
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--field)] text-[color:var(--accent)]">
+                            <item.icon className="h-4 w-4" />
+                          </span>
+                          <span className="truncate">{item.label}</span>
+                        </a>
+                      ) : (
+                        <button
+                          className="flex h-11 items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold text-[color:var(--text)] transition duration-150 hover:bg-[color:var(--surface-soft)]"
+                          key={item.label}
+                          role="menuitem"
+                          type="button"
+                          onClick={item.onClick}
+                        >
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--field)] text-[color:var(--accent)]">
+                            <item.icon className="h-4 w-4" />
+                          </span>
+                          <span className="truncate">{item.label}</span>
+                        </button>
+                      ),
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
 
-            <button
-              className="group/acct flex h-11 w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-sm font-semibold text-[color:var(--muted)] transition-all duration-300 hover:translate-x-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
-              type="button"
-              onClick={() => setAccountSettingsOpen(true)}
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] text-[color:var(--accent)] transition duration-300 group-hover/acct:bg-[color:var(--field-hover)]">
-                <UserCog className="h-5 w-5" />
-              </span>
-              <span className="truncate">{t("vault.my_account")}</span>
-            </button>
-
-            {onLock ? (
-              <button
-                className="group/exit flex h-11 w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent px-2.5 text-left text-sm font-semibold text-[color:var(--muted)] transition-all duration-300 hover:translate-x-0.5 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-200"
-                type="button"
-                onClick={onLock}
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/15 text-red-300 transition duration-300 group-hover/exit:bg-red-500/25 group-hover/exit:text-red-200">
-                  <ExitIcon className="h-5 w-5" />
-                </span>
-                <span className="truncate">{t("vault.logout")}</span>
-              </button>
-            ) : null}
           </div>
         </aside>
 
-        <section className="vault-content min-w-0 px-4 py-6 sm:px-6 lg:px-8">
-          <header className="vault-content-header flex flex-col gap-2">
-            <div className="accent-pill inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium">
-              <RadarTowerIcon className="h-4 w-4" />
-              {t("vault.badge")}
-              <span className="radar-dot ml-0.5 h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
-            </div>
-          </header>
-
-          <StatusTabs
-            tabs={statusTabs}
-            value={statusFilter}
-            onChange={setStatusFilter}
-          />
-
+        <section
+          ref={contentRef}
+          className="vault-content min-w-0 px-0 pb-6 pt-0 lg:pb-8"
+        >
           <div
-            className="vault-card animate-rise mt-6"
+            className="vault-card animate-rise"
             style={{ animationDelay: "60ms" }}
           >
-            <div className="vault-toolbar flex flex-col gap-3 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="vault-toolbar flex flex-col gap-3 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
               <div className="shrink-0">
                 <p className="text-base font-semibold text-[color:var(--text)]">
                   {t("vault.records")}
@@ -1360,7 +1452,7 @@ export function AccountVault({
                   onChange={setRoleFilter}
                 />
                 <button
-                  className="vault-btn-primary"
+                  className="vault-btn-secondary"
                   type="button"
                   onClick={openCreateModal}
                 >
@@ -1368,6 +1460,14 @@ export function AccountVault({
                   {t("vault.new_account")}
                 </button>
               </div>
+            </div>
+
+            <div className="border-t border-[color:var(--border)] px-4 py-3 sm:px-5">
+              <StatusTabs
+                tabs={statusTabs}
+                value={statusFilter}
+                onChange={setStatusFilter}
+              />
             </div>
 
             <div className="border-t border-[color:var(--border)]">
@@ -1495,9 +1595,22 @@ export function AccountVault({
         />
       ) : null}
 
+      {dataToolsOpen ? (
+        <DataToolsModal
+          activeGroupName={activeGroup?.name ?? ""}
+          onClose={() => setDataToolsOpen(false)}
+          onExport={exportBackup}
+          onImport={() => {
+            setDataToolsOpen(false);
+            importInputRef.current?.click();
+          }}
+        />
+      ) : null}
+
       {accountSettingsOpen ? (
         <AccountSettings
           onClose={() => setAccountSettingsOpen(false)}
+          onLogout={onLock}
           withReauth={withReauth}
           theme={theme}
           onThemeChange={onThemeChange}
@@ -1527,7 +1640,7 @@ type ModalShellProps = {
   onClose: () => void;
   // "sm" for short forms, "md"/"lg" for dialogs with a sentence or two of
   // body text so it has room to breathe instead of wrapping awkwardly.
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   title: string;
 };
 
@@ -1578,7 +1691,9 @@ function ModalShell({
         aria-modal="true"
         className={cn(
           "modal-panel app-panel animate-pop-in relative m-auto w-full overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6",
-          size === "lg"
+          size === "xl"
+            ? "modal-panel-xl max-w-5xl"
+            : size === "lg"
             ? "modal-panel-lg max-w-lg"
             : size === "md"
               ? "modal-panel-md max-w-md"
@@ -1604,6 +1719,97 @@ function ModalShell({
         ) : null}
         {children}
       </section>
+    </div>
+  );
+}
+
+function DataToolsModal({
+  activeGroupName,
+  onClose,
+  onExport,
+  onImport,
+}: {
+  activeGroupName: string;
+  onClose: () => void;
+  onExport: () => void;
+  onImport: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <ModalShell onClose={onClose} size="md" title={t("vault.data_tools")}>
+      <p className="mt-1 text-sm leading-relaxed text-[color:var(--muted)]">
+        {t("vault.data_tools_description")}
+      </p>
+
+      {activeGroupName ? (
+        <div className="mt-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-soft)] px-3 py-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
+            {t("vault.group_section")}
+          </p>
+          <p className="mt-1 truncate text-sm font-semibold text-[color:var(--text)]">
+            {activeGroupName}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="mt-5 grid gap-3">
+        <DataToolAction
+          icon={Download}
+          title={t("vault.data_tools_export_title")}
+          description={t("vault.data_tools_export_description")}
+          actionLabel={t("vault.export")}
+          onClick={onExport}
+        />
+        <DataToolAction
+          icon={Upload}
+          title={t("vault.data_tools_import_title")}
+          description={t("vault.data_tools_import_description")}
+          actionLabel={t("vault.import")}
+          onClick={onImport}
+        />
+      </div>
+    </ModalShell>
+  );
+}
+
+function DataToolAction({
+  actionLabel,
+  description,
+  icon: Icon,
+  onClick,
+  title,
+}: {
+  actionLabel: string;
+  description: string;
+  icon: LucideIcon;
+  onClick: () => void;
+  title: string;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4 min-[430px]:flex-row min-[430px]:items-center min-[430px]:justify-between">
+      <div className="flex min-w-0 gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-soft)] text-[color:var(--accent)]">
+          <Icon className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-[color:var(--text)]">
+            {title}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-[color:var(--muted)]">
+            {description}
+          </p>
+        </div>
+      </div>
+      <Button
+        className="h-9 w-full shrink-0 min-[430px]:w-auto"
+        type="button"
+        variant="outline"
+        onClick={onClick}
+      >
+        <Icon className="h-4 w-4" />
+        {actionLabel}
+      </Button>
     </div>
   );
 }
@@ -1944,6 +2150,7 @@ function WizardStepContent({
           autoFocus
           value={draft.label}
           placeholder={t("vault.wizard_name_placeholder")}
+          className="placeholder:text-[0.8rem] placeholder:font-normal placeholder:italic placeholder:text-[color:color-mix(in_srgb,var(--muted-soft)_45%,transparent)]"
           onChange={(event) => onUpdate("label", event.target.value)}
         />
       </Field>
@@ -2177,41 +2384,42 @@ type StatusTabsProps = {
 
 function StatusTabs({ onChange, tabs, value }: StatusTabsProps) {
   return (
-    <nav
-      aria-label="Status"
-      className="status-tabs mt-5 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-[color:var(--border)] bg-[color:var(--nav-bg)] p-1 shadow-[inset_0_1px_0_var(--inset-light)] backdrop-blur-xl"
-    >
-      {tabs.map((tab) => {
-        const active = tab.value === value;
+    <div className="flex min-w-0 justify-start">
+      <nav
+        aria-label="Status"
+        className="status-tabs inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-[color:var(--border)] bg-[color:var(--field)] p-1 shadow-[inset_0_1px_0_var(--inset-light)] backdrop-blur-xl"
+      >
+        {tabs.map((tab) => {
+          const active = tab.value === value;
 
-        return (
-          <button
-            className={cn(
-              // h-10 no mobile (alvo de toque); compacta para h-8 no desktop.
-              "flex h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-xs font-semibold transition duration-300 sm:h-8",
-              active
-                ? "bg-[color:var(--accent-surface)] text-[color:var(--accent-soft)] shadow-[0_0_24px_var(--accent-glow)]"
-                : "text-[color:var(--muted)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]",
-            )}
-            key={tab.value}
-            type="button"
-            onClick={() => onChange(tab.value)}
-          >
-            <span>{tab.label}</span>
-            <span
+          return (
+            <button
               className={cn(
-                "rounded-full px-1.5 py-0.5 font-mono text-[10px]",
+                "flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-3 text-xs font-semibold transition-colors duration-200 sm:h-8 sm:px-3.5",
                 active
-                  ? "bg-[color:var(--accent-surface-strong)] text-[color:var(--accent-soft)]"
-                  : "bg-[color:var(--surface-soft)]",
+                  ? "bg-[color:var(--surface-soft)] text-[color:var(--text)]"
+                  : "text-[color:var(--muted)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]",
               )}
+              key={tab.value}
+              type="button"
+              onClick={() => onChange(tab.value)}
             >
-              {tab.count}
-            </span>
-          </button>
-        );
-      })}
-    </nav>
+              <span>{tab.label}</span>
+              <span
+                className={cn(
+                  "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 font-mono text-[10px] leading-none",
+                  active
+                    ? "bg-[color:var(--accent-surface-strong)] text-[color:var(--accent-soft)]"
+                    : "bg-[color:var(--surface-soft)] text-[color:var(--muted)]",
+                )}
+              >
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+    </div>
   );
 }
 
@@ -2259,14 +2467,14 @@ function GroupSwitcher({
         <button
           aria-expanded={open === "list"}
           aria-haspopup="listbox"
-          className="flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--accent-surface)] px-2.5 text-left text-sm font-bold text-[color:var(--accent-soft)] shadow-[inset_0_0_0_1px_var(--accent-border),0_8px_20px_-12px_var(--accent-glow)] transition duration-300 hover:bg-[color:var(--accent-surface-strong)]"
+          className="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-md border border-[color:var(--border)] bg-[color:var(--field)] px-2.5 text-left text-sm font-bold text-[color:var(--text)] transition duration-200 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)]"
           type="button"
           onClick={() =>
             setOpen((current) => (current === "list" ? null : "list"))
           }
         >
           <span
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md"
             style={{
               background:
                 "linear-gradient(140deg, var(--accent), var(--accent-hover))",
@@ -2293,7 +2501,7 @@ function GroupSwitcher({
           aria-label={t("vault.manage_groups")}
           title={t("vault.manage_groups")}
           className={cn(
-            "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition duration-300",
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-md border transition duration-200",
             open === "actions"
               ? "border-[color:var(--accent-border)] bg-[color:var(--accent-surface)] text-[color:var(--accent-soft)]"
               : "border-[color:var(--border)] bg-[color:var(--surface-soft)] text-[color:var(--muted)] hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)] hover:text-[color:var(--accent-soft)]",
@@ -2313,7 +2521,7 @@ function GroupSwitcher({
       </div>
 
       {open === "list" ? (
-        <div className="menu-popover animate-pop-in absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_24px_70px_var(--accent-glow)] backdrop-blur-2xl">
+        <div className="menu-popover animate-pop-in absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-md border border-[color:var(--border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
           <div className="max-h-60 overflow-y-auto pr-1">
             {groups.map((group) => {
               const selected = group.id === activeGroup?.id;
@@ -2322,7 +2530,7 @@ function GroupSwitcher({
                 <button
                   key={group.id}
                   className={cn(
-                    "flex h-10 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm font-medium transition duration-150 sm:h-9",
+                    "flex h-10 w-full items-center justify-between gap-3 rounded-md px-3 text-left text-sm font-medium transition duration-150 sm:h-9",
                     selected
                       ? "bg-[color:var(--accent-surface)] text-[color:var(--accent-soft)]"
                       : "text-[color:var(--muted)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]",
@@ -2345,7 +2553,7 @@ function GroupSwitcher({
       ) : null}
 
       {open === "actions" ? (
-        <div className="menu-popover animate-pop-in absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_24px_70px_var(--accent-glow)] backdrop-blur-2xl">
+        <div className="menu-popover animate-pop-in absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-md border border-[color:var(--border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
           <p className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
             {t("vault.manage_groups")}
           </p>
@@ -2404,7 +2612,7 @@ function GroupMenuItem({
   return (
     <button
       className={cn(
-        "flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-sm font-medium transition duration-150 sm:h-9",
+        "flex h-10 w-full items-center gap-2.5 rounded-md px-3 text-left text-sm font-medium transition duration-150 sm:h-9",
         danger
           ? "text-red-300/90 hover:bg-red-500/10 hover:text-red-200"
           : "text-[color:var(--muted)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]",
@@ -2421,7 +2629,7 @@ function GroupMenuItem({
 }
 
 type SidebarSectionProps = {
-  label: string;
+  label?: string;
   children: ReactNode;
   // Substitui o layout padrão (lista vertical) do wrapper dos itens — usado
   // para a fileira horizontal rolável de plataformas no mobile.
@@ -2435,10 +2643,12 @@ function SidebarSection({
 }: SidebarSectionProps) {
   return (
     <div className="min-w-0">
-      <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
-        {label}
-      </p>
-      <div className={cn("mt-3", itemsClassName ?? "space-y-1")}>
+      {label ? (
+        <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
+          {label}
+        </p>
+      ) : null}
+      <div className={cn(label && "mt-3", itemsClassName ?? "space-y-1")}>
         {children}
       </div>
     </div>
@@ -2469,7 +2679,7 @@ function SidebarButton({
     // dentro da fileira horizontal rolável; em lg+ volta a ser linha cheia.
     <button
       className={cn(
-        "group relative flex h-11 w-auto shrink-0 items-center justify-start gap-2 overflow-hidden rounded-xl px-2 text-left text-sm font-semibold transition-all duration-300 ease-out lg:w-full lg:shrink lg:justify-between",
+        "group relative flex h-10 w-auto shrink-0 items-center justify-start gap-2 overflow-hidden rounded-md px-2 text-left text-sm font-semibold transition-all duration-200 ease-out lg:w-full lg:shrink lg:justify-between",
         active
           ? "bg-[color:var(--accent-surface)] text-[color:var(--accent-soft)] shadow-[inset_0_0_0_1px_var(--accent-border)]"
           : "text-[color:var(--muted)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]",
@@ -2479,13 +2689,13 @@ function SidebarButton({
     >
       <span
         className={cn(
-          "absolute left-0 top-1/2 hidden h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-[color:var(--accent)] transition-all duration-300 lg:block",
+          "absolute left-0 top-1/2 hidden h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[color:var(--accent)] transition-all duration-200 lg:block",
           active ? "opacity-100" : "opacity-0 group-hover:opacity-50",
         )}
       />
       <span className="flex min-w-0 items-center gap-2.5">
         <span
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] transition duration-300 group-hover:scale-105"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition duration-200 group-hover:scale-105"
           style={
             meta
               ? {
@@ -2569,74 +2779,9 @@ function MiniPlatformIcon({ platform }: PlatformGlyphProps) {
   );
 }
 
-// A sharp, fully-filled 5-point star (longer, pointier spikes than lucide's
-// rounded Star). Uses currentColor so it inherits the platform tint.
-function SharpStarIcon({
-  className,
-  style,
-}: {
-  className?: string;
-  style?: CSSProperties;
-}) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      style={style}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-    >
-      <path d="M12 1.6l2.78 6.94 7.47.42-5.78 4.74 1.96 7.2L12 17.9l-6.43 3.4 1.96-7.2L1.75 9.36l7.47-.42L12 1.6z" />
-    </svg>
-  );
-}
-
 // A radar/transmission tower whose dish continuously emits expanding signal
 // arcs to both sides — a real "radiating" radar. The waves animate via the
 // .radar-wave keyframes in index.css; each side has two waves offset in time.
-function RadarTowerIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {/* mast + tripod legs */}
-      <path d="M12 9v8" />
-      <path d="M12 17l-3.5 4M12 17l3.5 4M9 21h6" />
-      {/* dish */}
-      <circle cx="12" cy="7" r="2.1" />
-      {/* right-side radiating waves */}
-      <path
-        className="radar-wave"
-        d="M15.5 4.7a4 4 0 0 1 0 4.6"
-        style={{ transformOrigin: "12px 7px" }}
-      />
-      <path
-        className="radar-wave"
-        d="M17.8 3a7 7 0 0 1 0 8"
-        style={{ transformOrigin: "12px 7px", animationDelay: "0.7s" }}
-      />
-      {/* left-side radiating waves */}
-      <path
-        className="radar-wave"
-        d="M8.5 4.7a4 4 0 0 0 0 4.6"
-        style={{ transformOrigin: "12px 7px" }}
-      />
-      <path
-        className="radar-wave"
-        d="M6.2 3a7 7 0 0 0 0 8"
-        style={{ transformOrigin: "12px 7px", animationDelay: "0.7s" }}
-      />
-    </svg>
-  );
-}
-
 // A crisp "leave / log out" glyph: an open door frame on the left with an
 // arrow pointing out to the right. Clearer than a generic bracket icon.
 function ExitIcon({ className }: { className?: string }) {
@@ -2655,21 +2800,6 @@ function ExitIcon({ className }: { className?: string }) {
       <path d="M10 17l5-5-5-5" />
       <path d="M15 12H3" />
     </svg>
-  );
-}
-
-function BrandLogo() {
-  return (
-    <div className="brand-mark relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border">
-      <img
-        src="/logo-square.png"
-        alt="Contas_exe"
-        className="h-full w-full object-contain p-1"
-      />
-      <span className="status-dot absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border">
-        <span className="h-1.5 w-1.5 rounded-full" />
-      </span>
-    </div>
   );
 }
 
@@ -2852,9 +2982,9 @@ function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
   return (
     <div
       className={cn(
-        "account-row-card spotlight-card relative animate-row group grid gap-3 px-4 py-3 transition-colors duration-300 md:grid-cols-[minmax(0,1fr)_auto]",
+        "account-row-card spotlight-card relative animate-row group grid gap-3 px-4 py-3 transition-colors duration-200 md:grid-cols-[minmax(0,1fr)_auto]",
         isActive
-          ? "bg-[color:var(--accent-surface)] shadow-[inset_3px_0_0_var(--accent)]"
+          ? "bg-[color:var(--surface-soft)] shadow-[inset_3px_0_0_var(--accent)]"
           : "hover:bg-[color:var(--surface-soft)]",
       )}
       style={{ animationDelay: `${Math.min(index, 12) * 28}ms` }}
@@ -2878,7 +3008,7 @@ function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
         </div>
       </button>
 
-      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+      <div className="flex flex-wrap items-center gap-2 sm:justify-end md:pr-1">
         <Badge variant={account.status}>{statusLabel[account.status]}</Badge>
       </div>
     </div>

@@ -87,6 +87,7 @@ const AUDIT_ACTION_I18N_KEYS: Record<string, string> = {
 const AUDIT_PAGE_SIZE = 25;
 
 type UsersDialogProps = {
+  embedded?: boolean;
   // The current admin's username, so we can prevent self-deletion in the UI.
   currentUsername: string;
   onClose: () => void;
@@ -179,6 +180,7 @@ function deviceLabel(userAgent: string, t: TFn): string {
 }
 
 export function UsersDialog({
+  embedded = false,
   currentUsername,
   onClose,
   withReauth,
@@ -443,17 +445,30 @@ export function UsersDialog({
   return (
     // Wrapper rolável + m-auto: este é o modal mais alto do app; com
     // items-center o topo ficava cortado e inalcançável no mobile.
-    <div className="modal-viewport fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
-      <button
-        aria-label={t("team.close")}
-        className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
-        type="button"
-        onClick={onClose}
-      />
+    <div
+      className={cn(
+        embedded
+          ? "max-h-[68vh] overflow-y-auto overscroll-contain"
+          : "modal-viewport fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6",
+      )}
+    >
+      {!embedded ? (
+        <button
+          aria-label={t("team.close")}
+          className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
+          type="button"
+          onClick={onClose}
+        />
+      ) : null}
       <section
-        aria-modal="true"
-        className="modal-panel modal-panel-lg app-panel animate-pop-in relative m-auto w-full max-w-lg overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6"
-        role="dialog"
+        aria-modal={embedded ? undefined : true}
+        className={cn(
+          "modal-panel modal-panel-lg app-panel relative m-auto w-full overflow-hidden border p-5 backdrop-blur-2xl sm:p-6",
+          embedded
+            ? "max-w-none rounded-2xl"
+            : "max-w-lg animate-pop-in rounded-[28px]",
+        )}
+        role={embedded ? undefined : "dialog"}
       >
         <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />
 
@@ -464,14 +479,16 @@ export function UsersDialog({
               {t("team.title")}
             </h2>
           </div>
-          <Button
-            aria-label={t("team.close")}
-            size="icon"
-            variant="ghost"
-            onClick={onClose}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          {!embedded ? (
+            <Button
+              aria-label={t("team.close")}
+              size="icon"
+              variant="ghost"
+              onClick={onClose}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          ) : null}
         </div>
 
         <p className="mt-1.5 text-sm text-[color:var(--muted)]">

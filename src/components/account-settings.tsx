@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 import {
   Copy,
   Download,
@@ -10,10 +10,13 @@ import {
   LogOut,
   Mail,
   Monitor,
+  Pencil,
+  RotateCcw,
   Settings,
   ShieldCheck,
   ShieldOff,
   Trash2,
+  Upload,
   User,
   X,
 } from "lucide-react";
@@ -34,7 +37,9 @@ import i18n from "../i18n";
 type Tab = "perfil" | "segurança" | "sessões" | "preferências" | "conta";
 
 type AccountSettingsProps = {
+  embedded?: boolean;
   onClose: () => void;
+  onLogout?: () => void;
   withReauth: <T>(action: () => Promise<T>) => Promise<T>;
   theme: AppTheme;
   onThemeChange: (t: AppTheme) => void;
@@ -46,7 +51,8 @@ type Profile = {
   username: string;
   fullName: string | null;
   email: string | null;
-  role: "admin" | "member";
+  avatarUrl: string | null;
+  role: "superadmin" | "admin" | "member";
   createdAt: string | null;
   linkedProviders: { google: boolean; github: boolean };
 };
@@ -99,6 +105,51 @@ function fmtDate(iso: string): string {
   });
 }
 
+function fileToAvatarDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("invalid_avatar"));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      reject(new Error("avatar_too_large"));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("invalid_avatar"));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error("invalid_avatar"));
+      image.onload = () => {
+        const size = 256;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("invalid_avatar"));
+          return;
+        }
+
+        const scale = Math.max(size / image.width, size / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+        ctx.drawImage(
+          image,
+          (size - width) / 2,
+          (size - height) / 2,
+          width,
+          height,
+        );
+        resolve(canvas.toDataURL("image/jpeg", 0.86));
+      };
+      image.src = String(reader.result ?? "");
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function parseBrowser(ua: string, t: TFn): string {
   if (!ua) return t("account.unknown_device");
   if (/mobile/i.test(ua)) {
@@ -122,7 +173,9 @@ const NAV: { tab: Tab; icon: typeof User; labelKey: string }[] = [
 ];
 
 export function AccountSettings({
+  embedded = false,
   onClose,
+  onLogout,
   withReauth,
   theme,
   onThemeChange,
@@ -139,27 +192,26 @@ export function AccountSettings({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        aria-label={t("account.close")}
-        className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
-        type="button"
-        onClick={onClose}
-      />
-      <section
-        aria-modal="true"
-        role="dialog"
-        className="account-settings-panel app-panel animate-pop-in relative flex w-full overflow-hidden rounded-[28px] border backdrop-blur-2xl"
-      >
-        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />
+  const content = (
+    <section
+      aria-modal={embedded ? undefined : true}
+      role={embedded ? undefined : "dialog"}
+      className={cn(
+        "account-settings-panel app-panel relative flex w-full overflow-hidden border backdrop-blur-2xl",
+        embedded
+          ? "min-h-[520px] rounded-2xl"
+          : "animate-pop-in rounded-[28px]",
+      )}
+    >
+      <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />
 
-        {/* Sidebar */}
-        <nav className="account-settings-nav flex w-52 shrink-0 flex-col border-r border-[color:var(--border)] p-4 pt-5">
-          <div className="mb-5 flex items-center justify-between">
-            <span className="text-sm font-semibold text-[color:var(--text)]">
-              {t("account.title")}
-            </span>
+      {/* Sidebar */}
+      <nav className="account-settings-nav flex w-52 shrink-0 flex-col border-r border-[color:var(--border)] p-4 pt-5">
+        <div className="mb-5 flex items-center justify-between">
+          <span className="text-sm font-semibold text-[color:var(--text)]">
+            {t("account.title")}
+          </span>
+          {!embedded ? (
             <Button
               aria-label={t("account.close")}
               size="icon"
@@ -168,40 +220,59 @@ export function AccountSettings({
             >
               <X className="h-4 w-4" />
             </Button>
-          </div>
-          {NAV.map(({ tab: id, icon: Icon, labelKey }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              className={cn(
-                "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition",
-                tab === id
-                  ? "bg-[color:var(--accent)] text-white"
-                  : "text-[color:var(--muted)] hover:bg-[color:var(--field)] hover:text-[color:var(--text)]",
-              )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {t(labelKey)}
-            </button>
-          ))}
-        </nav>
-
-        {/* Content */}
-        <div className="account-settings-content flex-1 overflow-y-auto p-6">
-          {tab === "perfil" && (
-            <PerfilTab withReauth={withReauth} user={user} />
-          )}
-          {tab === "segurança" && <SegurancaTab withReauth={withReauth} />}
-          {tab === "sessões" && <SessoesTab />}
-          {tab === "preferências" && (
-            <PreferenciasTab theme={theme} onThemeChange={onThemeChange} />
-          )}
-          {tab === "conta" && (
-            <ContaTab withReauth={withReauth} user={user} onClose={onClose} />
-          )}
+          ) : null}
         </div>
-      </section>
+        {NAV.map(({ tab: id, icon: Icon, labelKey }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            className={cn(
+              "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition",
+              tab === id
+                ? "bg-[color:var(--accent)] text-white"
+                : "text-[color:var(--muted)] hover:bg-[color:var(--field)] hover:text-[color:var(--text)]",
+            )}
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            {t(labelKey)}
+          </button>
+        ))}
+      </nav>
+
+      {/* Content */}
+      <div className="account-settings-content flex-1 overflow-y-auto p-6">
+        {tab === "perfil" && <PerfilTab withReauth={withReauth} user={user} />}
+        {tab === "segurança" && <SegurancaTab withReauth={withReauth} />}
+        {tab === "sessões" && <SessoesTab />}
+        {tab === "preferências" && (
+          <PreferenciasTab theme={theme} onThemeChange={onThemeChange} />
+        )}
+        {tab === "conta" && (
+          <ContaTab
+            onClose={onClose}
+            onLogout={onLogout}
+            withReauth={withReauth}
+            user={user}
+          />
+        )}
+      </div>
+    </section>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        aria-label={t("account.close")}
+        className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
+        type="button"
+        onClick={onClose}
+      />
+      {content}
     </div>
   );
 }
@@ -221,12 +292,11 @@ function PerfilTab({
   const [savingName, setSavingName] = useState(false);
   const [nameSaved, setNameSaved] = useState(false);
   const [nameError, setNameError] = useState("");
+  const [editingName, setEditingName] = useState(false);
 
-  const [email, setEmail] = useState("");
-  const [emailLoaded, setEmailLoaded] = useState(false);
-  const [savingEmail, setSavingEmail] = useState(false);
-  const [emailSaved, setEmailSaved] = useState(false);
-  const [emailError, setEmailError] = useState("");
+  const [savingAvatar, setSavingAvatar] = useState(false);
+  const [avatarSaved, setAvatarSaved] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
 
   useEffect(() => {
     api<Profile>("/api/account/me")
@@ -235,14 +305,6 @@ function PerfilTab({
         setFullName(p.fullName ?? "");
       })
       .catch(() => {});
-
-    fetch("/api/account/email")
-      .then((r) => (r.ok ? r.json() : { email: null }))
-      .then((d: { email: string | null }) => {
-        setEmail(d.email ?? "");
-        setEmailLoaded(true);
-      })
-      .catch(() => setEmailLoaded(true));
   }, []);
 
   async function saveName(e: FormEvent) {
@@ -255,7 +317,11 @@ function PerfilTab({
         method: "PUT",
         body: JSON.stringify({ fullName: fullName.trim() || null }),
       });
+      setProfile((current) =>
+        current ? { ...current, fullName: fullName.trim() || null } : current,
+      );
       setNameSaved(true);
+      setEditingName(false);
       window.setTimeout(() => setNameSaved(false), 2500);
     } catch {
       setNameError(t("account.error_save"));
@@ -264,26 +330,38 @@ function PerfilTab({
     }
   }
 
-  async function saveEmail(e: FormEvent) {
-    e.preventDefault();
-    setSavingEmail(true);
-    setEmailError("");
-    setEmailSaved(false);
+  async function saveAvatarUrl(avatarUrl: string | null) {
+    setSavingAvatar(true);
+    setAvatarError("");
+    setAvatarSaved(false);
     try {
-      await api("/api/account/email", {
+      await api("/api/account/profile", {
         method: "PUT",
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ avatarUrl }),
       });
-      setEmailSaved(true);
-      window.setTimeout(() => setEmailSaved(false), 2500);
+      setProfile((current) => (current ? { ...current, avatarUrl } : current));
+      setAvatarSaved(true);
+      window.setTimeout(() => setAvatarSaved(false), 2500);
     } catch (err) {
-      setEmailError(
-        err instanceof Error && err.message === "invalid_email"
-          ? t("account.error_invalid_email")
+      setAvatarError(
+        err instanceof Error && err.message === "invalid_avatar"
+          ? t("account.error_invalid_avatar")
           : t("account.error_save"),
       );
     } finally {
-      setSavingEmail(false);
+      setSavingAvatar(false);
+    }
+  }
+
+  async function uploadAvatar(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const dataUrl = await fileToAvatarDataUrl(file);
+      await saveAvatarUrl(dataUrl);
+    } catch {
+      setAvatarError(t("account.error_invalid_avatar"));
     }
   }
 
@@ -292,9 +370,15 @@ function PerfilTab({
     .map((w) => w[0]?.toUpperCase() ?? "")
     .slice(0, 2)
     .join("");
+  const avatarUrl = profile?.avatarUrl ?? "";
+  const displayName = profile?.fullName ?? user?.username;
+  const displayUsername = profile?.username ?? user?.username ?? "";
+  const showUsername =
+    displayUsername &&
+    displayName?.trim().toLowerCase() !== displayUsername.trim().toLowerCase();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <h2 className="text-lg font-semibold text-[color:var(--text)]">
         {t("account.nav_perfil")}
       </h2>
@@ -310,29 +394,29 @@ function PerfilTab({
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-xl font-bold text-white">
-            {initials}
+        <div className="flex flex-col gap-4 min-[520px]:flex-row min-[520px]:items-start">
+          <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border border-[color:var(--accent-border)] bg-[color:var(--accent)] text-2xl font-bold text-white shadow-[0_0_28px_var(--accent-glow)]">
+            {avatarUrl ? (
+              <img
+                alt={t("account.avatar_alt")}
+                className="h-full w-full object-cover"
+                src={avatarUrl}
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center">
+                {initials}
+              </span>
+            )}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="font-semibold text-[color:var(--text)]">
-              {profile?.fullName ?? user?.username}
+              {displayName}
             </p>
-            <p className="text-sm text-[color:var(--muted)]">
-              @{profile?.username ?? user?.username}
-            </p>
-            <span
-              className={cn(
-                "mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                (profile?.role ?? user?.role) === "admin"
-                  ? "bg-[color:var(--accent)] text-white"
-                  : "bg-[color:var(--field)] text-[color:var(--muted)]",
-              )}
-            >
-              {(profile?.role ?? user?.role) === "admin"
-                ? t("account.role_admin")
-                : t("account.role_member")}
-            </span>
+            {showUsername ? (
+              <p className="text-sm text-[color:var(--muted)]">
+                @{displayUsername}
+              </p>
+            ) : null}
             {profile?.createdAt && (
               <p className="mt-0.5 text-xs text-[color:var(--muted)]">
                 {t("account.member_since", {
@@ -340,74 +424,130 @@ function PerfilTab({
                 })}
               </p>
             )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <input
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                id="avatar-upload"
+                type="file"
+                onChange={uploadAvatar}
+              />
+              <Button
+                className="h-9"
+                disabled={savingAvatar}
+                size="sm"
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  document.getElementById("avatar-upload")?.click()
+                }
+              >
+                {savingAvatar ? (
+                  <Spinner className="h-4 w-4" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                {t("account.avatar_upload")}
+              </Button>
+              <Button
+                className="h-9"
+                disabled={savingAvatar || !avatarUrl}
+                size="sm"
+                type="button"
+                variant="ghost"
+                onClick={() => void saveAvatarUrl(null)}
+              >
+                <RotateCcw className="h-4 w-4" />
+                {t("account.avatar_remove")}
+              </Button>
+            </div>
+            {avatarSaved && (
+              <p className="mt-2 text-xs text-green-400">
+                {t("account.saved")}
+              </p>
+            )}
+            {avatarError && (
+              <p className="mt-2 text-xs text-red-300">{avatarError}</p>
+            )}
           </div>
         </div>
       )}
 
-      {/* Full name */}
-      <form onSubmit={saveName} className="grid gap-1.5">
+      <SettingsRule />
+
+      {/* Full name — exibe o valor com um lápis pra editar quando preciso. */}
+      <div className="grid gap-1.5">
         <label className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
           {t("account.full_name_label")}
         </label>
-        <div className="flex flex-col gap-2 min-[430px]:flex-row">
-          <Input
-            className="h-10 flex-1 rounded-xl px-3"
-            placeholder={t("account.full_name_placeholder")}
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-          />
-          <Button
-            type="submit"
-            variant="outline"
-            disabled={savingName}
-            className="h-10 w-full shrink-0 min-[430px]:w-auto"
-          >
-            {savingName ? <Spinner className="h-4 w-4" /> : t("account.save")}
-          </Button>
-        </div>
+        {editingName ? (
+          <form onSubmit={saveName} className="grid gap-2">
+            <div className="flex flex-col gap-2 min-[430px]:flex-row">
+              <Input
+                autoFocus
+                className="h-10 flex-1 rounded-xl px-3"
+                placeholder={t("account.full_name_placeholder")}
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="submit"
+                  variant="outline"
+                  disabled={savingName}
+                  className="h-10 shrink-0"
+                >
+                  {savingName ? (
+                    <Spinner className="h-4 w-4" />
+                  ) : (
+                    t("account.save")
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={savingName}
+                  className="h-10 shrink-0"
+                  onClick={() => {
+                    setFullName(profile?.fullName ?? "");
+                    setNameError("");
+                    setEditingName(false);
+                  }}
+                >
+                  {t("account.two_factor_cancel")}
+                </Button>
+              </div>
+            </div>
+            {nameError && <p className="text-xs text-red-300">{nameError}</p>}
+          </form>
+        ) : (
+          <div className="flex h-10 items-center justify-between gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-3">
+            <span
+              className={cn(
+                "truncate text-sm",
+                profile?.fullName
+                  ? "text-[color:var(--text)]"
+                  : "text-[color:var(--muted)]",
+              )}
+            >
+              {profile?.fullName || t("account.full_name_placeholder")}
+            </span>
+            <button
+              aria-label={t("account.edit")}
+              className="shrink-0 rounded-lg p-1.5 text-[color:var(--muted)] transition hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]"
+              type="button"
+              onClick={() => setEditingName(true)}
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         {nameSaved && (
           <p className="text-xs text-green-400">{t("account.saved")}</p>
         )}
-        {nameError && <p className="text-xs text-red-300">{nameError}</p>}
-      </form>
+      </div>
 
-      {/* Recovery email */}
-      <form onSubmit={saveEmail} className="grid gap-1.5">
-        <label className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
-          <Mail className="mr-1 inline h-3.5 w-3.5" />
-          {t("account.recovery_email")}
-        </label>
-        <p className="text-xs text-[color:var(--muted)]">
-          {t("account.recovery_email_desc")}
-        </p>
-        {emailLoaded && (
-          <div className="flex flex-col gap-2 min-[430px]:flex-row">
-            <Input
-              type="email"
-              className="h-10 flex-1 rounded-xl px-3"
-              placeholder="seu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <Button
-              type="submit"
-              variant="outline"
-              disabled={savingEmail}
-              className="h-10 w-full shrink-0 min-[430px]:w-auto"
-            >
-              {savingEmail ? (
-                <Spinner className="h-4 w-4" />
-              ) : (
-                t("account.save")
-              )}
-            </Button>
-          </div>
-        )}
-        {emailSaved && (
-          <p className="text-xs text-green-400">{t("account.saved")}</p>
-        )}
-        {emailError && <p className="text-xs text-red-300">{emailError}</p>}
-      </form>
+      <SettingsRule />
 
       {/* Linked providers */}
       {profile && (
@@ -489,6 +629,15 @@ function ProviderChip({
 }
 
 // ─── Segurança ───────────────────────────────────────────────────────────────
+
+function SettingsRule() {
+  return (
+    <div
+      aria-hidden
+      className="h-px w-full bg-gradient-to-r from-[color:var(--border)] via-[color:var(--border)] to-transparent opacity-80"
+    />
+  );
+}
 
 function SegurancaTab({
   withReauth,
@@ -1228,10 +1377,12 @@ function ContaTab({
   withReauth,
   user,
   onClose,
+  onLogout,
 }: {
   withReauth: AccountSettingsProps["withReauth"];
   user: SessionUser | null;
   onClose: () => void;
+  onLogout?: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -1240,6 +1391,15 @@ function ContaTab({
   const [savingUsername, setSavingUsername] = useState(false);
   const [usernameSuccess, setUsernameSuccess] = useState("");
   const [usernameError, setUsernameError] = useState("");
+
+  // E-mail da conta (somente-leitura / imutável).
+  const [email, setEmail] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/account/email")
+      .then((r) => (r.ok ? r.json() : { email: null }))
+      .then((d: { email: string | null }) => setEmail(d.email))
+      .catch(() => {});
+  }, []);
 
   // Delete account
   const [confirmInput, setConfirmInput] = useState("");
@@ -1299,6 +1459,43 @@ function ContaTab({
       <h2 className="text-lg font-semibold text-[color:var(--text)]">
         {t("account.nav_account")}
       </h2>
+
+      {onLogout ? (
+        <section className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
+            {t("vault.logout")}
+          </p>
+          <button
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-5 text-sm font-semibold text-red-200 transition hover:bg-red-500/15 min-[430px]:w-fit"
+            type="button"
+            onClick={() => {
+              onClose();
+              onLogout();
+            }}
+          >
+            <LogOut className="h-4 w-4" />
+            {t("vault.logout")}
+          </button>
+        </section>
+      ) : null}
+
+      {/* E-mail (read-only / imutável) */}
+      <section className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
+          <Mail className="mr-1 inline h-3.5 w-3.5" />
+          {t("account.email_label")}
+        </p>
+        <p className="text-xs text-[color:var(--muted)]">
+          {t("account.email_locked_desc")}
+        </p>
+        <Input
+          type="email"
+          readOnly
+          disabled
+          className="h-10 cursor-not-allowed rounded-xl px-3 opacity-70"
+          value={email ?? "—"}
+        />
+      </section>
 
       {/* Change username */}
       <section className="space-y-3">

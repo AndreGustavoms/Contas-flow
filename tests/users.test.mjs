@@ -14,6 +14,7 @@ import {
   keepOnlySuperadmin,
   listUsers,
   resetSuperadminPasswordFromEnv,
+  setAvatarUrl,
   validatePassword,
   validateUsername,
   verifyPassword,
@@ -85,14 +86,38 @@ describe("findByUsernameOrEmail", () => {
         role: "member",
       });
 
-      assert.equal(
-        (await findByUsernameOrEmail(dir, "andre"))?.id,
-        created.id,
-      );
+      assert.equal((await findByUsernameOrEmail(dir, "andre"))?.id, created.id);
       assert.equal(
         (await findByUsernameOrEmail(dir, "andre@teste.com"))?.id,
         created.id,
       );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("setAvatarUrl", () => {
+  it("salva e remove a foto personalizada do perfil", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "contas-users-"));
+    try {
+      const created = await createUser(dir, {
+        username: "andre",
+        email: "andre@example.com",
+        password: "Segredo@123",
+        role: "member",
+      });
+
+      await setAvatarUrl(dir, created.id, "https://example.com/avatar.jpg");
+      assert.equal(
+        (await findByUsernameOrEmail(dir, "andre"))?.avatarUrl,
+        "https://example.com/avatar.jpg",
+      );
+
+      await setAvatarUrl(dir, created.id, null);
+      const updated = await findByUsernameOrEmail(dir, "andre");
+      assert.equal(updated?.avatarUrl, undefined);
+      assert.equal(updated?.avatarRemoved, true);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

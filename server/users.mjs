@@ -246,6 +246,9 @@ export function publicUser(user) {
     username: user.username,
     fullName: user.fullName ?? null,
     email: user.email ?? null,
+    avatarUrl: user.avatarRemoved
+      ? null
+      : (user.avatarUrl ?? user.google?.picture ?? user.github?.avatar ?? null),
     role: user.role,
     createdAt: user.createdAt,
     twoFactorEnabled: Boolean(user.twoFactor?.enabled),
@@ -656,6 +659,25 @@ export function setFullName(storageDir, id, fullName) {
     if (!user) return false;
     user.fullName =
       typeof fullName === "string" ? fullName.trim() || null : null;
+    await writeUsersFile(storageDir, users);
+    return true;
+  });
+}
+
+export function setAvatarUrl(storageDir, id, avatarUrl) {
+  return withLock(async () => {
+    const users = await readUsersFile(storageDir);
+    const user = users.find((u) => u.id === id);
+    if (!user) return false;
+    const normalized =
+      typeof avatarUrl === "string" ? avatarUrl.trim() || null : null;
+    if (normalized) {
+      user.avatarUrl = normalized;
+      delete user.avatarRemoved;
+    } else {
+      delete user.avatarUrl;
+      user.avatarRemoved = true;
+    }
     await writeUsersFile(storageDir, users);
     return true;
   });

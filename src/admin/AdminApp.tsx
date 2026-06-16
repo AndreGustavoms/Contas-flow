@@ -21,6 +21,7 @@ import { LocalLogin } from "../components/local-login";
 import { ThemeToggle } from "../components/theme-toggle";
 import { type AppTheme, isAppTheme, THEME_STORAGE_KEY } from "../theme";
 import { adminRequest, isReauthRequired } from "./api";
+import { useClosing } from "../lib/use-closing";
 import { OverviewTab } from "./tabs/overview-tab";
 import { DataTab } from "./tabs/data-tab";
 import { UsersTab } from "./tabs/users-tab";
@@ -386,14 +387,21 @@ function ReauthOverlay({
 }) {
   const { t } = useTranslation();
   const [password, setPassword] = useState("");
+  const { closing, close } = useClosing(onCancel);
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[color:var(--overlay)] p-4 backdrop-blur-sm">
+    <div
+      className={`fixed inset-0 z-[200] flex items-center justify-center bg-[color:var(--overlay)] p-4 backdrop-blur-sm ${
+        closing ? "animate-overlay-out" : "animate-overlay-in"
+      }`}
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
           onSubmit(password);
         }}
-        className="admin-card w-full max-w-sm p-6"
+        className={`admin-card w-full max-w-sm p-6 ${
+          closing ? "animate-pop-out" : "animate-pop-in"
+        }`}
       >
         <div className="mb-3 flex items-center gap-2 text-[color:var(--accent)]">
           <Lock className="h-5 w-5" />
@@ -421,7 +429,7 @@ function ReauthOverlay({
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={onCancel}
+            onClick={close}
             className="h-10 flex-1 rounded-[6px] border border-[color:var(--border)] bg-[color:var(--field)] text-sm font-medium text-[color:var(--muted)] transition hover:text-[color:var(--text)]"
           >
             {t("admin.cancel")}

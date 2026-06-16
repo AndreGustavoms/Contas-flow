@@ -2031,6 +2031,7 @@ function AccountWizardModal({
   step,
 }: AccountWizardModalProps) {
   const { t } = useTranslation();
+  const { closing, close } = useClosing(onClose);
   const wizardSteps = [
     t("vault.wizard_step_name"),
     t("vault.wizard_step_network"),
@@ -2046,28 +2047,34 @@ function AccountWizardModal({
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        onClose();
+        close();
       }
     }
 
     document.addEventListener("keydown", handleKeyDown);
 
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [close]);
 
   return (
     <div className="modal-viewport fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
       <button
         aria-label={t("vault.close")}
-        className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
+        className={cn(
+          "fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md",
+          closing ? "animate-overlay-out" : "animate-overlay-in",
+        )}
         type="button"
-        onClick={onClose}
+        onClick={close}
       />
 
       <section
         aria-labelledby="account-wizard-title"
         aria-modal="true"
-        className="modal-panel modal-panel-xl app-panel animate-pop-in relative m-auto w-full max-w-xl overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6"
+        className={cn(
+          "modal-panel modal-panel-xl app-panel relative m-auto w-full max-w-xl overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6",
+          closing ? "animate-pop-out" : "animate-pop-in",
+        )}
         role="dialog"
       >
         <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />
@@ -2088,7 +2095,7 @@ function AccountWizardModal({
             aria-label={t("vault.close")}
             size="icon"
             variant="ghost"
-            onClick={onClose}
+            onClick={close}
           >
             <X className="h-4 w-4" />
           </Button>
@@ -2492,7 +2499,36 @@ function GroupSwitcher({
   // Two independent popovers: the group list (left) and the compact actions
   // menu behind the "⋯" symbol (right). Only one is open at a time.
   const [open, setOpen] = useState<"list" | "actions" | null>(null);
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  // Fecha animando a saída antes de desmontar o popover.
+  const closeMenu = useCallback(() => {
+    if (closeTimer.current != null) return;
+    setClosing(true);
+    closeTimer.current = window.setTimeout(() => {
+      setOpen(null);
+      setClosing(false);
+      closeTimer.current = null;
+    }, 160);
+  }, []);
+
+  const toggleMenu = useCallback(
+    (which: "list" | "actions") => {
+      if (open === which) {
+        closeMenu();
+        return;
+      }
+      if (closeTimer.current != null) {
+        window.clearTimeout(closeTimer.current);
+        closeTimer.current = null;
+      }
+      setClosing(false);
+      setOpen(which);
+    },
+    [open, closeMenu],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -2501,13 +2537,13 @@ function GroupSwitcher({
 
     function handlePointerDown(event: PointerEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(null);
+        closeMenu();
       }
     }
 
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [open]);
+  }, [open, closeMenu]);
 
   return (
     <div className="relative" ref={rootRef}>
@@ -2517,9 +2553,7 @@ function GroupSwitcher({
           aria-haspopup="listbox"
           className="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-md border border-[color:var(--border)] bg-[color:var(--field)] px-2.5 text-left text-sm font-bold text-[color:var(--text)] transition duration-200 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)]"
           type="button"
-          onClick={() =>
-            setOpen((current) => (current === "list" ? null : "list"))
-          }
+          onClick={() => toggleMenu("list")}
         >
           <span
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md"
@@ -2555,9 +2589,7 @@ function GroupSwitcher({
               : "border-[color:var(--border)] bg-[color:var(--surface-soft)] text-[color:var(--muted)] hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)] hover:text-[color:var(--accent-soft)]",
           )}
           type="button"
-          onClick={() =>
-            setOpen((current) => (current === "actions" ? null : "actions"))
-          }
+          onClick={() => toggleMenu("actions")}
         >
           <Settings
             className={cn(
@@ -2569,7 +2601,12 @@ function GroupSwitcher({
       </div>
 
       {open === "list" ? (
-        <div className="menu-popover animate-pop-in absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-md border border-[color:var(--border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
+        <div
+          className={cn(
+            "menu-popover absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-md border border-[color:var(--border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur-2xl",
+            closing ? "animate-pop-out" : "animate-pop-in",
+          )}
+        >
           <div className="max-h-60 overflow-y-auto pr-1">
             {groups.map((group) => {
               const selected = group.id === activeGroup?.id;
@@ -2586,7 +2623,7 @@ function GroupSwitcher({
                   type="button"
                   onClick={() => {
                     onSelect(group.id);
-                    setOpen(null);
+                    closeMenu();
                   }}
                 >
                   <span className="truncate">{group.name}</span>
@@ -2601,7 +2638,12 @@ function GroupSwitcher({
       ) : null}
 
       {open === "actions" ? (
-        <div className="menu-popover animate-pop-in absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-md border border-[color:var(--border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
+        <div
+          className={cn(
+            "menu-popover absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-md border border-[color:var(--border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur-2xl",
+            closing ? "animate-pop-out" : "animate-pop-in",
+          )}
+        >
           <p className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
             {t("vault.manage_groups")}
           </p>
@@ -2609,7 +2651,7 @@ function GroupSwitcher({
             icon={FolderPlus}
             label={t("vault.new_group")}
             onClick={() => {
-              setOpen(null);
+              closeMenu();
               onCreate();
             }}
           />
@@ -2620,7 +2662,7 @@ function GroupSwitcher({
             })}
             disabled={!activeGroup}
             onClick={() => {
-              setOpen(null);
+              closeMenu();
               onRename();
             }}
           />
@@ -2632,7 +2674,7 @@ function GroupSwitcher({
             })}
             disabled={!activeGroup}
             onClick={() => {
-              setOpen(null);
+              closeMenu();
               onDelete();
             }}
           />
@@ -2901,9 +2943,30 @@ function CustomSelect({
   value,
 }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const selectedLabel = labelFor(options, value);
   const selectedMeta = platformMeta[value];
+
+  const closeMenu = useCallback(() => {
+    if (closeTimer.current != null) return;
+    setClosing(true);
+    closeTimer.current = window.setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+      closeTimer.current = null;
+    }, 160);
+  }, []);
+
+  const openMenu = useCallback(() => {
+    if (closeTimer.current != null) {
+      window.clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    setClosing(false);
+    setOpen(true);
+  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -2912,13 +2975,13 @@ function CustomSelect({
 
     function handlePointerDown(event: PointerEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
+        closeMenu();
       }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setOpen(false);
+        closeMenu();
       }
     }
 
@@ -2929,7 +2992,7 @@ function CustomSelect({
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open]);
+  }, [open, closeMenu]);
 
   return (
     <div className={cn("relative", compact && "min-w-36")} ref={rootRef}>
@@ -2946,11 +3009,11 @@ function CustomSelect({
             : selectTriggerClass,
         )}
         type="button"
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => (open ? closeMenu() : openMenu())}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" || event.key === "Enter") {
             event.preventDefault();
-            setOpen(true);
+            openMenu();
           }
         }}
       >
@@ -2967,7 +3030,12 @@ function CustomSelect({
       </button>
 
       {open ? (
-        <div className="menu-popover animate-pop-in absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_24px_70px_var(--accent-glow)] backdrop-blur-2xl">
+        <div
+          className={cn(
+            "menu-popover absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel-strong)] p-1.5 shadow-[0_24px_70px_var(--accent-glow)] backdrop-blur-2xl",
+            closing ? "animate-pop-out" : "animate-pop-in",
+          )}
+        >
           <div className="max-h-64 overflow-y-auto pr-1">
             {options.map((option) => {
               const selected = option.value === value;
@@ -2987,7 +3055,7 @@ function CustomSelect({
                   aria-selected={selected}
                   onClick={() => {
                     onChange(option.value);
-                    setOpen(false);
+                    closeMenu();
                   }}
                 >
                   <span className="flex min-w-0 items-center gap-2">
@@ -3193,32 +3261,39 @@ function QuickViewModal({
   onTogglePassword,
 }: QuickViewModalProps) {
   const { t } = useTranslation();
+  const { closing, close } = useClosing(onClose);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        onClose();
+        close();
       }
     }
 
     document.addEventListener("keydown", handleKeyDown);
 
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [close]);
 
   return (
     <div className="modal-viewport fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
       <button
         aria-label={t("vault.close")}
-        className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
+        className={cn(
+          "fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md",
+          closing ? "animate-overlay-out" : "animate-overlay-in",
+        )}
         type="button"
-        onClick={onClose}
+        onClick={close}
       />
 
       <section
         aria-labelledby="account-quickview-title"
         aria-modal="true"
-        className="modal-panel modal-panel-md app-panel animate-pop-in relative m-auto w-full max-w-md overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6"
+        className={cn(
+          "modal-panel modal-panel-md app-panel relative m-auto w-full max-w-md overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6",
+          closing ? "animate-pop-out" : "animate-pop-in",
+        )}
         role="dialog"
       >
         <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />
@@ -3242,7 +3317,7 @@ function QuickViewModal({
             aria-label={t("vault.close")}
             size="icon"
             variant="ghost"
-            onClick={onClose}
+            onClick={close}
           >
             <X className="h-4 w-4" />
           </Button>

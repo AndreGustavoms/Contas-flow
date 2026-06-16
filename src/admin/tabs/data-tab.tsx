@@ -15,6 +15,7 @@ import {
   type DataPayload,
 } from "../api";
 import type { WithReauth } from "../AdminApp";
+import { useClosing } from "../../lib/use-closing";
 
 // Aba "Dados armazenados": navegador de usuários -> grupos -> contas. Senhas
 // nunca chegam mascaradas do servidor; revelar uma passa pelo endpoint /secret
@@ -318,6 +319,7 @@ function EditAccountModal({
   onSaved: () => void;
 }) {
   const { t } = useTranslation();
+  const { closing, close } = useClosing(onClose);
   const [form, setForm] = useState({
     label: account.label,
     platform: account.platform,
@@ -357,8 +359,17 @@ function EditAccountModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-[color:var(--overlay)] p-4 backdrop-blur-sm">
-      <form onSubmit={save} className="admin-card w-full max-w-md p-5">
+    <div
+      className={`fixed inset-0 z-[150] flex items-center justify-center bg-[color:var(--overlay)] p-4 backdrop-blur-sm ${
+        closing ? "animate-overlay-out" : "animate-overlay-in"
+      }`}
+    >
+      <form
+        onSubmit={save}
+        className={`admin-card w-full max-w-md p-5 ${
+          closing ? "animate-pop-out" : "animate-pop-in"
+        }`}
+      >
         <h2 className="mb-4 text-base font-semibold text-[color:var(--text)]">
           {t("admin.data.edit_account")}
         </h2>
@@ -422,7 +433,7 @@ function EditAccountModal({
         <div className="mt-4 flex gap-2">
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="h-10 flex-1 rounded-[6px] border border-[color:var(--border)] bg-[color:var(--field)] text-sm font-medium text-[color:var(--muted)] transition hover:text-[color:var(--text)]"
           >
             {t("admin.cancel")}

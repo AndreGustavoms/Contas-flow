@@ -47,10 +47,11 @@ const uploadsDir =
 const historyFile =
   process.env.YOUTUBE_HISTORY_DB ?? join(storageDir, "youtube-history.json");
 
-// Scopes: upload + read own channel info. youtube.upload is enough to insert
-// videos; youtube.readonly lets us read the channel name for display.
+// Scopes: youtube.force-ssl covers upload + delete + read (superset of
+// youtube.upload). Channels connected before this scope was added need to
+// re-authorize once via /api/youtube/connect.
 const SCOPES = [
-  "https://www.googleapis.com/auth/youtube.upload",
+  "https://www.googleapis.com/auth/youtube.force-ssl",
   "https://www.googleapis.com/auth/youtube.readonly",
 ];
 
@@ -332,6 +333,24 @@ async function appendHistory(record) {
 // Most recent uploads first (metadata only — never the video itself).
 export async function listUploadHistory() {
   return readHistory();
+}
+
+async function removeFromHistory(videoId) {
+  const items = await readHistory();
+  const filtered = items.filter((item) => item.videoId !== videoId);
+  await mkdir(storageDir, { recursive: true });
+  await writeFile(
+    historyFile,
+    `${JSON.stringify({ items: filtered }, null, 2)}\n`,
+    "utf8",
+  );
+}
+
+export async function deleteVideo(channelId, videoId) {
+  const auth = await clientForChannel(channelId);
+  const youtube = google.youtube({ version: "v3", auth });
+  await youtube.videos.delete({ id: videoId });
+  await removeFromHistory(videoId);
 }
 
 // ISO 8601 duration ("PT1M30S") -> seconds. Null if unparseable.

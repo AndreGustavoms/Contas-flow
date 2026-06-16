@@ -636,6 +636,8 @@
       "uploading": "Envoi de la vidéo… {{percent}} %",
       "success": "Vidéo envoyée sur YouTube !",
       "view": "Ouvrir dans YouTube Studio",
+      "delete_video": "Supprimer la vidéo de YouTube",
+      "delete_confirm": "Supprimer",
       "new_post": "Nouvelle publication",
       "connect_title": "Connectez une chaîne YouTube",
       "connect_desc": "Pour publier, connectez un compte YouTube via Google.",

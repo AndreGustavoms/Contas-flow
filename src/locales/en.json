@@ -638,6 +638,8 @@
       "uploading": "Uploading video… {{percent}}%",
       "success": "Video uploaded to YouTube!",
       "view": "Open in YouTube Studio",
+      "delete_video": "Delete video from YouTube",
+      "delete_confirm": "Delete",
       "new_post": "New post",
       "connect_title": "Connect a YouTube channel",
       "connect_desc": "To publish, connect a YouTube account via Google.",

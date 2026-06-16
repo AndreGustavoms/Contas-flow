@@ -23,6 +23,7 @@ import {
   listUploadHistory,
   listUploadableFiles,
   stageUpload,
+  deleteVideo,
   uploadVideo,
   uploadsDirectory,
 } from "./youtube.mjs";
@@ -2410,6 +2411,30 @@ async function handleApi(request, response, url, user, session) {
       } else {
         recordLog("error", `youtube: falha no upload (${code})`);
         sendJson(response, 500, { error: "youtube_upload", message: code });
+      }
+    }
+    return;
+  }
+
+  // DELETE /api/youtube/video — apaga o vídeo do YouTube e remove do histórico.
+  if (url.pathname === "/api/youtube/video" && request.method === "DELETE") {
+    const body = await readBody(request);
+    const channelId = typeof body.channelId === "string" ? body.channelId.trim() : "";
+    const videoId = typeof body.videoId === "string" ? body.videoId.trim() : "";
+    if (!channelId || !videoId) {
+      sendJson(response, 400, { error: "invalid_request", message: "channelId e videoId são obrigatórios." });
+      return;
+    }
+    try {
+      await deleteVideo(channelId, videoId);
+      sendJson(response, 200, { ok: true });
+    } catch (err) {
+      const code = err?.message ?? "unknown";
+      if (code === "channel_not_connected") {
+        sendJson(response, 404, { error: "channel_not_connected" });
+      } else {
+        recordLog("error", `youtube: falha ao deletar vídeo ${videoId} (${code})`);
+        sendJson(response, 500, { error: "youtube_delete", message: code });
       }
     }
     return;

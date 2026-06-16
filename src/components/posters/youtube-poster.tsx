@@ -15,6 +15,7 @@ import {
   FileVideo2,
   Plus,
   Shield,
+  Trash2,
   Upload,
   Users,
   X,
@@ -321,7 +322,13 @@ export function YouTubePoster() {
         ))}
       </div>
 
-      {tab === "history" && <HistoryList items={history} />}
+      {tab === "history" && (
+        <HistoryList
+          channelId={channelId}
+          items={history}
+          onDelete={(videoId) => setHistory((prev) => prev.filter((item) => item.videoId !== videoId))}
+        />
+      )}
       {tab === "post" && <>
       {/* ── Canal ── */}
       <section className="pb-6">
@@ -667,9 +674,37 @@ export function YouTubePoster() {
   );
 }
 
-function HistoryList({ items }: { items: HistoryItem[] }) {
+function HistoryList({
+  channelId,
+  items,
+  onDelete,
+}: {
+  channelId: string;
+  items: HistoryItem[];
+  onDelete: (videoId: string) => void;
+}) {
   const { t } = useTranslation();
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
   if (items.length === 0) return null;
+
+  async function handleDelete(videoId: string) {
+    setDeleting(videoId);
+    try {
+      const res = await fetch("/api/youtube/video", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId, videoId }),
+      });
+      if (res.ok) {
+        onDelete(videoId);
+      }
+    } finally {
+      setDeleting(null);
+      setConfirming(null);
+    }
+  }
 
   return (
     <section className="border-t border-[color:var(--border)] pt-5 mt-5">
@@ -678,44 +713,85 @@ function HistoryList({ items }: { items: HistoryItem[] }) {
         {t("post.youtube.history")}
       </p>
       <ul className="grid gap-2">
-        {items.map((item, i) => (
-          <li
-            key={`${item.videoId ?? "v"}-${i}`}
-            className="flex items-center gap-3 rounded-xl border border-[color:var(--border)] p-2.5"
-          >
-            <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-lg bg-[color:var(--surface-soft)]">
-              {item.thumbnailUrl ? (
-                <img alt="" className="h-full w-full object-cover" loading="lazy" src={item.thumbnailUrl} />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-[color:var(--muted)]">
-                  <FileVideo2 className="h-5 w-5" />
-                </div>
-              )}
-              {item.durationSeconds ? (
-                <span className="absolute bottom-0.5 right-0.5 rounded bg-black/75 px-1 text-[10px] tabular-nums text-white">
-                  {fmtDuration(item.durationSeconds)}
-                </span>
-              ) : null}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-[color:var(--text)]">{item.title}</p>
-              <p className="text-[11px] text-[color:var(--muted)]">
-                {new Date(item.uploadedAt).toLocaleString()}
-              </p>
-            </div>
-            {item.videoId ? (
-              <a
-                aria-label={t("post.youtube.view")}
-                className="shrink-0 text-[color:var(--muted)] transition hover:text-[color:var(--accent)]"
-                href={`https://studio.youtube.com/video/${item.videoId}/edit`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            ) : null}
-          </li>
-        ))}
+        {items.map((item, i) => {
+          const key = `${item.videoId ?? "v"}-${i}`;
+          const isConfirming = confirming === item.videoId;
+          const isDeleting = deleting === item.videoId;
+          return (
+            <li
+              key={key}
+              className="flex items-center gap-3 rounded-xl border border-[color:var(--border)] p-2.5"
+            >
+              <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-lg bg-[color:var(--surface-soft)]">
+                {item.thumbnailUrl ? (
+                  <img alt="" className="h-full w-full object-cover" loading="lazy" src={item.thumbnailUrl} />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-[color:var(--muted)]">
+                    <FileVideo2 className="h-5 w-5" />
+                  </div>
+                )}
+                {item.durationSeconds ? (
+                  <span className="absolute bottom-0.5 right-0.5 rounded bg-black/75 px-1 text-[10px] tabular-nums text-white">
+                    {fmtDuration(item.durationSeconds)}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-[color:var(--text)]">{item.title}</p>
+                <p className="text-[11px] text-[color:var(--muted)]">
+                  {new Date(item.uploadedAt).toLocaleString()}
+                </p>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-1">
+                {item.videoId ? (
+                  <a
+                    aria-label={t("post.youtube.view")}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:text-[color:var(--accent)]"
+                    href={`https://studio.youtube.com/video/${item.videoId}/edit`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                ) : null}
+
+                {item.videoId && !isConfirming && (
+                  <button
+                    type="button"
+                    aria-label={t("post.youtube.delete_video")}
+                    onClick={() => setConfirming(item.videoId!)}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:bg-red-500/10 hover:text-red-400"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+
+                {item.videoId && isConfirming && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={isDeleting}
+                      onClick={() => handleDelete(item.videoId!)}
+                      className="flex h-7 items-center gap-1 rounded-lg bg-red-500/15 px-2 text-[11px] font-semibold text-red-400 transition hover:bg-red-500/25 disabled:opacity-50"
+                    >
+                      {isDeleting ? <Spinner className="h-3 w-3" /> : <Trash2 className="h-3 w-3" />}
+                      {t("post.youtube.delete_confirm")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirming(null)}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:text-[color:var(--text)]"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

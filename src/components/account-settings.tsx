@@ -8,7 +8,6 @@ import {
   KeyRound,
   Lock,
   LogOut,
-  Mail,
   MapPin,
   Monitor,
   Pencil,
@@ -538,76 +537,76 @@ function PerfilTab({
       {/* Full name — exibe o valor com um lápis pra editar quando preciso. */}
       <div className="grid gap-4 rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-4 shadow-[0_18px_44px_-34px_rgba(15,23,42,0.75)] md:grid-cols-2">
         <div className="grid gap-1.5">
-        <label className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
-          {t("account.full_name_label")}
-        </label>
-        {editingName ? (
-          <form onSubmit={saveName} className="grid gap-2">
-            <div className="flex flex-col gap-2 min-[430px]:flex-row">
-              <Input
-                autoFocus
-                className="h-10 flex-1 rounded-xl px-3"
-                placeholder={t("account.full_name_placeholder")}
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-              />
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  variant="outline"
-                  disabled={savingName}
-                  className="h-10 shrink-0"
-                >
-                  {savingName ? (
-                    <Spinner className="h-4 w-4" />
-                  ) : (
-                    t("account.save")
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={savingName}
-                  className="h-10 shrink-0"
-                  onClick={() => {
-                    setFullName(profile?.fullName ?? "");
-                    setNameError("");
-                    setEditingName(false);
-                  }}
-                >
-                  {t("account.two_factor_cancel")}
-                </Button>
+          <label className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
+            {t("account.full_name_label")}
+          </label>
+          {editingName ? (
+            <form onSubmit={saveName} className="grid gap-2">
+              <div className="flex flex-col gap-2 min-[430px]:flex-row">
+                <Input
+                  autoFocus
+                  className="h-10 flex-1 rounded-xl px-3"
+                  placeholder={t("account.full_name_placeholder")}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    disabled={savingName}
+                    className="h-10 shrink-0"
+                  >
+                    {savingName ? (
+                      <Spinner className="h-4 w-4" />
+                    ) : (
+                      t("account.save")
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={savingName}
+                    className="h-10 shrink-0"
+                    onClick={() => {
+                      setFullName(profile?.fullName ?? "");
+                      setNameError("");
+                      setEditingName(false);
+                    }}
+                  >
+                    {t("account.two_factor_cancel")}
+                  </Button>
+                </div>
               </div>
+              {nameError && <p className="text-xs text-red-300">{nameError}</p>}
+            </form>
+          ) : (
+            <div className="flex h-10 items-center justify-between gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-3">
+              <span
+                className={cn(
+                  "truncate text-sm",
+                  profile?.fullName
+                    ? "text-[color:var(--text)]"
+                    : "text-[color:var(--muted)]",
+                )}
+              >
+                {profile?.fullName || t("account.full_name_placeholder")}
+              </span>
+              <button
+                aria-label={t("account.edit")}
+                className="shrink-0 rounded-lg p-1.5 text-[color:var(--muted)] transition hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]"
+                type="button"
+                onClick={() => setEditingName(true)}
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
             </div>
-            {nameError && <p className="text-xs text-red-300">{nameError}</p>}
-          </form>
-        ) : (
-          <div className="flex h-10 items-center justify-between gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-3">
-            <span
-              className={cn(
-                "truncate text-sm",
-                profile?.fullName
-                  ? "text-[color:var(--text)]"
-                  : "text-[color:var(--muted)]",
-              )}
-            >
-              {profile?.fullName || t("account.full_name_placeholder")}
-            </span>
-            <button
-              aria-label={t("account.edit")}
-              className="shrink-0 rounded-lg p-1.5 text-[color:var(--muted)] transition hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]"
-              type="button"
-              onClick={() => setEditingName(true)}
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-        {nameSaved && (
-          <p className="text-xs font-medium text-[color:var(--accent-soft)]">
-            {t("account.saved")}
-          </p>
-        )}
+          )}
+          {nameSaved && (
+            <p className="text-xs font-medium text-[color:var(--accent-soft)]">
+              {t("account.saved")}
+            </p>
+          )}
         </div>
         <div className="grid gap-1.5">
           <label className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
@@ -617,7 +616,9 @@ function PerfilTab({
             <span
               className={cn(
                 "truncate text-sm font-medium",
-                email ? "text-[color:var(--text)]" : "text-[color:var(--muted)]",
+                email
+                  ? "text-[color:var(--text)]"
+                  : "text-[color:var(--muted)]",
               )}
             >
               {email || "—"}
@@ -1552,15 +1553,6 @@ function ContaTab({
   const [usernameSuccess, setUsernameSuccess] = useState("");
   const [usernameError, setUsernameError] = useState("");
 
-  // E-mail da conta (somente-leitura / imutável).
-  const [email, setEmail] = useState<string | null>(null);
-  useEffect(() => {
-    fetch("/api/account/email")
-      .then((r) => (r.ok ? r.json() : { email: null }))
-      .then((d: { email: string | null }) => setEmail(d.email))
-      .catch(() => {});
-  }, []);
-
   // Delete account
   const [confirmInput, setConfirmInput] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -1638,24 +1630,6 @@ function ContaTab({
           </button>
         </section>
       ) : null}
-
-      {/* E-mail (read-only / imutável) */}
-      <section className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--muted)]">
-          <Mail className="mr-1 inline h-3.5 w-3.5" />
-          {t("account.email_label")}
-        </p>
-        <p className="text-xs text-[color:var(--muted)]">
-          {t("account.email_locked_desc")}
-        </p>
-        <Input
-          type="email"
-          readOnly
-          disabled
-          className="h-10 cursor-not-allowed rounded-xl px-3 opacity-70"
-          value={email ?? "—"}
-        />
-      </section>
 
       {/* Change username */}
       <section className="space-y-3">

@@ -30,21 +30,32 @@ function Column({
   onSelect: (v: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const ignoreScroll = useRef(false);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const idx = items.indexOf(selected);
 
-  // Scroll to selected on open / change
+  // Scroll to selected programmatically — mark as ignored to break the loop.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    ignoreScroll.current = true;
     el.scrollTo({ top: idx * ITEM_H, behavior: "smooth" });
+    // Reset after smooth scroll finishes (~400ms).
+    const t = setTimeout(() => { ignoreScroll.current = false; }, 450);
+    return () => clearTimeout(t);
   }, [idx]);
 
   function onScroll() {
+    if (ignoreScroll.current) return;
     const el = ref.current;
     if (!el) return;
-    const nearest = Math.round(el.scrollTop / ITEM_H);
-    const clamped = Math.max(0, Math.min(items.length - 1, nearest));
-    if (items[clamped] !== selected) onSelect(items[clamped]);
+    // Debounce: only commit after the user stops scrolling for 80ms.
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      const nearest = Math.round(el.scrollTop / ITEM_H);
+      const clamped = Math.max(0, Math.min(items.length - 1, nearest));
+      if (items[clamped] !== selected) onSelect(items[clamped]);
+    }, 80);
   }
 
   return (
@@ -63,10 +74,8 @@ function Column({
         ref={ref}
         onScroll={onScroll}
         className="overflow-y-scroll overflow-x-hidden"
-        style={{ scrollbarWidth: "none" }}
-        style={{ height: ITEM_H * 5, scrollSnapType: "y mandatory" }}
+        style={{ height: ITEM_H * 5, scrollSnapType: "y mandatory", scrollbarWidth: "none" }}
       >
-        {/* padding so first/last items can center */}
         <div style={{ height: ITEM_H * 2 }} />
         {items.map((item) => (
           <div

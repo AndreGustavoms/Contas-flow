@@ -321,6 +321,40 @@ export function findOrCreateGoogleUser(storageDir, profile) {
   });
 }
 
+export function linkGoogleProvider(storageDir, userId, profile) {
+  return withLock(async () => {
+    const sub = typeof profile?.sub === "string" ? profile.sub.trim() : "";
+    const email = normalizeEmail(profile?.email);
+
+    if (!sub || !email) throw new Error("invalid_google_profile");
+
+    const users = await readUsersFile(storageDir);
+    const user = users.find((item) => item.id === userId);
+    if (!user) return null;
+
+    const linkedToOther = users.find(
+      (item) => item.id !== userId && item.google?.sub === sub,
+    );
+    if (linkedToOther) throw new Error("google_already_linked");
+
+    const now = new Date().toISOString();
+    if (!user.email) user.email = email;
+    if (!user.fullName && profile.fullName) {
+      user.fullName = profile.fullName.trim();
+    }
+    user.google = {
+      sub,
+      email,
+      linkedAt: user.google?.linkedAt ?? now,
+      lastLoginAt: user.google?.lastLoginAt ?? null,
+      ...(profile.picture ? { picture: profile.picture } : {}),
+    };
+
+    await writeUsersFile(storageDir, users);
+    return publicUser(user);
+  });
+}
+
 function githubUsernameBase(profile) {
   const loginBase = (profile.login ?? "")
     .toLowerCase()
@@ -404,6 +438,41 @@ export function findOrCreateGithubUser(storageDir, profile) {
     };
     await writeUsersFile(storageDir, users);
     return { user: publicUser(linkedUser), created: false };
+  });
+}
+
+export function linkGithubProvider(storageDir, userId, profile) {
+  return withLock(async () => {
+    const githubId = typeof profile?.id === "string" ? profile.id.trim() : "";
+    const email = normalizeEmail(profile?.email);
+
+    if (!githubId || !email) throw new Error("invalid_github_profile");
+
+    const users = await readUsersFile(storageDir);
+    const user = users.find((item) => item.id === userId);
+    if (!user) return null;
+
+    const linkedToOther = users.find(
+      (item) => item.id !== userId && item.github?.id === githubId,
+    );
+    if (linkedToOther) throw new Error("github_already_linked");
+
+    const now = new Date().toISOString();
+    if (!user.email) user.email = email;
+    if (!user.fullName && profile.fullName) {
+      user.fullName = profile.fullName.trim();
+    }
+    user.github = {
+      id: githubId,
+      login: profile.login,
+      email,
+      linkedAt: user.github?.linkedAt ?? now,
+      lastLoginAt: user.github?.lastLoginAt ?? null,
+      ...(profile.avatar ? { avatar: profile.avatar } : {}),
+    };
+
+    await writeUsersFile(storageDir, users);
+    return publicUser(user);
   });
 }
 

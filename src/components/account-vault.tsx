@@ -1615,6 +1615,7 @@ export function AccountVault({
           theme={theme}
           onThemeChange={onThemeChange}
           user={user}
+          onProfileChange={setNavProfile}
         />
       ) : null}
 

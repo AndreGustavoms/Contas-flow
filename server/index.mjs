@@ -34,6 +34,8 @@ import {
   ensureSuperadmin,
   findOrCreateGoogleUser,
   findOrCreateGithubUser,
+  linkGoogleProvider,
+  linkGithubProvider,
   findByEmail,
   findById,
   findByUsernameOrEmail,
@@ -389,6 +391,8 @@ function isPublicApi(pathname) {
     pathname === "/api/auth/google/callback" ||
     pathname === "/api/auth/github" ||
     pathname === "/api/auth/github/callback" ||
+    pathname === "/api/account/connections/google" ||
+    pathname === "/api/account/connections/github" ||
     pathname === "/api/auth/reauth" ||
     pathname === "/api/auth/forgot-password" ||
     pathname === "/api/auth/reset-password" ||
@@ -804,6 +808,68 @@ async function handleApi(request, response, url, user, session) {
     return;
   }
 
+  if (
+    url.pathname === "/api/account/connections/google" &&
+    request.method === "GET"
+  ) {
+    const current = await getSessionUser(request);
+    if (!current) {
+      redirect(response, "/?auth=login_required");
+      return;
+    }
+    if (!googleAuthConfigured()) {
+      redirect(response, "/?connection=google_unavailable");
+      return;
+    }
+
+    const state = `link:${randomBytes(32).toString("base64url")}`;
+    setGoogleOAuthStateCookie(response, state);
+    try {
+      redirect(
+        response,
+        buildGoogleAuthUrl({
+          redirectUri: googleRedirectUri(request),
+          state,
+        }),
+      );
+    } catch {
+      clearGoogleOAuthStateCookie(response);
+      redirect(response, "/?connection=google_error");
+    }
+    return;
+  }
+
+  if (
+    url.pathname === "/api/account/connections/github" &&
+    request.method === "GET"
+  ) {
+    const current = await getSessionUser(request);
+    if (!current) {
+      redirect(response, "/?auth=login_required");
+      return;
+    }
+    if (!githubAuthConfigured()) {
+      redirect(response, "/?connection=github_unavailable");
+      return;
+    }
+
+    const state = `link:${randomBytes(32).toString("base64url")}`;
+    setGithubOAuthStateCookie(response, state);
+    try {
+      redirect(
+        response,
+        buildGithubAuthUrl({
+          redirectUri: githubRedirectUri(request),
+          state,
+        }),
+      );
+    } catch {
+      clearGithubOAuthStateCookie(response);
+      redirect(response, "/?connection=github_error");
+    }
+    return;
+  }
+
   if (url.pathname === "/api/auth/google" && request.method === "GET") {
     if (!googleAuthConfigured()) {
       redirect(response, "/?auth=google_error");
@@ -856,6 +922,27 @@ async function handleApi(request, response, url, user, session) {
         code,
         redirectUri: googleRedirectUri(request),
       });
+      if (String(actualState).startsWith("link:")) {
+        const current = await getSessionUser(request);
+        if (!current) {
+          redirect(response, "/?auth=login_required");
+          return;
+        }
+        const linked = await linkGoogleProvider(storageDir, current.id, profile);
+        if (!linked) {
+          redirect(response, "/?connection=google_error");
+          return;
+        }
+        void logEvent(storageDir, {
+          userId: current.id,
+          username: current.username,
+          action: "link_google_ok",
+          target: profile.email,
+          ip: clientIp(request),
+        });
+        redirect(response, "/?connection=google_linked");
+        return;
+      }
       const result = await findOrCreateGoogleUser(storageDir, profile);
       const ip = clientIp(request);
       const token = await createSession(storageDir, {
@@ -884,10 +971,12 @@ async function handleApi(request, response, url, user, session) {
       });
       redirect(
         response,
-        error instanceof Error &&
-          error.message === "google_email_already_registered"
-          ? "/?auth=google_email_exists"
-          : "/?auth=google_error",
+        error instanceof Error && error.message === "google_already_linked"
+          ? "/?connection=google_already_linked"
+          : error instanceof Error &&
+              error.message === "google_email_already_registered"
+            ? "/?auth=google_email_exists"
+            : "/?auth=google_error",
       );
     }
     return;
@@ -945,6 +1034,27 @@ async function handleApi(request, response, url, user, session) {
         code,
         redirectUri: githubRedirectUri(request),
       });
+      if (String(actualState).startsWith("link:")) {
+        const current = await getSessionUser(request);
+        if (!current) {
+          redirect(response, "/?auth=login_required");
+          return;
+        }
+        const linked = await linkGithubProvider(storageDir, current.id, profile);
+        if (!linked) {
+          redirect(response, "/?connection=github_error");
+          return;
+        }
+        void logEvent(storageDir, {
+          userId: current.id,
+          username: current.username,
+          action: "link_github_ok",
+          target: profile.email,
+          ip: clientIp(request),
+        });
+        redirect(response, "/?connection=github_linked");
+        return;
+      }
       const result = await findOrCreateGithubUser(storageDir, profile);
       const ip = clientIp(request);
       const token = await createSession(storageDir, {
@@ -973,10 +1083,12 @@ async function handleApi(request, response, url, user, session) {
       });
       redirect(
         response,
-        error instanceof Error &&
-          error.message === "github_email_already_registered"
-          ? "/?auth=github_email_exists"
-          : "/?auth=github_error",
+        error instanceof Error && error.message === "github_already_linked"
+          ? "/?connection=github_already_linked"
+          : error instanceof Error &&
+              error.message === "github_email_already_registered"
+            ? "/?auth=github_email_exists"
+            : "/?auth=github_error",
       );
     }
     return;

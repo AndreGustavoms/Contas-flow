@@ -25,6 +25,10 @@ Guia para subir o Contas*exe em produção no **Railway**, já no modelo de
 | `GOOGLE_AUTH_CLIENT_SECRET`   | Client Secret OAuth do Google                  | se usar login Google                            |
 | `GOOGLE_AUTH_REDIRECT_URI`    | `https://SEU-DOMINIO/api/auth/google/callback` | recomendado em prod                             |
 | `GOOGLE_AUTH_ALLOWED_DOMAIN`  | domínio permitido, ex. `vitissouls.com`        | opcional                                        |
+| `YOUTUBE_CLIENT_ID`           | Client ID OAuth do Google/YouTube              | se conectar YouTube                             |
+| `YOUTUBE_CLIENT_SECRET`       | Client Secret OAuth do Google/YouTube          | se conectar YouTube                             |
+| `YOUTUBE_REDIRECT_URI`        | `https://SEU-DOMINIO/api/youtube/callback`     | se conectar YouTube                             |
+| `YOUTUBE_UPLOAD_DIR`          | pasta de staging dos videos                    | opcional                                        |
 
 **Notas importantes:**
 
@@ -44,7 +48,11 @@ Guia para subir o Contas*exe em produção no **Railway**, já no modelo de
   o app cria automaticamente um usuário `member`. Se o e-mail já existir sem
   vínculo Google, o login é bloqueado para evitar conflito; use usuário/senha.
   Admins continuam sendo promovidos pela tela **Equipe**.
-- `YOUTUBE_*` só quando for ativar OAuth em prod (integração em pausa).
+- Para conectar YouTube em produção, cadastre no Google Cloud o redirect URI
+  exatamente igual a `YOUTUBE_REDIRECT_URI`: `https://SEU-DOMINIO/api/youtube/callback`.
+  O mesmo Client ID/Secret precisa ter a YouTube Data API v3 ativada e o e-mail
+  que vai conectar o canal deve estar liberado na tela de consentimento enquanto
+  o app OAuth estiver em modo de teste.
 
 ---
 

@@ -110,6 +110,9 @@ export type ManagedSession = {
   lastSeenAt: number;
   expiresAt: number;
   userAgent: string;
+  location: string | null;
+  // IP cru — exposto apenas nos paineis de admin.
+  ip: string | null;
   current: boolean;
 };
 

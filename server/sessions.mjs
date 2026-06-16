@@ -11,9 +11,10 @@
 //     extends, so even daily use forces a fresh login after 3 days.
 //
 // Storage: storage/sessions.json (git-ignored via storage/*), same shape/idioms
-// as users.json. The user-identifying metadata (ipHash, userAgent) is encrypted
-// at rest with the same crypto.mjs used for the vault, so a leaked file doesn't
-// reveal who connected from where.
+// as users.json. The user-identifying metadata (ipHash, userAgent, location and
+// the raw ip) is encrypted at rest with the same crypto.mjs used for the vault,
+// so a leaked file doesn't reveal who connected from where. The raw ip is only
+// ever surfaced in the admin panels (see publicSession's includeIp).
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -75,6 +76,7 @@ async function readSessionsFile(storageDir) {
         session.location != null
           ? decryptField(session.location)
           : session.location,
+      ip: session.ip != null ? decryptField(session.ip) : session.ip,
     }));
   } catch {
     return [];
@@ -97,6 +99,7 @@ async function writeSessionsFile(storageDir, sessions) {
       session.location != null
         ? encryptField(session.location)
         : session.location,
+    ip: session.ip != null ? encryptField(session.ip) : session.ip,
   }));
   await writeFile(
     sessionStoreFile(storageDir),
@@ -143,13 +146,23 @@ async function resolveLocation(ip) {
     const geo = await geoip.lookup(ip.replace(/^::ffff:/i, ""));
     if (!geo) return null;
     const city = typeof geo.city === "string" ? geo.city.trim() : "";
+    const region = typeof geo.region === "string" ? geo.region.trim() : "";
     const country = typeof geo.country === "string" ? geo.country.trim() : "";
+    // Preferimos "Cidade, Estado" (o que aparece nos dispositivos do usuário).
+    if (city && region) return `${city}, ${region}`;
     if (city && country) return `${city}, ${country}`;
-    if (country) return country;
-    return null;
+    if (region && country) return `${region}, ${country}`;
+    return country || null;
   } catch {
     return null;
   }
+}
+
+// Normaliza o IP para armazenamento (admin-only): remove o prefixo IPv4-mapped e
+// limita o tamanho. NUNCA é exposto para o proprio usuário, so nos paineis de admin.
+function clampIp(ip) {
+  if (typeof ip !== "string" || !ip || ip === "unknown") return null;
+  return ip.replace(/^::ffff:/i, "").slice(0, 64);
 }
 
 // --- Expiration helpers ---
@@ -170,8 +183,9 @@ export function hasRecentReauth(session, now = Date.now()) {
   );
 }
 
-// Public view of a session for the admin panel (no ipHash, no raw metadata leak).
-function publicSession(session, currentSessionId) {
+// Public view of a session. The raw IP is included ONLY when includeIp is set
+// (admin panels). The user's own device list never receives it.
+function publicSession(session, currentSessionId, { includeIp = false } = {}) {
   return {
     sessionId: session.sessionId,
     userId: session.userId,
@@ -180,6 +194,7 @@ function publicSession(session, currentSessionId) {
     expiresAt: session.expiresAt,
     userAgent: session.userAgent ?? "",
     location: session.location ?? null,
+    ...(includeIp ? { ip: session.ip ?? null } : {}),
     current: session.sessionId === currentSessionId,
   };
 }
@@ -201,7 +216,8 @@ export function createSession(storageDir, { userId, ip, userAgent }) {
       lastSeenAt: now,
       expiresAt: now + SESSION_ABSOLUTE_MS,
       userAgent: clampUserAgent(userAgent),
-      location, // approximate "City, CC" derived from the IP at login (no raw IP)
+      location, // "Cidade, Estado" aproximada (mostrada nos dispositivos do usuário)
+      ip: clampIp(ip), // IP cru, exposto SO nos paineis de admin (cifrado em repouso)
       ipHash: hashIp(ip),
       revokedAt: null,
       reauthAt: null, // last time the user re-typed their password (epoch ms)
@@ -317,7 +333,7 @@ export async function listAllSessions(storageDir, currentSessionId) {
   const now = Date.now();
   return sessions
     .filter((item) => !isExpired(item, now))
-    .map((item) => publicSession(item, currentSessionId));
+    .map((item) => publicSession(item, currentSessionId, { includeIp: true }));
 }
 
 // Permanently removes sessions that are revoked or expired. Called at startup and

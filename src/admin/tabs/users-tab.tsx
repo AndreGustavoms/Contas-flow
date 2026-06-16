@@ -319,6 +319,16 @@ export function UsersTab({
                           t("admin.users.generic_browser"),
                           t("admin.users.unknown_device"),
                         )}
+                        {s.location ? (
+                          <span className="ml-2 text-[color:var(--muted)]">
+                            · {s.location}
+                          </span>
+                        ) : null}
+                        {s.ip ? (
+                          <span className="ml-2 font-mono text-[color:var(--muted)]">
+                            · {s.ip}
+                          </span>
+                        ) : null}
                         {s.current ? (
                           <span className="ml-2 text-[color:var(--accent)]">
                             {t("admin.users.this_device")}

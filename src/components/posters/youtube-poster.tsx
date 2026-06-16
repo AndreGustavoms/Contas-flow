@@ -483,7 +483,7 @@ export function YouTubePoster() {
                   {file ? file.name : t("post.youtube.choose_file")}
                 </p>
                 <p className="mt-0.5 text-xs text-[color:var(--muted)]">
-                  {file ? fmtSize(file.size) : t("post.youtube.choose_hint")}
+                  {file ? fmtSize(file.size) : t(videoType === "short" ? "post.youtube.choose_hint_short" : "post.youtube.choose_hint")}
                 </p>
               </div>
             </button>

@@ -111,15 +111,12 @@ export function YouTubePoster() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [privacy, setPrivacy] = useState<Privacy>("private");
   const [schedule, setSchedule] = useState("");
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleTime, setScheduleTime] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [videoDim, setVideoDim] = useState<{ w: number; h: number } | null>(null);
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
-
   // Community
   const [communityContent, setCommunityContent] = useState<CommunityContent>("text");
   const [communityText, setCommunityText] = useState("");
@@ -137,7 +134,6 @@ export function YouTubePoster() {
   const [copied, setCopied] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const thumbnailRef = useRef<HTMLInputElement>(null);
   const communityImageRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -147,13 +143,6 @@ export function YouTubePoster() {
     setVideoDim(null);
     return () => URL.revokeObjectURL(url);
   }, [file]);
-
-  useEffect(() => {
-    if (!thumbnailFile) { setThumbnailPreview(null); return; }
-    const url = URL.createObjectURL(thumbnailFile);
-    setThumbnailPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [thumbnailFile]);
 
   useEffect(() => {
     if (!communityImageFile) { setCommunityImagePreview(null); return; }
@@ -244,12 +233,6 @@ export function YouTubePoster() {
       const staged = await uploadVideoFile(file, setProgress);
       setProgress(null);
 
-      let thumbnailName: string | undefined;
-      if (videoType === "video" && thumbnailFile) {
-        const stagedThumb = await uploadVideoFile(thumbnailFile, () => {});
-        thumbnailName = stagedThumb.name;
-      }
-
       const res = await fetch("/api/youtube/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -262,7 +245,6 @@ export function YouTubePoster() {
           publishAt,
           privacyStatus: privacy,
           videoType,
-          ...(thumbnailName && { thumbnailName }),
         }),
       });
       if (!res.ok) throw new Error("publish_failed");
@@ -318,7 +300,7 @@ export function YouTubePoster() {
             onClick={() => {
               setDone(null); setChannelId(""); setFile(null);
               setTitle(""); setDescription(""); setTags("");
-              setThumbnailFile(null); clearSchedule();
+              clearSchedule();
             }}
           >
             {t("post.youtube.new_post")}
@@ -553,55 +535,6 @@ export function YouTubePoster() {
               />
             </label>
           </section>
-
-          {/* ── Thumbnail (Vídeo apenas) ── */}
-          {videoType === "video" && (
-            <section className="border-t border-[color:var(--border)] py-6">
-              <SectionLabel>{t("post.youtube.thumbnail")}</SectionLabel>
-              <input
-                ref={thumbnailRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(e) => setThumbnailFile(e.target.files?.[0] ?? null)}
-              />
-              <button
-                type="button"
-                onClick={() => thumbnailRef.current?.click()}
-                className={cn(
-                  "group flex w-full items-center gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-200",
-                  thumbnailFile
-                    ? "border-[color:var(--accent-border)] bg-[color:var(--accent-surface)]"
-                    : "border-[color:var(--border)] hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)]",
-                )}
-              >
-                {thumbnailPreview ? (
-                  <img src={thumbnailPreview} alt="" className="h-12 w-20 shrink-0 rounded-lg object-cover" />
-                ) : (
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[color:var(--border)] text-[color:var(--muted)] transition-all duration-200 group-hover:border-[color:var(--accent-border)] group-hover:text-[color:var(--accent)]">
-                    <ImageIcon className="h-5 w-5" />
-                  </span>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-[color:var(--text)]">
-                    {thumbnailFile ? thumbnailFile.name : t("post.youtube.choose_thumbnail")}
-                  </p>
-                  <p className="mt-0.5 text-xs text-[color:var(--muted)]">
-                    {thumbnailFile ? fmtSize(thumbnailFile.size) : t("post.youtube.thumbnail_hint")}
-                  </p>
-                </div>
-                {thumbnailFile && (
-                  <button
-                    type="button"
-                    className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]"
-                    onClick={(e) => { e.stopPropagation(); setThumbnailFile(null); }}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </button>
-            </section>
-          )}
 
           {/* ── Aviso Short ── */}
           {videoType === "short" && (

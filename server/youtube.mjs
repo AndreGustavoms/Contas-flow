@@ -350,13 +350,6 @@ function parseIsoDuration(iso) {
 // and YouTube flips it to public automatically at that time.
 const PRIVACY_STATUSES = new Set(["public", "unlisted", "private"]);
 
-function thumbnailMime(name) {
-  const ext = name.split(".").pop()?.toLowerCase();
-  if (ext === "png") return "image/png";
-  if (ext === "webp") return "image/webp";
-  return "image/jpeg";
-}
-
 export async function uploadVideo({
   channelId,
   file,
@@ -365,10 +358,8 @@ export async function uploadVideo({
   tags = [],
   publishAt,
   privacyStatus = "private",
-  thumbnailName,
 }) {
   const filePath = resolveUploadPath(file);
-  const thumbnailPath = thumbnailName ? resolveUploadPath(thumbnailName) : null;
   try {
     await stat(filePath);
   } catch {
@@ -399,22 +390,6 @@ export async function uploadVideo({
     });
 
     const videoId = response.data.id ?? null;
-
-    // Set custom thumbnail (best-effort: YouTube requires channel verification
-    // or 1 000+ subs — silently skip if the API rejects it).
-    if (videoId && thumbnailPath) {
-      try {
-        await youtube.thumbnails.set({
-          videoId,
-          media: {
-            mimeType: thumbnailMime(thumbnailName),
-            body: createReadStream(thumbnailPath),
-          },
-        });
-      } catch {
-        /* thumbnail rejected by YouTube — not fatal */
-      }
-    }
 
     // Best-effort: read the processed duration. May be null if YouTube hasn't
     // finished processing yet — that's fine, the history just omits it.
@@ -462,8 +437,6 @@ export async function uploadVideo({
 
     return result;
   } finally {
-    // O Contas é só intermediário: os arquivos nunca ficam salvos.
     await unlink(filePath).catch(() => {});
-    if (thumbnailPath) await unlink(thumbnailPath).catch(() => {});
   }
 }

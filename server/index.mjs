@@ -2382,10 +2382,6 @@ async function handleApi(request, response, url, user, session) {
           typeof body.privacyStatus === "string"
             ? body.privacyStatus.trim()
             : undefined,
-        thumbnailName:
-          typeof body.thumbnailName === "string" && body.thumbnailName.trim()
-            ? body.thumbnailName.trim()
-            : undefined,
       });
       recordLog(
         "info",

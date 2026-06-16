@@ -518,14 +518,34 @@ export function YouTubePoster() {
             </label>
           </section>
 
-          {/* ── Aviso Short ── */}
+          {/* ── Specs Short ── */}
           {videoType === "short" && (
             <section className="border-t border-[color:var(--border)] py-6">
-              <div className="flex items-start gap-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3.5">
-                <Zap className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" />
-                <p className="text-[12px] leading-relaxed text-yellow-200/80">
-                  {t("post.youtube.short_notice")}
-                </p>
+              <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/[0.06] p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-yellow-500/20 text-yellow-400">
+                    <Zap className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-yellow-400/80">
+                    {t("post.youtube.short_specs_label")}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: t("post.youtube.short_spec_ratio") },
+                    { label: t("post.youtube.short_spec_duration") },
+                    { label: t("post.youtube.short_spec_res") },
+                    { label: t("post.youtube.short_spec_hashtag") },
+                    { label: t("post.youtube.short_spec_thumb") },
+                  ].map(({ label }) => (
+                    <span
+                      key={label}
+                      className="inline-flex items-center rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-[11px] font-semibold text-yellow-300/90"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
               </div>
             </section>
           )}

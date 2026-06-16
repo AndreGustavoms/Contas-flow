@@ -4,16 +4,17 @@ import {
   useEffect,
   useState,
 } from "react";
-import { Send, X } from "lucide-react";
+import { Lock, Send, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../lib/utils";
-import { YouTubeIcon } from "./platform-icons";
+import {
+  FacebookIcon,
+  InstagramIcon,
+  KwaiIcon,
+  TikTokIcon,
+  YouTubeIcon,
+} from "./platform-icons";
 import { YouTubePoster } from "./posters/youtube-poster";
-
-// "Postar": hub de publicação nas redes sociais. Um menu lateral lista as redes
-// disponíveis e cada uma tem seu próprio painel, com o contexto daquela rede.
-// Por enquanto só o YouTube; adicionar uma rede é só somar uma entrada em
-// NETWORKS e o painel correspondente.
 
 type IconProps = { className?: string; style?: CSSProperties };
 
@@ -22,7 +23,8 @@ type Network = {
   label: string;
   Icon: ComponentType<IconProps>;
   accent: string;
-  Panel: ComponentType;
+  Panel?: ComponentType;
+  comingSoon?: true;
 };
 
 const NETWORKS: Network[] = [
@@ -32,6 +34,34 @@ const NETWORKS: Network[] = [
     Icon: YouTubeIcon,
     accent: "#FF0000",
     Panel: YouTubePoster,
+  },
+  {
+    id: "instagram",
+    label: "Instagram",
+    Icon: InstagramIcon,
+    accent: "#E1306C",
+    comingSoon: true,
+  },
+  {
+    id: "tiktok",
+    label: "TikTok",
+    Icon: TikTokIcon,
+    accent: "#69C9D0",
+    comingSoon: true,
+  },
+  {
+    id: "facebook",
+    label: "Facebook",
+    Icon: FacebookIcon,
+    accent: "#1877F2",
+    comingSoon: true,
+  },
+  {
+    id: "kwai",
+    label: "Kwai",
+    Icon: KwaiIcon,
+    accent: "#FF6A00",
+    comingSoon: true,
   },
 ];
 
@@ -50,7 +80,6 @@ export function SocialPoster({ onClose }: { onClose: () => void }) {
   const current = NETWORKS.find((n) => n.id === active) ?? NETWORKS[0];
   const Panel = current.Panel;
 
-  // Página (não modal): preenche a área de conteúdo do cofre, ao lado da sidebar.
   return (
     <section className="vault-card animate-rise relative flex min-h-[calc(100dvh-150px)] overflow-hidden">
       <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />
@@ -66,38 +95,42 @@ export function SocialPoster({ onClose }: { onClose: () => void }) {
         <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wide text-[color:var(--muted)]">
           {t("post.networks")}
         </p>
-        {NETWORKS.map(({ id, label, Icon, accent }) => {
-          const isActive = active === id;
+        {NETWORKS.map(({ id, label, Icon, accent, comingSoon }) => {
+          const isActive = active === id && !comingSoon;
           return (
             <button
               key={id}
               type="button"
-              onClick={() => setActive(id)}
+              disabled={comingSoon}
+              onClick={() => !comingSoon && setActive(id)}
               className={cn(
                 "group relative flex w-full items-center gap-2.5 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                isActive
-                  ? "bg-[color:var(--field)] text-[color:var(--text)]"
-                  : "text-[color:var(--muted)] hover:bg-[color:var(--field)] hover:text-[color:var(--text)]",
+                comingSoon
+                  ? "cursor-not-allowed opacity-40"
+                  : isActive
+                    ? "bg-[color:var(--field)] text-[color:var(--text)]"
+                    : "text-[color:var(--muted)] hover:bg-[color:var(--field)] hover:text-[color:var(--text)]",
               )}
             >
               {isActive && (
                 <span
                   className="absolute left-0 top-0 h-full w-0.5 rounded-r"
-                  style={{
-                    background: accent,
-                    boxShadow: `0 0 8px ${accent}99`,
-                  }}
+                  style={{ background: accent, boxShadow: `0 0 8px ${accent}99` }}
                 />
               )}
-              <span
-                className={cn(
-                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-all duration-200",
-                  isActive ? "opacity-100" : "opacity-60 group-hover:opacity-100",
-                )}
-              >
+              <span className={cn(
+                "flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-all duration-200",
+                isActive ? "opacity-100" : "opacity-60 group-hover:opacity-80",
+              )}>
                 <Icon className="h-4 w-4" style={{ color: accent }} />
               </span>
-              {label}
+              <span className="flex-1 text-left">{label}</span>
+              {comingSoon && (
+                <span className="flex items-center gap-1 rounded-md border border-[color:var(--border)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[color:var(--muted)]">
+                  <Lock className="h-2.5 w-2.5" />
+                  em breve
+                </span>
+              )}
             </button>
           );
         })}
@@ -105,7 +138,7 @@ export function SocialPoster({ onClose }: { onClose: () => void }) {
 
       {/* Painel da rede selecionada */}
       <div className="account-settings-content min-w-0 flex-1 overflow-y-auto p-6">
-        <Panel />
+        {Panel && <Panel />}
       </div>
 
       <button

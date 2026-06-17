@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { initDb } from "./db.mjs";
 import { createServer } from "node:http";
 import { createReadStream } from "node:fs";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
@@ -62,7 +63,7 @@ import {
   validateUsername,
   verifyPassword,
   verifyUserTotp,
-} from "./users.mjs";
+} from "./users-pg.mjs";
 import { sendEmail } from "./email.mjs";
 import {
   consumeResetToken,
@@ -2897,6 +2898,10 @@ const server = createServer(async (request, response) => {
     sendJson(response, 500, { error: "server_error" });
   }
 });
+
+// Startup: try to connect to PostgreSQL (DATABASE_URL). Falls back to JSON
+// storage automatically when the env var is absent or the connection fails.
+await initDb();
 
 // Startup: seed the bootstrap admin from APP_AUTH_* if the user store is empty,
 // then migrate any legacy groups.json into per-user vault files. On subsequent

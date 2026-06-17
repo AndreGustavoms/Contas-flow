@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { initDb } from "./db.mjs";
+import { initDb, isConnected, query, getClient } from "./db.mjs";
 import { createServer } from "node:http";
 import { createReadStream } from "node:fs";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
@@ -643,6 +643,10 @@ async function migrateGroupsToVaults(adminId) {
 // Deletes a removed user's vault contents instead of moving them to the acting
 // admin. User vaults are isolated; deletion must not transfer private accounts.
 async function purgeUserVault(fromUserId) {
+  if (isConnected()) {
+    await query("DELETE FROM groups WHERE owner_id = $1", [fromUserId]);
+    return;
+  }
   await writeVault(fromUserId, { groups: [] });
 }
 
@@ -664,6 +668,44 @@ function vaultPath(userId) {
 }
 
 async function readVault(userId) {
+  if (isConnected()) {
+    const groupsRes = await query(
+      "SELECT id, name FROM groups WHERE owner_id = $1 ORDER BY created_at",
+      [userId]
+    );
+    const groups = [];
+    for (const g of groupsRes.rows) {
+      const acctRes = await query(
+        `SELECT id, platform, role, owner, label, email, username,
+         password_enc, recovery_email_enc, phone_enc, notes_enc,
+         status, two_factor AS "twoFactor", post_day AS "postDay", niche,
+         updated_at AS "updatedAt"
+         FROM accounts WHERE group_id = $1 ORDER BY created_at`,
+        [g.id]
+      );
+      const accounts = acctRes.rows.map((a) => ({
+        id: a.id,
+        platform: a.platform,
+        role: a.role,
+        owner: a.owner,
+        label: a.label || "",
+        email: a.email || "",
+        username: a.username || "",
+        password: a.password_enc ? decryptField(a.password_enc) : "",
+        recoveryEmail: a.recovery_email_enc ? decryptField(a.recovery_email_enc) : "",
+        phone: a.phone_enc ? decryptField(a.phone_enc) : "",
+        notes: a.notes_enc ? decryptField(a.notes_enc) : "",
+        status: a.status,
+        twoFactor: a.twoFactor,
+        postDay: a.postDay || "",
+        niche: a.niche || "",
+        updatedAt: a.updatedAt,
+      }));
+      groups.push({ id: g.id, name: g.name, ownerId: userId, accounts });
+    }
+    return { groups };
+  }
+
   await ensureVaultsDir();
   let raw;
   try {
@@ -684,6 +726,78 @@ async function readVault(userId) {
 }
 
 async function writeVault(userId, db) {
+  if (isConnected()) {
+    const client = await getClient();
+    try {
+      await client.query("BEGIN");
+      const existingRes = await client.query(
+        "SELECT id FROM groups WHERE owner_id = $1",
+        [userId]
+      );
+      const existingIds = new Set(existingRes.rows.map((r) => r.id));
+      const newIds = new Set(db.groups.map((g) => g.id));
+
+      for (const id of existingIds) {
+        if (!newIds.has(id)) {
+          await client.query("DELETE FROM groups WHERE id = $1", [id]);
+        }
+      }
+
+      for (const group of db.groups) {
+        await client.query(
+          `INSERT INTO groups (id, name, owner_id) VALUES ($1, $2, $3)
+           ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name`,
+          [group.id, group.name, userId]
+        );
+
+        const accountIds = group.accounts.map((a) => a.id);
+        if (accountIds.length > 0) {
+          await client.query(
+            `DELETE FROM accounts WHERE group_id = $1 AND id != ALL($2::uuid[])`,
+            [group.id, accountIds]
+          );
+        } else {
+          await client.query("DELETE FROM accounts WHERE group_id = $1", [group.id]);
+        }
+
+        for (const acct of group.accounts) {
+          await client.query(
+            `INSERT INTO accounts (id, group_id, platform, role, owner, label, email, username,
+             password_enc, recovery_email_enc, phone_enc, notes_enc,
+             status, two_factor, post_day, niche, updated_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+             ON CONFLICT (id) DO UPDATE SET
+               platform=EXCLUDED.platform, role=EXCLUDED.role, owner=EXCLUDED.owner,
+               label=EXCLUDED.label, email=EXCLUDED.email, username=EXCLUDED.username,
+               password_enc=EXCLUDED.password_enc, recovery_email_enc=EXCLUDED.recovery_email_enc,
+               phone_enc=EXCLUDED.phone_enc, notes_enc=EXCLUDED.notes_enc,
+               status=EXCLUDED.status, two_factor=EXCLUDED.two_factor,
+               post_day=EXCLUDED.post_day, niche=EXCLUDED.niche, updated_at=EXCLUDED.updated_at`,
+            [
+              acct.id, group.id, acct.platform, acct.role, acct.owner,
+              acct.label || "", acct.email || "", acct.username || "",
+              acct.password ? encryptField(acct.password) : null,
+              acct.recoveryEmail ? encryptField(acct.recoveryEmail) : null,
+              acct.phone ? encryptField(acct.phone) : null,
+              acct.notes ? encryptField(acct.notes) : null,
+              acct.status || "active", acct.twoFactor || false,
+              acct.postDay || "", acct.niche || "",
+              acct.updatedAt || new Date().toISOString(),
+            ]
+          );
+        }
+      }
+
+      await client.query("COMMIT");
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    } finally {
+      client.release();
+    }
+    return;
+  }
+
   await ensureVaultsDir();
   const encrypted = transformDbSecrets(structuredClone(db), encryptField);
   await writeFile(
@@ -2954,11 +3068,10 @@ if (ownerCleanup?.removed?.length) {
   );
 }
 
-// If encryption is on, proactively re-encrypt all vault files so any pre-existing
-// plaintext secrets get encrypted now rather than waiting for the next edit.
-// readVault→writeVault round-trips through decrypt/encrypt; already-encrypted
-// values are left untouched (idempotent).
-if (encryptionEnabled) {
+// If encryption is on and using JSON storage, proactively re-encrypt all vault
+// files so any pre-existing plaintext secrets get encrypted now. With PostgreSQL,
+// encryption happens at write time in writeVault — no need to re-encrypt on boot.
+if (encryptionEnabled && !isConnected()) {
   const allUsers = await listUsers(storageDir);
   for (const u of allUsers) {
     await writeVault(u.id, await readVault(u.id));

@@ -15,6 +15,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { isConnected, query } from "./db.mjs";
 
 // Cap so the file can't grow without bound; we keep the most recent events.
 const MAX_EVENTS = 5000;
@@ -67,6 +68,14 @@ function hashIp(ip) {
 // swallow our own errors here. An unhandled rejection would otherwise crash the
 // process (Node's default), letting an audit write hiccup take the server down.
 export function logEvent(storageDir, { userId, username, action, target, ip }) {
+  if (isConnected()) {
+    return query(
+      `INSERT INTO audit_events (ts, user_id, username, action, target, ip_hash)
+       VALUES (NOW(), $1, $2, $3, $4, $5)`,
+      [userId ?? null, username ?? null, action, target ?? null, hashIp(ip)]
+    ).catch((error) => console.error("audit_log_failed:", error));
+  }
+
   return withLock(async () => {
     const events = await readEventsFile(storageDir);
     events.push({
@@ -77,7 +86,6 @@ export function logEvent(storageDir, { userId, username, action, target, ip }) {
       target: target ?? null,
       ipHash: hashIp(ip),
     });
-    // Keep only the most recent MAX_EVENTS.
     const trimmed =
       events.length > MAX_EVENTS
         ? events.slice(events.length - MAX_EVENTS)
@@ -98,30 +106,55 @@ export async function listEvents(
   storageDir,
   { limit = 50, offset = 0, action, username, from, to, q } = {},
 ) {
+  if (isConnected()) {
+    const conditions = ["1=1"];
+    const params = [];
+    let p = 1;
+
+    if (action) { conditions.push(`action = $${p++}`); params.push(action); }
+    if (username) { conditions.push(`username ILIKE $${p++}`); params.push(`%${username}%`); }
+    if (from) { conditions.push(`ts >= $${p++}`); params.push(new Date(from)); }
+    if (to) {
+      conditions.push(`ts <= $${p++}`);
+      params.push(new Date(new Date(to).getTime() + 24 * 60 * 60 * 1000 - 1));
+    }
+    if (q) {
+      conditions.push(`(username ILIKE $${p} OR action ILIKE $${p} OR target ILIKE $${p})`);
+      params.push(`%${q}%`); p++;
+    }
+
+    const where = conditions.join(" AND ");
+    const [countRes, rowsRes] = await Promise.all([
+      query(`SELECT COUNT(*)::int AS total FROM audit_events WHERE ${where}`, params),
+      query(
+        `SELECT id, ts, user_id AS "userId", username, action, target, ip_hash AS "ipHash"
+         FROM audit_events WHERE ${where}
+         ORDER BY ts DESC LIMIT $${p} OFFSET $${p + 1}`,
+        [...params, limit, offset]
+      ),
+    ]);
+
+    return {
+      events: rowsRes.rows.map((e) => ({ ...e, ts: e.ts.toISOString() })),
+      total: countRes.rows[0].total,
+    };
+  }
+
   const events = await readEventsFile(storageDir);
   let filtered = events;
 
-  if (action) {
-    filtered = filtered.filter((e) => e.action === action);
-  }
+  if (action) filtered = filtered.filter((e) => e.action === action);
   if (username) {
     const needle = username.toLowerCase();
-    filtered = filtered.filter((e) =>
-      (e.username ?? "").toLowerCase().includes(needle),
-    );
+    filtered = filtered.filter((e) => (e.username ?? "").toLowerCase().includes(needle));
   }
   if (from) {
     const fromTs = new Date(from).getTime();
-    if (Number.isFinite(fromTs)) {
-      filtered = filtered.filter((e) => new Date(e.ts).getTime() >= fromTs);
-    }
+    if (Number.isFinite(fromTs)) filtered = filtered.filter((e) => new Date(e.ts).getTime() >= fromTs);
   }
   if (to) {
-    // "to" é uma data de calendário: inclui o dia inteiro (até 23:59:59.999).
     const toTs = new Date(to).getTime() + 24 * 60 * 60 * 1000 - 1;
-    if (Number.isFinite(toTs)) {
-      filtered = filtered.filter((e) => new Date(e.ts).getTime() <= toTs);
-    }
+    if (Number.isFinite(toTs)) filtered = filtered.filter((e) => new Date(e.ts).getTime() <= toTs);
   }
   if (q) {
     const needle = q.toLowerCase();
@@ -134,8 +167,5 @@ export async function listEvents(
   }
 
   const newestFirst = filtered.slice().reverse();
-  return {
-    events: newestFirst.slice(offset, offset + limit),
-    total: newestFirst.length,
-  };
+  return { events: newestFirst.slice(offset, offset + limit), total: newestFirst.length };
 }

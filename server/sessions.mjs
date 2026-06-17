@@ -21,6 +21,7 @@ import { join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import geoip from "fast-geoip";
 import { decryptField, encryptField } from "./crypto.mjs";
+import { isConnected, query } from "./db.mjs";
 
 export const SESSION_IDLE_MS = 3 * 60 * 60 * 1000; // 3h sem uso = logout
 export const SESSION_ABSOLUTE_MS = 3 * 24 * 60 * 60 * 1000; // 3 dias = relogar
@@ -203,26 +204,38 @@ function publicSession(session, currentSessionId, { includeIp = false } = {}) {
 
 // Creates a session and returns its opaque token (sessionId). The token uses the
 // same hard-to-guess shape as before (two UUIDs concatenated).
-export function createSession(storageDir, { userId, ip, userAgent }) {
+export async function createSession(storageDir, { userId, ip, userAgent }) {
+  const now = Date.now();
+  const sessionId = randomUUID() + randomUUID().replaceAll("-", "");
+  const location = await resolveLocation(ip);
+  const ua = clampUserAgent(userAgent);
+  const rawIp = clampIp(ip);
+  const ipHash = hashIp(ip);
+
+  if (isConnected()) {
+    await query(
+      `INSERT INTO sessions (session_id, user_id, created_at, last_seen_at, expires_at,
+       ip_enc, ip_hash, user_agent_enc, location_enc)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        sessionId, userId, now, now, now + SESSION_ABSOLUTE_MS,
+        rawIp ? encryptField(rawIp) : null,
+        ipHash,
+        ua ? encryptField(ua) : null,
+        location ? encryptField(location) : null,
+      ]
+    );
+    return sessionId;
+  }
+
   return withLock(async () => {
     const sessions = await readSessionsFile(storageDir);
-    const now = Date.now();
-    const sessionId = randomUUID() + randomUUID().replaceAll("-", "");
-    const location = await resolveLocation(ip);
     const session = {
-      sessionId,
-      userId,
+      sessionId, userId,
       createdAt: new Date(now).toISOString(),
-      lastSeenAt: now,
-      expiresAt: now + SESSION_ABSOLUTE_MS,
-      userAgent: clampUserAgent(userAgent),
-      location, // "Cidade, Estado" aproximada (mostrada nos dispositivos do usuário)
-      ip: clampIp(ip), // IP cru, exposto SO nos paineis de admin (cifrado em repouso)
-      ipHash: hashIp(ip),
-      revokedAt: null,
-      reauthAt: null, // last time the user re-typed their password (epoch ms)
+      lastSeenAt: now, expiresAt: now + SESSION_ABSOLUTE_MS,
+      userAgent: ua, location, ip: rawIp, ipHash, revokedAt: null, reauthAt: null,
     };
-    // Opportunistically drop dead sessions so the file can't grow unbounded.
     const pruned = sessions.filter((item) => !isExpired(item, now));
     pruned.push(session);
     await writeSessionsFile(storageDir, pruned);
@@ -241,11 +254,51 @@ export function createSession(storageDir, { userId, ip, userAgent }) {
 // marked revoked (lazy cleanup) so the token can't be reused.
 export function resolveAndTouch(storageDir, sessionId) {
   if (!sessionId) return Promise.resolve(null);
+
+  if (isConnected()) {
+    return (async () => {
+      const now = Date.now();
+      const result = await query(
+        `SELECT session_id AS "sessionId", user_id AS "userId",
+         created_at AS "createdAt", last_seen_at AS "lastSeenAt",
+         expires_at AS "expiresAt", revoked_at AS "revokedAt", reauth_at AS "reauthAt",
+         ip_enc, ip_hash AS "ipHash", user_agent_enc, location_enc
+         FROM sessions WHERE session_id = $1`,
+        [sessionId]
+      );
+      if (result.rows.length === 0) return null;
+      const row = result.rows[0];
+      const session = {
+        sessionId: row.sessionId,
+        userId: row.userId,
+        createdAt: row.createdAt,
+        lastSeenAt: Number(row.lastSeenAt),
+        expiresAt: Number(row.expiresAt),
+        revokedAt: row.revokedAt ?? null,
+        reauthAt: row.reauthAt ? Number(row.reauthAt) : null,
+        ip: row.ip_enc ? decryptField(row.ip_enc) : null,
+        ipHash: row.ipHash,
+        userAgent: row.user_agent_enc ? decryptField(row.user_agent_enc) : "",
+        location: row.location_enc ? decryptField(row.location_enc) : null,
+      };
+
+      if (isExpired(session, now)) {
+        if (!session.revokedAt) {
+          await query("UPDATE sessions SET revoked_at = NOW() WHERE session_id = $1", [sessionId]);
+        }
+        return null;
+      }
+
+      await query("UPDATE sessions SET last_seen_at = $1 WHERE session_id = $2", [now, sessionId]);
+      session.lastSeenAt = now;
+      return session;
+    })();
+  }
+
   return withLock(async () => {
     const sessions = await readSessionsFile(storageDir);
     const session = sessions.find((item) => item.sessionId === sessionId);
     if (!session) return null;
-
     const now = Date.now();
     if (isExpired(session, now)) {
       if (!session.revokedAt) {
@@ -265,6 +318,21 @@ export function resolveAndTouch(storageDir, sessionId) {
 // writers. No-ops on an invalid/expired session. Returns true if it marked one.
 export function markReauth(storageDir, sessionId) {
   if (!sessionId) return Promise.resolve(false);
+
+  if (isConnected()) {
+    return (async () => {
+      const now = Date.now();
+      const res = await query(
+        `UPDATE sessions SET reauth_at = $1
+         WHERE session_id = $2 AND revoked_at IS NULL AND expires_at > $3
+           AND last_seen_at > $4
+         RETURNING session_id`,
+        [now, sessionId, now, now - SESSION_IDLE_MS]
+      );
+      return res.rowCount > 0;
+    })();
+  }
+
   return withLock(async () => {
     const sessions = await readSessionsFile(storageDir);
     const session = sessions.find((item) => item.sessionId === sessionId);
@@ -275,10 +343,16 @@ export function markReauth(storageDir, sessionId) {
   });
 }
 
-// Revokes a single session (logout, or admin "end this device"). Returns true if
-// a matching, not-yet-revoked session existed.
 export function revokeSession(storageDir, sessionId) {
   if (!sessionId) return Promise.resolve(false);
+
+  if (isConnected()) {
+    return query(
+      "UPDATE sessions SET revoked_at = NOW() WHERE session_id = $1 AND revoked_at IS NULL RETURNING session_id",
+      [sessionId]
+    ).then((r) => r.rowCount > 0);
+  }
+
   return withLock(async () => {
     const sessions = await readSessionsFile(storageDir);
     const session = sessions.find((item) => item.sessionId === sessionId);
@@ -289,21 +363,26 @@ export function revokeSession(storageDir, sessionId) {
   });
 }
 
-// Revokes every active session of a user ("log out of all devices"). Returns the
-// number of sessions revoked. `exceptSessionId` (optional) keeps that one session
-// alive — used when the user changes their own password and must stay logged in
-// on the device where they did it.
 export function revokeAllForUser(storageDir, userId, exceptSessionId = null) {
+  if (isConnected()) {
+    if (exceptSessionId) {
+      return query(
+        "UPDATE sessions SET revoked_at = NOW() WHERE user_id = $1 AND session_id != $2 AND revoked_at IS NULL",
+        [userId, exceptSessionId]
+      ).then((r) => r.rowCount);
+    }
+    return query(
+      "UPDATE sessions SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL",
+      [userId]
+    ).then((r) => r.rowCount);
+  }
+
   return withLock(async () => {
     const sessions = await readSessionsFile(storageDir);
     const now = new Date().toISOString();
     let count = 0;
     for (const session of sessions) {
-      if (
-        session.userId === userId &&
-        !session.revokedAt &&
-        session.sessionId !== exceptSessionId
-      ) {
+      if (session.userId === userId && !session.revokedAt && session.sessionId !== exceptSessionId) {
         session.revokedAt = now;
         count += 1;
       }
@@ -313,13 +392,37 @@ export function revokeAllForUser(storageDir, userId, exceptSessionId = null) {
   });
 }
 
-// Lists the active (non-expired) sessions of one user. currentSessionId flags the
-// requester's own session in the result.
-export async function listSessionsForUser(
-  storageDir,
-  userId,
-  currentSessionId,
-) {
+function rowToSession(row) {
+  return {
+    sessionId: row.sessionId ?? row.session_id,
+    userId: row.userId ?? row.user_id,
+    createdAt: row.createdAt ?? row.created_at,
+    lastSeenAt: Number(row.lastSeenAt ?? row.last_seen_at),
+    expiresAt: Number(row.expiresAt ?? row.expires_at),
+    revokedAt: row.revokedAt ?? row.revoked_at ?? null,
+    reauthAt: (row.reauthAt ?? row.reauth_at) ? Number(row.reauthAt ?? row.reauth_at) : null,
+    userAgent: row.user_agent_enc ? decryptField(row.user_agent_enc) : (row.userAgent ?? ""),
+    location: row.location_enc ? decryptField(row.location_enc) : (row.location ?? null),
+    ip: row.ip_enc ? decryptField(row.ip_enc) : (row.ip ?? null),
+    ipHash: row.ipHash ?? row.ip_hash,
+  };
+}
+
+export async function listSessionsForUser(storageDir, userId, currentSessionId) {
+  if (isConnected()) {
+    const now = Date.now();
+    const result = await query(
+      `SELECT session_id AS "sessionId", user_id AS "userId",
+       created_at AS "createdAt", last_seen_at AS "lastSeenAt",
+       expires_at AS "expiresAt", revoked_at AS "revokedAt", reauth_at AS "reauthAt",
+       user_agent_enc, location_enc
+       FROM sessions
+       WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > $2 AND last_seen_at > $3`,
+      [userId, now, now - SESSION_IDLE_MS]
+    );
+    return result.rows.map((row) => publicSession(rowToSession(row), currentSessionId));
+  }
+
   const sessions = await readSessionsFile(storageDir);
   const now = Date.now();
   return sessions
@@ -327,8 +430,21 @@ export async function listSessionsForUser(
     .map((item) => publicSession(item, currentSessionId));
 }
 
-// Lists every active (non-expired) session across all users (admin view).
 export async function listAllSessions(storageDir, currentSessionId) {
+  if (isConnected()) {
+    const now = Date.now();
+    const result = await query(
+      `SELECT session_id AS "sessionId", user_id AS "userId",
+       created_at AS "createdAt", last_seen_at AS "lastSeenAt",
+       expires_at AS "expiresAt", revoked_at AS "revokedAt", reauth_at AS "reauthAt",
+       ip_enc, ip_hash AS "ipHash", user_agent_enc, location_enc
+       FROM sessions
+       WHERE revoked_at IS NULL AND expires_at > $1 AND last_seen_at > $2`,
+      [now, now - SESSION_IDLE_MS]
+    );
+    return result.rows.map((row) => publicSession(rowToSession(row), currentSessionId, { includeIp: true }));
+  }
+
   const sessions = await readSessionsFile(storageDir);
   const now = Date.now();
   return sessions
@@ -336,18 +452,20 @@ export async function listAllSessions(storageDir, currentSessionId) {
     .map((item) => publicSession(item, currentSessionId, { includeIp: true }));
 }
 
-// Permanently removes sessions that are revoked or expired. Called at startup and
-// periodically so the file doesn't accumulate dead records. Returns how many were
-// dropped. Serialized like the other writers so a sweep can't clobber a
-// concurrent login/touch.
 export function pruneSessions(storageDir) {
+  if (isConnected()) {
+    const now = Date.now();
+    return query(
+      "DELETE FROM sessions WHERE revoked_at IS NOT NULL OR expires_at < $1 OR last_seen_at < $2",
+      [now, now - SESSION_IDLE_MS]
+    ).then((r) => r.rowCount);
+  }
+
   return withLock(async () => {
     const sessions = await readSessionsFile(storageDir);
     const now = Date.now();
     const kept = sessions.filter((item) => !isExpired(item, now));
-    if (kept.length !== sessions.length) {
-      await writeSessionsFile(storageDir, kept);
-    }
+    if (kept.length !== sessions.length) await writeSessionsFile(storageDir, kept);
     return sessions.length - kept.length;
   });
 }

@@ -4,8 +4,13 @@
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { hashPassword, verifyPassword } from "./users.mjs";
+import { isConnected, query } from "./db.mjs";
+
+function tokenHash(raw) {
+  return createHash("sha256").update(raw).digest("hex");
+}
 
 const RESET_TTL_MS = 15 * 60 * 1000;
 
@@ -32,62 +37,79 @@ async function writeTokens(storageDir, tokens) {
   );
 }
 
-// Creates a reset token for `userId`. Invalidates any previous token for that user.
-// Returns the raw token string (to be e-mailed; never stored in clear text).
 export async function createResetToken(storageDir, userId) {
   const raw = randomBytes(32).toString("hex");
-  const hash = await hashPassword(raw);
-  const expiresAt = new Date(Date.now() + RESET_TTL_MS).toISOString();
+  const expiresAt = new Date(Date.now() + RESET_TTL_MS);
 
-  const tokens = (await readTokens(storageDir)).filter(
-    (t) => t.userId !== userId,
-  );
-  tokens.push({ userId, hash, expiresAt, used: false });
+  if (isConnected()) {
+    await query("DELETE FROM password_reset_tokens WHERE user_id = $1", [userId]);
+    await query(
+      `INSERT INTO password_reset_tokens (token, user_id, expires_at)
+       VALUES ($1, $2, $3)`,
+      [tokenHash(raw), userId, expiresAt]
+    );
+    return raw;
+  }
+
+  const hash = await hashPassword(raw);
+  const tokens = (await readTokens(storageDir)).filter((t) => t.userId !== userId);
+  tokens.push({ userId, hash, expiresAt: expiresAt.toISOString(), used: false });
   await writeTokens(storageDir, tokens);
   return raw;
 }
 
-// Validates a raw token. Returns the userId it belongs to, or null on failure.
-// Does NOT consume the token — call consumeResetToken after the password is changed.
 export async function validateResetToken(storageDir, raw) {
   if (!raw) return null;
+
+  if (isConnected()) {
+    const result = await query(
+      `SELECT user_id FROM password_reset_tokens
+       WHERE token = $1 AND consumed_at IS NULL AND expires_at > NOW()`,
+      [tokenHash(raw)]
+    );
+    return result.rows.length > 0 ? result.rows[0].user_id : null;
+  }
+
   const tokens = await readTokens(storageDir);
   const now = Date.now();
-
   for (const entry of tokens) {
-    if (entry.used) continue;
-    if (new Date(entry.expiresAt).getTime() <= now) continue;
+    if (entry.used || new Date(entry.expiresAt).getTime() <= now) continue;
     const match = await verifyPassword(raw, entry.hash);
     if (match) return entry.userId;
   }
   return null;
 }
 
-// Marks the token as used (single-use). Call after successful password change.
 export async function consumeResetToken(storageDir, raw) {
+  if (isConnected()) {
+    await query(
+      "UPDATE password_reset_tokens SET consumed_at = NOW() WHERE token = $1 AND consumed_at IS NULL",
+      [tokenHash(raw)]
+    );
+    return;
+  }
+
   const tokens = await readTokens(storageDir);
   const now = Date.now();
   let changed = false;
-
   for (const entry of tokens) {
     if (entry.used || new Date(entry.expiresAt).getTime() <= now) continue;
     const match = await verifyPassword(raw, entry.hash);
-    if (match) {
-      entry.used = true;
-      changed = true;
-      break;
-    }
+    if (match) { entry.used = true; changed = true; break; }
   }
-
   if (changed) await writeTokens(storageDir, tokens);
 }
 
-// Prune expired / used tokens. Call occasionally (e.g. at startup).
 export async function pruneResetTokens(storageDir) {
+  if (isConnected()) {
+    await query(
+      "DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR consumed_at IS NOT NULL"
+    );
+    return;
+  }
+
   const tokens = await readTokens(storageDir);
   const now = Date.now();
-  const fresh = tokens.filter(
-    (t) => !t.used && new Date(t.expiresAt).getTime() > now,
-  );
+  const fresh = tokens.filter((t) => !t.used && new Date(t.expiresAt).getTime() > now);
   if (fresh.length !== tokens.length) await writeTokens(storageDir, fresh);
 }

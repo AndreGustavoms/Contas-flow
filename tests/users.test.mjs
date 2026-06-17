@@ -188,10 +188,7 @@ describe("resetSuperadminPasswordFromEnv", () => {
       const result = await resetSuperadminPasswordFromEnv(dir);
       assert.equal(result?.error, null);
 
-      const owner = await findByUsernameOrEmail(
-        dir,
-        "owner@example.test",
-      );
+      const owner = await findByUsernameOrEmail(dir, "owner@example.test");
       assert.equal(await verifyPassword("Nova@1234", owner.passwordHash), true);
       assert.equal(
         await verifyPassword("Antiga@123", owner.passwordHash),

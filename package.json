@@ -10,6 +10,8 @@
     "api": "node server/index.mjs",
     "dev": "vite --host 127.0.0.1 --port 5175",
     "local": "node scripts/local-dev.mjs",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
+    "prebuild": "node scripts/scan-secrets.mjs",
     "build": "tsc -b && vite build",
     "start": "node server/index.mjs",
     "test": "node --test",

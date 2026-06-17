@@ -24,6 +24,9 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
+      - name: Scan de segredos
+        run: npm run scan:secrets
+
       - name: Formato (prettier --check)
         run: npx prettier --check .
 

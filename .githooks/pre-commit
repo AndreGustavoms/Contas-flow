@@ -1,0 +1,9 @@
+#!/bin/sh
+# Bloqueia o commit se o scanner achar segredo/PII em arquivo rastreado.
+# Ative uma vez por clone com:
+#   git config core.hooksPath .githooks
+node scripts/scan-secrets.mjs || {
+  echo "Commit BLOQUEADO pelo scan de segredos (.githooks/pre-commit)." >&2
+  echo "Remova o segredo / use process.env e tente de novo." >&2
+  exit 1
+}

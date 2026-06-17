@@ -2,3 +2,6 @@ dist
 node_modules
 dev-server*.log
 *.backup.json
+
+# Git hooks (shell scripts sem extensão; prettier não infere parser)
+.githooks

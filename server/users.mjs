@@ -51,8 +51,6 @@ const FIXED_SUPERADMIN = {
   username: "andre",
   fullName: "André",
   role: "superadmin",
-  passwordHash:
-    "scrypt:32768:8:1:9a47c941a70f4b243eb01d9a83ab980e:c8e876c3064303ce7b70e037dcce888f709b192f0a4ff91f997a9b3181f1f1bb764061e9fa0ae9190695fa4da911bb2a6fbf05c9af65f5cbb329549940fe18e1",
   createdAt: "2026-06-16T00:00:00.000Z",
 };
 
@@ -499,6 +497,17 @@ export function linkGithubProvider(storageDir, userId, profile) {
 // Seeds a bootstrap admin from the legacy env vars when the store is empty, so an
 // existing single-login deployment transparently becomes a one-admin multi-user
 // setup. Returns the (possibly unchanged) user list.
+// Senha do superadmin fixo: NUNCA hardcoded (o repo é público). Em ordem:
+// 1) CONTAS_FLOW_SUPERADMIN_PASSWORD (rotaciona no boot), 2) o hash já existente
+// em users.json (preserva o login atual, sem lockout), 3) um hash aleatório
+// (login por senha fica desabilitado até definir a env — zero credencial no código).
+async function resolveFixedSuperadminHash(existingHash) {
+  const envPassword = process.env.CONTAS_FLOW_SUPERADMIN_PASSWORD ?? "";
+  if (envPassword) return hashPassword(envPassword);
+  if (existingHash) return existingHash;
+  return hashPassword(randomBytes(32).toString("hex"));
+}
+
 export function ensureFixedSuperadmin(storageDir) {
   return withLock(async () => {
     const users = await readUsersFile(storageDir);
@@ -508,6 +517,7 @@ export function ensureFixedSuperadmin(storageDir) {
 
     const owner = {
       ...FIXED_SUPERADMIN,
+      passwordHash: await resolveFixedSuperadminHash(existing?.passwordHash),
       ...(existing?.email ? { email: existing.email } : {}),
       ...(existing?.avatarUrl ? { avatarUrl: existing.avatarUrl } : {}),
       ...(existing?.avatarRemoved ? { avatarRemoved: true } : {}),

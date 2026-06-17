@@ -2437,11 +2437,8 @@ async function handleApi(request, response, url, user, session) {
     }
 
     try {
-      const channel = await handleOAuthCallback(code, ownerId);
-      redirect(
-        response,
-        `/?youtube=connected&channel=${encodeURIComponent(channel?.title ?? "")}`,
-      );
+      await handleOAuthCallback(code, ownerId);
+      redirect(response, "/?youtube=connected");
     } catch (error) {
       sendJson(response, 500, {
         error: "youtube_oauth",

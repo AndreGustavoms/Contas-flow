@@ -517,22 +517,23 @@ export function AccountVault({
   // re-render (e.g. while typing in the search box).
   const dismissToast = useCallback(() => setToast(null), []);
 
-  // Lê ?youtube=connected&channel=... após o callback OAuth e mostra toast.
+  // Detecta ?youtube=connected após callback OAuth e mostra toast.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const yt = params.get("youtube");
     if (yt === "connected") {
-      const ch = params.get("channel");
-      notify(ch ? `Canal "${ch}" conectado com sucesso!` : "Canal do YouTube conectado!");
-      params.delete("youtube");
-      params.delete("channel");
-      const qs = params.toString();
-      window.history.replaceState({}, "", qs ? `/?${qs}` : "/");
+      window.history.replaceState({}, "", "/");
+      fetch("/api/youtube/channels")
+        .then((r) => (r.ok ? r.json() : { channels: [] }))
+        .then((d: { channels?: { title?: string }[] }) => {
+          const ch = d.channels?.[0]?.title;
+          notify(ch ? `Canal "${ch}" conectado com sucesso!` : "Canal do YouTube conectado!");
+        })
+        .catch(() => notify("Canal do YouTube conectado!"));
       setPosterOpen(true);
     } else if (yt === "error") {
-      notify("Erro ao conectar o canal do YouTube.", "error");
-      params.delete("youtube");
       window.history.replaceState({}, "", "/");
+      notify("Erro ao conectar o canal do YouTube.", "error");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

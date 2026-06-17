@@ -1574,6 +1574,12 @@ td {
   }
 }
 
+/* Reusable shake for a form field that failed validation. Re-trigger by
+   removing/re-adding the class (force a reflow in between). */
+.field-shake {
+  animation: alert-shake 0.35s ease both;
+}
+
 .form-alert {
   display: flex;
   align-items: flex-start;
@@ -1660,7 +1666,7 @@ td {
     align-items: flex-start;
     /* Topo livre para o toggle de tema fixo (top-4 + 32px de altura);
        laterais/base respeitam notch e home indicator. */
-    padding: calc(4.25rem + env(safe-area-inset-top, 0px))
+    padding: calc(5rem + env(safe-area-inset-top, 0px))
       max(var(--page-padding-x), env(safe-area-inset-right, 0px))
       calc(2.5rem + env(safe-area-inset-bottom, 0px))
       max(var(--page-padding-x), env(safe-area-inset-left, 0px));
@@ -1683,37 +1689,95 @@ td {
      toggle de tema ocupa o direito) e expande para baixo, em vez de ficar
      ancorado embaixo cobrindo os botões do formulário. */
   .login-terminal {
-    top: calc(var(--page-padding-x) + env(safe-area-inset-top, 0px));
+    top: calc(0.85rem + env(safe-area-inset-top, 0px));
     left: max(var(--page-padding-x), env(safe-area-inset-left, 0px));
     right: auto;
     bottom: auto;
+    font-size: 0.78rem;
+    min-width: 9.5em;
+    border-radius: 5px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.32);
+  }
+
+  .login-terminal--collapsed {
+    min-width: 0;
+  }
+
+  .login-terminal-header {
+    padding: 0.35em 0.6em;
+    gap: 0.45em;
+  }
+
+  .login-terminal-body {
+    padding: 0.4em 0.55em 0.5em;
+    gap: 0.16em;
+    max-height: 190px;
+  }
+
+  .login-terminal-lang {
+    gap: 0.45em;
+    padding: 0.16em 0.25em;
+  }
+
+  .login-terminal-dot {
+    width: 0.45em;
+    height: 0.45em;
   }
 }
 
 @media (max-width: 600px) {
   .login-form-shell {
     width: 100%;
-    max-width: min(var(--container-max), 23.5rem);
+    max-width: min(var(--container-max), 21rem);
     margin-inline: auto;
   }
 
   /* Selo circular menor e sem o deslocamento de -40px que cortava o topo
      em telas pequenas. */
   .login-brand-circle {
-    width: 220px;
-    height: 220px;
+    width: 168px;
+    height: 168px;
     transform: none;
-    margin-bottom: 1.25rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .login-heading {
+    margin-bottom: 1.55rem;
+  }
+
+  .animated-field {
+    margin-bottom: 1.55rem;
+  }
+
+  .login-btn-animated,
+  .login-btn-primary,
+  .login-btn-ghost {
+    font-size: 0.84rem;
+    padding-block: 0.7em;
+  }
+
+  .login-oauth-btn {
+    font-size: 0.84rem;
+    box-shadow: 2px 2px 0 var(--border);
   }
 }
 
 @media (max-width: 480px) {
   .login-heading {
-    margin-bottom: 2.25rem;
+    margin-bottom: 1.4rem;
   }
 
   .login-heading h2 {
     font-size: var(--font-title);
+  }
+
+  .login-form-panel {
+    padding-top: calc(5.1rem + env(safe-area-inset-top, 0px));
+  }
+
+  .login-brand-circle {
+    width: 156px;
+    height: 156px;
   }
 }
 
@@ -2863,6 +2927,23 @@ td {
 
   .login-terminal-lang {
     min-height: 2.5rem;
+  }
+}
+
+@media (max-width: 600px) and (pointer: coarse) {
+  .login-terminal-header,
+  .login-terminal--collapsed .login-terminal-header {
+    min-height: 1.95rem;
+  }
+
+  .login-terminal-lang {
+    min-height: 1.75rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .login-terminal--collapsed .login-terminal-header {
+    min-height: 2rem;
   }
 }
 

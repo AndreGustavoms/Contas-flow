@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import {
+  AlertTriangle,
   Calendar,
   CheckCircle2,
   Clapperboard,
@@ -45,6 +46,59 @@ type HistoryItem = {
   privacyStatus?: string;
 };
 
+type VideoMetadata = {
+  durationSeconds: number | null;
+  width: number | null;
+  height: number | null;
+};
+
+type UploadIssue = {
+  title: string;
+  message: string;
+  userMessage?: string;
+  source?: "youtube" | "local" | "network";
+  status?: number;
+  reason?: string;
+  retryable?: boolean;
+};
+
+type UploadErrorPayload = {
+  error?: string;
+  source?: "youtube" | "local" | "network";
+  status?: number;
+  reason?: string;
+  message?: string;
+  userMessage?: string;
+  retryable?: boolean;
+};
+
+class UploadRequestError extends Error {
+  status: number;
+  payload: UploadErrorPayload;
+
+  constructor(status: number, payload: UploadErrorPayload) {
+    super(payload.message || payload.error || `http_${status}`);
+    this.name = "UploadRequestError";
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
+const YOUTUBE_MAX_UPLOAD_BYTES = 256 * 1024 * 1024 * 1024;
+const YOUTUBE_MAX_DURATION_SECONDS = 12 * 60 * 60;
+const YOUTUBE_SHORT_MAX_SECONDS = 3 * 60;
+
+type Translate = (key: string, opts?: Record<string, unknown>) => string;
+
+function parseJson(text: string): UploadErrorPayload {
+  try {
+    const parsed = JSON.parse(text) as UploadErrorPayload;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function fmtDuration(seconds: number | null): string {
   if (!seconds || seconds <= 0) return "—";
   const h = Math.floor(seconds / 3600);
@@ -77,10 +131,17 @@ function uploadVideoFile(
           reject(new Error("bad_response"));
         }
       } else {
-        reject(new Error(`http_${xhr.status}`));
+        reject(new UploadRequestError(xhr.status, parseJson(xhr.responseText)));
       }
     };
-    xhr.onerror = () => reject(new Error("network"));
+    xhr.onerror = () =>
+      reject(
+        new UploadRequestError(0, {
+          error: "network",
+          source: "network",
+          message: "Falha de rede.",
+        }),
+      );
     xhr.send(file);
   });
 }
@@ -99,7 +160,155 @@ function fmtConnectedAt(value: string): string {
   });
 }
 
+function readVideoMetadata(file: File): Promise<VideoMetadata | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    const url = URL.createObjectURL(file);
+    const done = (value: VideoMetadata | null) => {
+      window.clearTimeout(timeout);
+      URL.revokeObjectURL(url);
+      resolve(value);
+    };
+    const timeout = window.setTimeout(() => done(null), 5000);
+    video.preload = "metadata";
+    video.muted = true;
+    video.onloadedmetadata = () => {
+      done({
+        durationSeconds: Number.isFinite(video.duration)
+          ? video.duration
+          : null,
+        width: video.videoWidth || null,
+        height: video.videoHeight || null,
+      });
+    };
+    video.onerror = () => done(null);
+    video.src = url;
+  });
+}
+
+function fileLooksLikeAudio(file: File): boolean {
+  if (file.type.startsWith("audio/")) return true;
+  return /\.(mp3|wav|pcm|aac|m4a|flac|ogg)$/i.test(file.name);
+}
+
+function localUploadIssue(
+  t: Translate,
+  message: string,
+  userMessage?: string,
+): UploadIssue {
+  return {
+    title: t("post.youtube.error_modal_local_title"),
+    source: "local",
+    message,
+    userMessage,
+  };
+}
+
+function validateVideoBeforeUpload(
+  file: File,
+  metadata: VideoMetadata | null,
+  videoType: VideoType,
+  t: Translate,
+): UploadIssue | null {
+  if (fileLooksLikeAudio(file)) {
+    return localUploadIssue(
+      t,
+      t("post.youtube.error_audio_file"),
+      t("post.youtube.error_audio_file_hint"),
+    );
+  }
+  if (
+    file.type &&
+    file.type !== "application/octet-stream" &&
+    !file.type.startsWith("video/")
+  ) {
+    return localUploadIssue(t, t("post.youtube.error_not_video"));
+  }
+  if (file.size > YOUTUBE_MAX_UPLOAD_BYTES) {
+    return localUploadIssue(
+      t,
+      t("post.youtube.error_youtube_too_large"),
+      t("post.youtube.error_youtube_too_large_hint"),
+    );
+  }
+  if (
+    metadata?.durationSeconds &&
+    metadata.durationSeconds > YOUTUBE_MAX_DURATION_SECONDS
+  ) {
+    return localUploadIssue(
+      t,
+      t("post.youtube.error_youtube_too_long"),
+      t("post.youtube.error_youtube_too_long_hint"),
+    );
+  }
+  if (videoType === "short") {
+    if (
+      metadata?.durationSeconds &&
+      metadata.durationSeconds > YOUTUBE_SHORT_MAX_SECONDS
+    ) {
+      return localUploadIssue(
+        t,
+        t("post.youtube.error_short_too_long"),
+        t("post.youtube.error_short_too_long_hint"),
+      );
+    }
+    if (
+      metadata?.width &&
+      metadata?.height &&
+      metadata.width > metadata.height
+    ) {
+      return localUploadIssue(
+        t,
+        t("post.youtube.error_short_landscape"),
+        t("post.youtube.error_short_landscape_hint"),
+      );
+    }
+  }
+  return null;
+}
+
+function issueFromError(error: unknown, t: Translate): UploadIssue {
+  if (error instanceof UploadRequestError) {
+    const payload = error.payload;
+    const source = payload.source ?? "local";
+    return {
+      title:
+        source === "youtube"
+          ? t("post.youtube.error_modal_youtube_title")
+          : t("post.youtube.error_modal_local_title"),
+      source,
+      status: payload.status ?? error.status,
+      reason: payload.reason,
+      retryable: payload.retryable,
+      message:
+        payload.message ||
+        (source === "youtube"
+          ? t("post.youtube.error_youtube_unknown")
+          : t("post.youtube.error")),
+      userMessage: payload.userMessage,
+    };
+  }
+  if (error instanceof Error && error.message === "bad_response") {
+    return localUploadIssue(t, t("post.youtube.error_bad_response"));
+  }
+  return localUploadIssue(t, t("post.youtube.error"));
+}
+
 type Tab = "post" | "history";
+type FieldKey = "channel" | "file" | "title" | "schedule";
+
+// YouTube classifica como Short todo vídeo vertical/quadrado com até 3 minutos
+// (180 s), desde 15/10/2024. Acima disso vira vídeo comum.
+const SHORT_MAX_SECONDS = 180;
+
+// Re-add the shake class after a forced reflow so the animation replays even
+// when the same field fails twice in a row.
+function triggerShake(el: HTMLElement | null) {
+  if (!el) return;
+  el.classList.remove("field-shake");
+  void el.offsetWidth;
+  el.classList.add("field-shake");
+}
 
 export function YouTubePoster() {
   const { t } = useTranslation();
@@ -124,23 +333,67 @@ export function YouTubePoster() {
   const [videoDim, setVideoDim] = useState<{ w: number; h: number } | null>(
     null,
   );
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [uploadIssue, setUploadIssue] = useState<UploadIssue | null>(null);
+  const [fieldError, setFieldError] = useState<{
+    field: FieldKey;
+    message: string;
+  } | null>(null);
   const [done, setDone] = useState<{ videoId: string } | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const channelSectionRef = useRef<HTMLDivElement>(null);
+  const fileButtonRef = useRef<HTMLButtonElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const scheduleSectionRef = useRef<HTMLElement>(null);
+
+  // Mark a field as invalid: scroll it into view, replay the shake, focus the
+  // input when there is one, and surface the message next to the field instead
+  // of above the publish button.
+  const failField = useCallback((field: FieldKey, message: string) => {
+    setError("");
+    setFieldError({ field, message });
+    const target =
+      field === "channel"
+        ? channelSectionRef.current
+        : field === "file"
+          ? fileButtonRef.current
+          : field === "title"
+            ? titleInputRef.current
+            : scheduleSectionRef.current;
+    const shakeTarget =
+      field === "channel"
+        ? channelSectionRef.current
+        : field === "schedule"
+          ? scheduleSectionRef.current
+          : target;
+    requestAnimationFrame(() => {
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      triggerShake(shakeTarget);
+      if (field === "title") titleInputRef.current?.focus();
+    });
+  }, []);
+
+  const clearFieldError = useCallback((field: FieldKey) => {
+    setFieldError((prev) => (prev?.field === field ? null : prev));
+  }, []);
 
   useEffect(() => {
+    setVideoDuration(null);
     if (!file) {
       setPreviewUrl(null);
       setVideoDim(null);
+      setVideoDuration(null);
       return;
     }
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
     setVideoDim(null);
+    setVideoDuration(null);
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
@@ -178,22 +431,65 @@ export function YouTubePoster() {
     setFile(f);
     setDone(null);
     setError("");
+    setUploadIssue(null);
+    if (f) setFieldError((prev) => (prev?.field === "file" ? null : prev));
     if (f && !title) setTitle(f.name.replace(/\.[^.]+$/, ""));
+  }
+
+  function removeFile() {
+    setFile(null);
+    setVideoDim(null);
+    setVideoDuration(null);
+    setError("");
+    setUploadIssue(null);
+    // Clear the input so re-picking the SAME file fires onChange again.
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function publish() {
     setError("");
-    if (!channelId) return setError(t("post.youtube.error_no_channel"));
-    if (!file) return setError(t("post.youtube.error_no_file"));
-    if (!title.trim()) return setError(t("post.youtube.error_no_title"));
+    setUploadIssue(null);
+    setFieldError(null);
+    if (!channelId)
+      return failField("channel", t("post.youtube.error_no_channel"));
+    if (!file) return failField("file", t("post.youtube.error_no_file"));
+    // A Short só é classificada como tal pelo YouTube se o ARQUIVO for vertical/
+    // quadrado e tiver até 3 min. O tipo escolhido aqui não muda isso — então,
+    // quando "Short" estiver selecionado, validamos o arquivo de verdade (dados
+    // lidos do <video> do preview) em vez de deixar subir como vídeo comum.
+    if (videoType === "short") {
+      if (videoDim && videoDim.w > videoDim.h)
+        return failField("file", t("post.youtube.error_short_vertical"));
+      if (
+        videoDuration != null &&
+        Math.round(videoDuration) > SHORT_MAX_SECONDS
+      )
+        return failField("file", t("post.youtube.error_short_too_long"));
+    }
+    if (!title.trim())
+      return failField("title", t("post.youtube.error_no_title"));
 
     let publishAt: string | undefined;
     if (schedule) {
       const when = new Date(schedule);
       if (Number.isNaN(when.getTime()) || when.getTime() <= Date.now()) {
-        return setError(t("post.youtube.error_schedule_past"));
+        return failField("schedule", t("post.youtube.error_schedule_past"));
       }
       publishAt = when.toISOString();
+    }
+
+    const metadata =
+      videoDim || videoDuration !== null
+        ? {
+            durationSeconds: videoDuration,
+            width: videoDim?.w ?? null,
+            height: videoDim?.h ?? null,
+          }
+        : await readVideoMetadata(file);
+    const localIssue = validateVideoBeforeUpload(file, metadata, videoType, t);
+    if (localIssue) {
+      setUploadIssue(localIssue);
+      return;
     }
 
     setBusy(true);
@@ -219,17 +515,15 @@ export function YouTubePoster() {
           videoType,
         }),
       });
-      if (!res.ok) throw new Error("publish_failed");
+      if (!res.ok) {
+        throw new UploadRequestError(res.status, parseJson(await res.text()));
+      }
       const data: { videoId: string } = await res.json();
       setDone({ videoId: data.videoId });
       loadHistory();
       setTab("history");
     } catch (err) {
-      setError(
-        err instanceof Error && err.message === "file_too_large"
-          ? t("post.youtube.error_too_large")
-          : t("post.youtube.error"),
-      );
+      setUploadIssue(issueFromError(err, t));
     } finally {
       setBusy(false);
       setProgress(null);
@@ -287,6 +581,8 @@ export function YouTubePoster() {
               setDescription("");
               setTags("");
               clearSchedule();
+              setError("");
+              setFieldError(null);
               setTab("post");
             }}
           >
@@ -322,6 +618,22 @@ export function YouTubePoster() {
       {children}
     </span>
   );
+
+  const FieldError = ({
+    field,
+    className,
+  }: {
+    field: FieldKey;
+    className?: string;
+  }) =>
+    fieldError?.field === field ? (
+      <p
+        className={cn("text-[12px] font-semibold text-red-400", className)}
+        role="alert"
+      >
+        {fieldError.message}
+      </p>
+    ) : null;
 
   const typeCards = [
     {
@@ -398,7 +710,11 @@ export function YouTubePoster() {
                 {t("post.youtube.connect_another")}
               </a>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <FieldError field="channel" />
+            <div
+              ref={channelSectionRef}
+              className="mt-2 grid gap-2 rounded-xl sm:grid-cols-2"
+            >
               {channels.map((channel) => {
                 const selected = channel.id === channelId;
                 return (
@@ -406,7 +722,10 @@ export function YouTubePoster() {
                     key={channel.id}
                     type="button"
                     aria-pressed={selected}
-                    onClick={() => setChannelId(channel.id)}
+                    onClick={() => {
+                      setChannelId(channel.id);
+                      clearFieldError("channel");
+                    }}
                     className={cn(
                       "group relative flex items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 text-left transition-all duration-200",
                       selected
@@ -458,6 +777,7 @@ export function YouTubePoster() {
                     onClick={() => {
                       setVideoType(value);
                       setError("");
+                      setFieldError(null);
                     }}
                     className={cn(
                       "group relative flex flex-col gap-2 overflow-hidden rounded-xl border px-4 py-3 text-left transition-all duration-200",
@@ -499,6 +819,7 @@ export function YouTubePoster() {
               {/* ── Arquivo ── */}
               <section className="border-t border-[color:var(--border)] py-6">
                 <SectionLabel>{t("post.youtube.video")}</SectionLabel>
+                <FieldError field="file" className="mb-2" />
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -507,6 +828,7 @@ export function YouTubePoster() {
                   onChange={pickFile}
                 />
                 <button
+                  ref={fileButtonRef}
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className={cn(
@@ -578,6 +900,8 @@ export function YouTubePoster() {
                                   w: v.videoWidth,
                                   h: v.videoHeight,
                                 });
+                              if (Number.isFinite(v.duration))
+                                setVideoDuration(v.duration);
                             }}
                           />
                           {videoDim && (
@@ -585,6 +909,24 @@ export function YouTubePoster() {
                               {videoDim.w}×{videoDim.h}
                             </span>
                           )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[color:var(--border)] px-3 text-[11px] font-semibold text-[color:var(--muted)] transition-all duration-200 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)] hover:text-[color:var(--accent-soft)]"
+                          >
+                            <Upload className="h-3 w-3" />
+                            {t("post.youtube.change_file")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={removeFile}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[color:var(--border)] px-3 text-[11px] font-semibold text-[color:var(--muted)] transition-all duration-200 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            {t("post.youtube.remove_file")}
+                          </button>
                         </div>
                       </div>
                     );
@@ -598,11 +940,20 @@ export function YouTubePoster() {
                     {t("post.youtube.field_title")}
                   </span>
                   <input
-                    className={fieldCls}
+                    ref={titleInputRef}
+                    className={cn(
+                      fieldCls,
+                      fieldError?.field === "title" &&
+                        "border-red-500/60 focus:border-red-500 focus:ring-red-500/20",
+                    )}
                     maxLength={100}
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    onChange={(e) => {
+                      setTitle(e.target.value);
+                      clearFieldError("title");
+                    }}
                   />
+                  <FieldError field="title" />
                 </label>
                 <label className="grid gap-1.5">
                   <span className="text-[11px] font-semibold text-[color:var(--muted)]">
@@ -688,7 +1039,10 @@ export function YouTubePoster() {
               </section>
 
               {/* ── Agendamento ── */}
-              <section className="border-t border-[color:var(--border)] py-6 grid gap-4">
+              <section
+                ref={scheduleSectionRef}
+                className="border-t border-[color:var(--border)] py-6 grid gap-4"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-base font-semibold text-[color:var(--text)]">
@@ -710,15 +1064,22 @@ export function YouTubePoster() {
 
                 {scheduleEnabled && (
                   <>
+                    <FieldError field="schedule" />
                     <div className="grid grid-cols-2 gap-2">
                       <DatePicker
                         value={scheduleDate}
                         min={new Date().toISOString().slice(0, 10)}
-                        onChange={(v) => updateSchedulePart("date", v)}
+                        onChange={(v) => {
+                          updateSchedulePart("date", v);
+                          clearFieldError("schedule");
+                        }}
                       />
                       <TimePicker
                         value={scheduleTime}
-                        onChange={(v) => updateSchedulePart("time", v)}
+                        onChange={(v) => {
+                          updateSchedulePart("time", v);
+                          clearFieldError("schedule");
+                        }}
                       />
                     </div>
                     {schedule && (
@@ -811,6 +1172,103 @@ export function YouTubePoster() {
           )}
         </>
       )}
+      {uploadIssue && (
+        <UploadIssueModal
+          issue={uploadIssue}
+          onClose={() => setUploadIssue(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function UploadIssueModal({
+  issue,
+  onClose,
+}: {
+  issue: UploadIssue;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  const isYoutube = issue.source === "youtube";
+
+  return (
+    <div className="modal-viewport fixed inset-0 z-[150] flex overflow-y-auto overscroll-contain px-4 py-6">
+      <button
+        aria-label={t("post.youtube.error_modal_close")}
+        className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
+        type="button"
+        onClick={onClose}
+      />
+      <section
+        aria-modal="true"
+        className="modal-panel modal-panel-md app-panel relative m-auto w-full overflow-hidden border p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-2xl"
+        role="dialog"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-500/25 bg-red-500/10 text-red-300">
+              <AlertTriangle className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-base font-semibold text-[color:var(--text)]">
+                {issue.title}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-[color:var(--muted)]">
+                {issue.userMessage || issue.message}
+              </p>
+            </div>
+          </div>
+          <button
+            aria-label={t("post.youtube.error_modal_close")}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
+            type="button"
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-5 rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] p-4">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
+            {isYoutube
+              ? t("post.youtube.youtube_message_label")
+              : t("post.youtube.reason_label")}
+          </p>
+          <p className="mt-2 break-words text-sm font-semibold leading-relaxed text-[color:var(--text)]">
+            {issue.message}
+          </p>
+          {(issue.reason || issue.status) && (
+            <p className="mt-3 text-[11px] text-[color:var(--muted)]">
+              {[
+                issue.status
+                  ? t("post.youtube.error_status", { status: issue.status })
+                  : "",
+                issue.reason
+                  ? t("post.youtube.error_reason", { reason: issue.reason })
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            </p>
+          )}
+        </div>
+
+        <div className="mt-5 flex justify-end">
+          <Button variant="outline" onClick={onClose}>
+            {t("post.youtube.error_modal_close")}
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }

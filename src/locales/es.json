@@ -662,7 +662,8 @@
       "tab_history": "Historial",
       "history": "Historial de subidas",
       "channel_connected_at": "Conectado el {{date}}",
-      "channel_selected": "Seleccionado"
+      "channel_selected": "Seleccionado",
+      "scheduled_for": "Programado para {{date}}"
     }
   }
 }

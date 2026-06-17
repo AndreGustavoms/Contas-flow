@@ -4,7 +4,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { Lock, Send, X } from "lucide-react";
+import { BarChart2, Lock, Send, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../lib/utils";
 import {
@@ -15,6 +15,7 @@ import {
   YouTubeIcon,
 } from "./platform-icons";
 import { YouTubePoster } from "./posters/youtube-poster";
+import { ReportsPanel } from "./posters/reports-panel";
 
 type IconProps = { className?: string; style?: CSSProperties };
 
@@ -25,6 +26,7 @@ type Network = {
   accent: string;
   Panel?: ComponentType;
   comingSoon?: true;
+  dividerBefore?: true;
 };
 
 const NETWORKS: Network[] = [
@@ -63,6 +65,14 @@ const NETWORKS: Network[] = [
     accent: "#FF6A00",
     comingSoon: true,
   },
+  {
+    id: "reports",
+    label: "Relatórios",
+    Icon: BarChart2,
+    accent: "var(--accent)",
+    Panel: ReportsPanel,
+    dividerBefore: true,
+  },
 ];
 
 export function SocialPoster({ onClose }: { onClose: () => void }) {
@@ -95,9 +105,11 @@ export function SocialPoster({ onClose }: { onClose: () => void }) {
         <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wide text-[color:var(--muted)]">
           {t("post.networks")}
         </p>
-        {NETWORKS.map(({ id, label, Icon, accent, comingSoon }) => {
+        {NETWORKS.map(({ id, label, Icon, accent, comingSoon, dividerBefore }) => {
           const isActive = active === id && !comingSoon;
           return (
+            <div key={id}>
+            {dividerBefore && <div className="my-2 border-t border-[color:var(--border)]" />}
             <button
               key={id}
               type="button"
@@ -139,6 +151,7 @@ export function SocialPoster({ onClose }: { onClose: () => void }) {
                 </span>
               )}
             </button>
+            </div>
           );
         })}
       </nav>

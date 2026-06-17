@@ -657,7 +657,8 @@
       "tab_history": "历史",
       "history": "上传历史",
       "channel_connected_at": "{{date}} ???",
-      "channel_selected": "???"
+      "channel_selected": "???",
+      "scheduled_for": "??????{{date}}"
     }
   }
 }

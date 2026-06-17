@@ -708,7 +708,8 @@
       "tab_history": "Histórico",
       "history": "Histórico de uploads",
       "channel_connected_at": "Conectado em {{date}}",
-      "channel_selected": "Selecionado"
+      "channel_selected": "Selecionado",
+      "scheduled_for": "Agendado para {{date}}"
     }
   }
 }

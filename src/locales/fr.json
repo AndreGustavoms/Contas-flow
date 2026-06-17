@@ -662,7 +662,8 @@
       "tab_history": "Historique",
       "history": "Historique des envois",
       "channel_connected_at": "Connecté le {{date}}",
-      "channel_selected": "Sélectionné"
+      "channel_selected": "Sélectionné",
+      "scheduled_for": "Prévu pour {{date}}"
     }
   }
 }

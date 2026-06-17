@@ -685,7 +685,8 @@
       "tab_history": "History",
       "history": "Upload history",
       "channel_connected_at": "Connected on {{date}}",
-      "channel_selected": "Selected"
+      "channel_selected": "Selected",
+      "scheduled_for": "Scheduled for {{date}}"
     }
   }
 }

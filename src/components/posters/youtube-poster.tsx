@@ -45,6 +45,7 @@ type HistoryItem = {
   thumbnailUrl: string | null;
   uploadedAt: string;
   privacyStatus?: string;
+  publishAt?: string | null;
 };
 
 type VideoMetadata = {
@@ -1350,9 +1351,18 @@ function HistoryList({
                 <p className="truncate text-sm font-medium text-[color:var(--text)]">
                   {item.title}
                 </p>
-                <p className="text-[11px] text-[color:var(--muted)]">
-                  {new Date(item.uploadedAt).toLocaleString()}
-                </p>
+                {item.publishAt && new Date(item.publishAt) > new Date(item.uploadedAt) ? (
+                  <p className="flex items-center gap-1 text-[11px] text-[color:var(--accent)]">
+                    <Calendar className="h-3 w-3 shrink-0" />
+                    {t("post.youtube.scheduled_for", {
+                      date: new Date(item.publishAt).toLocaleString(),
+                    })}
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-[color:var(--muted)]">
+                    {new Date(item.uploadedAt).toLocaleString()}
+                  </p>
+                )}
               </div>
 
               <div className="flex shrink-0 items-center gap-1">

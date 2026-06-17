@@ -14,6 +14,7 @@ import {
   Clock,
   ExternalLink,
   FileVideo2,
+  Pencil,
   Plus,
   Shield,
   Trash2,
@@ -688,6 +689,13 @@ export function YouTubePoster() {
               prev.filter((item) => item.videoId !== videoId),
             )
           }
+          onUpdate={(videoId, patch) =>
+            setHistory((prev) =>
+              prev.map((item) =>
+                item.videoId === videoId ? { ...item, ...patch } : item,
+              ),
+            )
+          }
         />
       )}
       {tab === "post" && (
@@ -1271,14 +1279,17 @@ function HistoryList({
   channelId,
   items,
   onDelete,
+  onUpdate,
 }: {
   channelId: string;
   items: HistoryItem[];
   onDelete: (videoId: string) => void;
+  onUpdate: (videoId: string, patch: Partial<HistoryItem>) => void;
 }) {
   const { t } = useTranslation();
   const [confirming, setConfirming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [editing, setEditing] = useState<HistoryItem | null>(null);
 
   if (items.length === 0) return null;
 
@@ -1360,6 +1371,17 @@ function HistoryList({
                 {item.videoId && !isConfirming && (
                   <button
                     type="button"
+                    aria-label={t("post.youtube.edit_action")}
+                    onClick={() => setEditing(item)}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:bg-[color:var(--accent-surface)] hover:text-[color:var(--accent)]"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+
+                {item.videoId && !isConfirming && (
+                  <button
+                    type="button"
                     aria-label={t("post.youtube.delete_video")}
                     onClick={() => setConfirming(item.videoId!)}
                     className="flex h-7 w-7 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:bg-red-500/10 hover:text-red-400"
@@ -1397,6 +1419,170 @@ function HistoryList({
           );
         })}
       </ul>
+      {editing?.videoId && (
+        <EditHistoryModal
+          channelId={channelId}
+          item={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(patch) => {
+            onUpdate(editing.videoId!, patch);
+            setEditing(null);
+          }}
+        />
+      )}
     </section>
+  );
+}
+
+// Modal de edição de um vídeo já postado (título/descrição/privacidade). Salva
+// via PATCH /api/youtube/video e devolve o patch para a lista atualizar na hora.
+function EditHistoryModal({
+  channelId,
+  item,
+  onClose,
+  onSaved,
+}: {
+  channelId: string;
+  item: HistoryItem;
+  onClose: () => void;
+  onSaved: (patch: Partial<HistoryItem>) => void;
+}) {
+  const { t } = useTranslation();
+  const [title, setTitle] = useState(item.title ?? "");
+  const [description, setDescription] = useState(item.description ?? "");
+  const [privacy, setPrivacy] = useState<Privacy>(
+    (item.privacyStatus as Privacy) ?? "private",
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  async function save() {
+    if (!title.trim()) {
+      setError(t("post.youtube.error_no_title"));
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/youtube/video", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channelId,
+          videoId: item.videoId,
+          title: title.trim(),
+          description,
+          privacyStatus: privacy,
+        }),
+      });
+      if (!res.ok) throw new Error("update_failed");
+      onSaved({ title: title.trim(), description, privacyStatus: privacy });
+    } catch {
+      setError(t("post.youtube.edit_error"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const fieldCls =
+    "h-11 w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-4 text-sm text-[color:var(--text)] outline-none transition-all duration-200 focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent)]/20";
+
+  return (
+    <div className="modal-viewport fixed inset-0 z-[150] flex overflow-y-auto overscroll-contain px-4 py-6">
+      <button
+        aria-label={t("post.youtube.edit_cancel")}
+        className="fixed inset-0 bg-[color:var(--overlay)] backdrop-blur-md"
+        type="button"
+        onClick={onClose}
+      />
+      <section
+        aria-modal="true"
+        role="dialog"
+        className="modal-panel modal-panel-md app-panel relative m-auto w-full overflow-hidden border p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-2xl"
+      >
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <p className="flex items-center gap-2 text-base font-semibold text-[color:var(--text)]">
+            <Pencil className="h-4 w-4 text-[color:var(--accent)]" />
+            {t("post.youtube.edit_title")}
+          </p>
+          <button
+            aria-label={t("post.youtube.edit_cancel")}
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:bg-[color:var(--field-hover)] hover:text-[color:var(--text)]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="grid gap-3">
+          <label className="grid gap-1.5">
+            <span className="text-[11px] font-semibold text-[color:var(--muted)]">
+              {t("post.youtube.field_title")}
+            </span>
+            <input
+              className={fieldCls}
+              maxLength={100}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-[11px] font-semibold text-[color:var(--muted)]">
+              {t("post.youtube.field_description")}
+            </span>
+            <textarea
+              className="min-h-24 w-full resize-y rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-4 py-3 text-sm text-[color:var(--text)] outline-none transition-all duration-200 focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent)]/20"
+              maxLength={5000}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[color:var(--muted)]">
+              <Shield className="h-3.5 w-3.5" />
+              {t("post.youtube.privacy")}
+            </span>
+            <Select<Privacy>
+              value={privacy}
+              onChange={setPrivacy}
+              options={[
+                { value: "private", label: t("post.youtube.privacy_private") },
+                {
+                  value: "unlisted",
+                  label: t("post.youtube.privacy_unlisted"),
+                },
+                { value: "public", label: t("post.youtube.privacy_public") },
+              ]}
+            />
+          </label>
+        </div>
+
+        {error && (
+          <p className="mt-3 text-[12px] font-semibold text-red-400">{error}</p>
+        )}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            {t("post.youtube.edit_cancel")}
+          </Button>
+          <Button onClick={save} disabled={busy}>
+            {busy ? (
+              <Spinner className="h-4 w-4" />
+            ) : (
+              t("post.youtube.edit_save")
+            )}
+          </Button>
+        </div>
+      </section>
+    </div>
   );
 }

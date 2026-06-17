@@ -354,16 +354,41 @@ export async function startTwoFactorSetup(storageDir, userId) {
   if (!user) return null;
 
   const secret = generateSecret();
-  const otpauthUrl = `otpauth://totp/Contas:${encodeURIComponent(user.username)}?secret=${secret}&issuer=Contas`;
+  // Store secret as pending (two_factor_enabled stays false until enableTwoFactor confirms)
+  await query(
+    "UPDATE users SET two_factor_secret = $1, two_factor_enabled = false WHERE id = $2",
+    [encryptField(secret), userId]
+  );
 
-  return { secret, otpauthUrl };
+  const otpauthUri = `otpauth://totp/Contas:${encodeURIComponent(user.username)}?secret=${secret}&issuer=Contas`;
+  return { secret, otpauthUri };
 }
 
 export async function enableTwoFactor(storageDir, userId, code) {
   if (useLegacy()) return jsonUsers.enableTwoFactor(storageDir, userId, code);
 
-  // The secret is passed in the request (from the setup step), not stored yet
-  throw new Error("enableTwoFactor requires secret from setup step (not implemented in PG version yet)");
+  // Read the pending secret stored by startTwoFactorSetup
+  const result = await query(
+    "SELECT two_factor_secret, two_factor_enabled FROM users WHERE id = $1",
+    [userId]
+  );
+  if (result.rows.length === 0) return null;
+
+  const { two_factor_secret, two_factor_enabled } = result.rows[0];
+  if (!two_factor_secret || two_factor_enabled) throw new Error("no_pending");
+
+  const secret = decryptField(two_factor_secret);
+  if (!verifyTotp(secret, code)) throw new Error("invalid_code");
+
+  const codes = generateRecoveryCodes(8);
+  const hashedCodes = await Promise.all(codes.map(createPasswordHash));
+
+  await query(
+    `UPDATE users SET two_factor_enabled = true, recovery_codes = $1 WHERE id = $2`,
+    [hashedCodes.map(encryptField), userId]
+  );
+
+  return { recoveryCodes: codes };
 }
 
 export async function disableTwoFactor(storageDir, userId, code) {
@@ -459,10 +484,14 @@ export async function resetTwoFactor(storageDir, userId) {
 export async function findOrCreateGoogleUser(storageDir, profile) {
   if (useLegacy()) return jsonUsers.findOrCreateGoogleUser(storageDir, profile);
 
+  const sub = profile.sub ?? profile.id;
+  const email = profile.email?.trim().toLowerCase();
+  if (!sub || !email) throw new Error("invalid_google_profile");
+
   // Check if Google account already linked
   let result = await query(
     "SELECT id, username, role FROM users WHERE google_id = $1",
-    [profile.id]
+    [sub]
   );
 
   if (result.rows.length > 0) {
@@ -472,7 +501,7 @@ export async function findOrCreateGoogleUser(storageDir, profile) {
   // Check if email already registered (but not linked to Google)
   result = await query(
     "SELECT id FROM users WHERE email = $1",
-    [profile.email]
+    [email]
   );
 
   if (result.rows.length > 0) {
@@ -480,7 +509,7 @@ export async function findOrCreateGoogleUser(storageDir, profile) {
   }
 
   // Create new user
-  const username = profile.email.split("@")[0];
+  const username = email.split("@")[0];
   const finalUsername = await ensureUniqueUsername(username);
   const passwordHash = await createPasswordHash(randomUUID());
 
@@ -492,12 +521,12 @@ export async function findOrCreateGoogleUser(storageDir, profile) {
     RETURNING id, username, role`,
     [
       finalUsername,
-      profile.email,
-      profile.name || null,
+      email,
+      profile.fullName || profile.name || null,
       passwordHash,
       "member",
-      profile.id,
-      profile.email,
+      sub,
+      email,
       profile.picture || null,
     ]
   );
@@ -508,10 +537,13 @@ export async function findOrCreateGoogleUser(storageDir, profile) {
 export async function linkGoogleProvider(storageDir, userId, profile) {
   if (useLegacy()) return jsonUsers.linkGoogleProvider(storageDir, userId, profile);
 
+  const sub = profile.sub ?? profile.id;
+  if (!sub) throw new Error("invalid_google_profile");
+
   // Check if Google ID already linked to another user
   const existing = await query(
     "SELECT id FROM users WHERE google_id = $1 AND id != $2",
-    [profile.id, userId]
+    [sub, userId]
   );
 
   if (existing.rows.length > 0) {
@@ -520,7 +552,7 @@ export async function linkGoogleProvider(storageDir, userId, profile) {
 
   await query(
     "UPDATE users SET google_id = $1, google_email = $2, google_picture = $3 WHERE id = $4",
-    [profile.id, profile.email, profile.picture || null, userId]
+    [sub, profile.email, profile.picture || null, userId]
   );
 
   return true;

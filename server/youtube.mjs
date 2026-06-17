@@ -381,6 +381,27 @@ export async function listUploadHistory(ownerId) {
   return items.filter((item) => item.ownerId === safeOwnerId);
 }
 
+// Aplica um patch (título/descrição/privacidade) ao item do histórico, para a
+// lista refletir a edição na hora.
+async function updateHistory(videoId, ownerId, patch) {
+  const safeOwnerId = safeStorageKey(ownerId);
+  const items = await readHistory();
+  let changed = false;
+  for (const item of items) {
+    if (item.videoId === videoId && item.ownerId === safeOwnerId) {
+      Object.assign(item, patch);
+      changed = true;
+    }
+  }
+  if (!changed) return;
+  await mkdir(storageDir, { recursive: true });
+  await writeFile(
+    historyFile,
+    `${JSON.stringify({ items }, null, 2)}\n`,
+    "utf8",
+  );
+}
+
 async function removeFromHistory(videoId, ownerId) {
   const safeOwnerId = safeStorageKey(ownerId);
   const items = await readHistory();
@@ -400,6 +421,55 @@ export async function deleteVideo(channelId, videoId, ownerId) {
   const youtube = google.youtube({ version: "v3", auth });
   await youtube.videos.delete({ id: videoId });
   await removeFromHistory(videoId, ownerId);
+}
+
+// Edita um vídeo já postado (título/descrição/privacidade). videos.update exige
+// o snippet inteiro (com categoryId), então lemos o atual e mesclamos. Atualiza
+// o histórico para a lista refletir na hora.
+export async function updateVideo({
+  channelId,
+  videoId,
+  ownerId,
+  title,
+  description,
+  privacyStatus,
+}) {
+  const auth = await clientForChannel(channelId, ownerId);
+  const youtube = google.youtube({ version: "v3", auth });
+
+  const current = await youtube.videos.list({
+    part: ["snippet", "status"],
+    id: [videoId],
+  });
+  const item = current.data.items?.[0];
+  if (!item) throw new Error("video_not_found");
+
+  const snippet = { ...item.snippet };
+  if (typeof title === "string" && title.trim()) snippet.title = title.trim();
+  if (typeof description === "string") snippet.description = description;
+
+  const status = { ...item.status };
+  if (privacyStatus && PRIVACY_STATUSES.has(privacyStatus)) {
+    status.privacyStatus = privacyStatus;
+  }
+
+  await youtube.videos.update({
+    part: ["snippet", "status"],
+    requestBody: { id: videoId, snippet, status },
+  });
+
+  await updateHistory(videoId, ownerId, {
+    title: snippet.title,
+    description: snippet.description ?? "",
+    privacyStatus: status.privacyStatus,
+  });
+
+  return {
+    videoId,
+    title: snippet.title,
+    description: snippet.description ?? "",
+    privacyStatus: status.privacyStatus,
+  };
 }
 
 // ISO 8601 duration ("PT1M30S") -> seconds. Null if unparseable.

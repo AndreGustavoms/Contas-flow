@@ -26,6 +26,7 @@ import {
   MAX_STAGED_UPLOAD_BYTES,
   stageUpload,
   deleteVideo,
+  updateVideo,
   uploadVideo,
   uploadsDirectory,
   YOUTUBE_MAX_UPLOAD_BYTES,
@@ -1178,7 +1179,11 @@ async function handleApi(request, response, url, user, session) {
       });
       sendJson(response, 200, {
         authenticated: true,
-        user: { id: account.id, username: account.username, role: account.role },
+        user: {
+          id: account.id,
+          username: account.username,
+          role: account.role,
+        },
       });
       return;
     }
@@ -2543,6 +2548,51 @@ async function handleApi(request, response, url, user, session) {
     return;
   }
 
+  // PATCH /api/youtube/video — edita título/descrição/privacidade de um vídeo
+  // já postado e reflete no histórico.
+  if (url.pathname === "/api/youtube/video" && request.method === "PATCH") {
+    const body = await readBody(request);
+    const channelId =
+      typeof body.channelId === "string" ? body.channelId.trim() : "";
+    const videoId = typeof body.videoId === "string" ? body.videoId.trim() : "";
+    if (!channelId || !videoId) {
+      sendJson(response, 400, {
+        error: "invalid_request",
+        message: "channelId e videoId são obrigatórios.",
+      });
+      return;
+    }
+    try {
+      const result = await updateVideo({
+        channelId,
+        videoId,
+        ownerId: user.id,
+        title: typeof body.title === "string" ? body.title : undefined,
+        description:
+          typeof body.description === "string" ? body.description : undefined,
+        privacyStatus:
+          typeof body.privacyStatus === "string"
+            ? body.privacyStatus.trim()
+            : undefined,
+      });
+      sendJson(response, 200, result);
+    } catch (err) {
+      const code = err?.message ?? "unknown";
+      if (code === "channel_not_connected") {
+        sendJson(response, 404, { error: "channel_not_connected" });
+      } else if (code === "video_not_found") {
+        sendJson(response, 404, { error: "video_not_found" });
+      } else {
+        recordLog(
+          "error",
+          `youtube: falha ao editar vídeo ${videoId} (${code})`,
+        );
+        sendJson(response, 500, { error: "youtube_update", message: code });
+      }
+    }
+    return;
+  }
+
   // ----- Groups -----
   // Every group route is vault-scoped: each user's groups live in their own
   // vaults/{userId}.json. The caller only looks in their own vault. A group the
@@ -2563,12 +2613,12 @@ async function handleApi(request, response, url, user, session) {
 
   if (url.pathname === "/api/groups" && request.method === "GET") {
     const db = await readVault(user.id);
-      // Primeiro acesso: cria grupo padrão automaticamente.
+    // Primeiro acesso: cria grupo padrão automaticamente.
     if (db.groups.length === 0) {
       const defaultGroup = normalizeGroup({
-          name: "Geral",
-          ownerId: user.id,
-          accounts: [],
+        name: "Geral",
+        ownerId: user.id,
+        accounts: [],
       });
       db.groups.push(defaultGroup);
       await writeVault(user.id, db);

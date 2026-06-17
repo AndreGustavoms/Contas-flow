@@ -8,6 +8,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Enable pg_trgm for full-text search (trigram matching)
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
+-- Enable unaccent for accent-insensitive username lookups
+CREATE EXTENSION IF NOT EXISTS unaccent;
+
 -- ==================== USERS ====================
 -- The user roster: logins, password hashes (scrypt), roles, 2FA config.
 -- Replaces storage/users.json.

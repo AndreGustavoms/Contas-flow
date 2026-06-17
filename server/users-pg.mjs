@@ -219,7 +219,8 @@ export async function findByUsernameOrEmail(storageDir, nameOrEmail) {
       two_factor_secret AS "twoFactorSecret",
       recovery_codes AS "recoveryCodes"
     FROM users
-    WHERE username = $1 OR email = $1`,
+    WHERE unaccent(lower(username)) = unaccent(lower($1))
+       OR lower(email) = lower($1)`,
     [trimmed]
   );
 
@@ -666,9 +667,10 @@ export async function ensureSuperadmin(storageDir) {
   if (!email && !username) return null;
 
   const result = await query(
-    `UPDATE users 
-     SET role = 'superadmin' 
-     WHERE (email = $1 OR username = $2) AND role != 'superadmin'
+    `UPDATE users
+     SET role = 'superadmin'
+     WHERE (lower(email) = lower($1) OR unaccent(lower(username)) = unaccent(lower($2)))
+       AND role != 'superadmin'
      RETURNING id, username, role`,
     [email || null, username || null]
   );

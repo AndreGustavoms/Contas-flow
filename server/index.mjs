@@ -26,7 +26,7 @@ import {
   listUploadableFiles,
   MAX_STAGED_UPLOAD_BYTES,
   stageUpload,
-  appendChunk,
+  writeChunkAt,
   deleteVideo,
   finalizeChunkedUpload,
   initiateResumableUpload,
@@ -906,7 +906,9 @@ function applySecurityHeaders(request, response) {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "img-src 'self' data:",
+      // YouTube serves video thumbnails from i.ytimg.com and channel avatars
+      // from yt3.ggpht.com — allow them so the history/poster panels render.
+      "img-src 'self' data: https://i.ytimg.com https://*.ytimg.com https://yt3.ggpht.com",
       "style-src 'self' 'unsafe-inline'",
       "script-src 'self'",
       "connect-src 'self'",
@@ -2508,22 +2510,27 @@ async function handleApi(request, response, url, user, session) {
   // ID (hex UUID) and original filename come in as headers.
   if (url.pathname === "/api/youtube/uploads/chunk" && request.method === "POST") {
     const uploadId = asString(request.headers["x-upload-id"]).replace(/-/g, "");
-    let originalName = asString(request.headers["x-upload-filename"]);
-    try { originalName = decodeURIComponent(originalName); } catch { /* keep raw */ }
+    const offset = Number(asString(request.headers["x-chunk-offset"]));
 
-    if (!/^[a-f0-9]{32}$/.test(uploadId)) {
+    if (!/^[a-f0-9]{32}$/.test(uploadId) || !Number.isInteger(offset) || offset < 0) {
       await drainBody(request);
-      sendJson(response, 400, { error: "invalid_upload_id" });
+      sendJson(response, 400, { error: "invalid_chunk_request" });
       return;
     }
     try {
-      const result = await appendChunk(uploadId, request, user.id);
+      const result = await writeChunkAt(uploadId, offset, request, user.id);
       sendJson(response, 200, result);
     } catch (error) {
       const code = error instanceof Error ? error.message : "unknown";
+      // Always finish reading the body before responding, otherwise Node resets
+      // the socket on the unread bytes and the client sees a misleading status 0.
+      await drainBody(request).catch(() => {});
       if (code === "file_too_large") {
         sendJson(response, 413, { error: "file_too_large", limitBytes: MAX_STAGED_UPLOAD_BYTES });
+      } else if (code === "upload_not_found" || code === "offset_gap") {
+        sendJson(response, 409, { error: code });
       } else {
+        recordLog("error", `youtube: chunk falhou em offset ${offset} (${code})`);
         sendJson(response, 500, { error: code });
       }
     }

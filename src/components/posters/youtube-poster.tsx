@@ -111,47 +111,95 @@ function fmtDuration(seconds: number | null): string {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB — fits comfortably within Railway's ~60 s proxy timeout
+// 1 MB chunks: small enough that no single request body trips Railway's edge
+// proxy (which resets even a few-MB streamed body — the real cause of the
+// "Falha de rede / 0" seen on tiny files), large enough to keep request count
+// sane. Each chunk goes to a fixed byte offset, so a retried chunk overwrites a
+// half-written attempt instead of duplicating it.
+const CHUNK_SIZE = 1024 * 1024;
+const CHUNK_RETRIES = 4;
+
+// Hex-32 id usable in any context (crypto.randomUUID is HTTPS-only; getRandomValues
+// is universal). The server validates /^[a-f0-9]{32}$/.
+function makeUploadId(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 function sendChunk(
   uploadId: string,
   filename: string,
+  offset: number,
   chunk: Blob,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/youtube/uploads/chunk");
     xhr.setRequestHeader("X-Upload-Id", uploadId);
+    xhr.setRequestHeader("X-Chunk-Offset", String(offset));
     xhr.setRequestHeader("X-Upload-Filename", encodeURIComponent(filename));
+    xhr.timeout = 60_000; // 1 MB should take seconds; a stall means retry
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve();
       else reject(new UploadRequestError(xhr.status, parseJson(xhr.responseText)));
     };
     xhr.onerror = () =>
-      reject(
-        new UploadRequestError(0, {
-          error: "network",
-          source: "network",
-          message: "Falha de rede.",
-          userMessage: "Não foi possível enviar o arquivo ao servidor. Verifique sua conexão e tente novamente.",
-        }),
-      );
+      reject(new UploadRequestError(0, { error: "network", source: "network", message: "network" }));
+    xhr.ontimeout = () =>
+      reject(new UploadRequestError(0, { error: "timeout", source: "network", message: "timeout" }));
     xhr.send(chunk);
   });
+}
+
+async function sendChunkWithRetry(
+  uploadId: string,
+  filename: string,
+  offset: number,
+  chunk: Blob,
+): Promise<void> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= CHUNK_RETRIES; attempt++) {
+    try {
+      await sendChunk(uploadId, filename, offset, chunk);
+      return;
+    } catch (err) {
+      lastErr = err;
+      const status = err instanceof UploadRequestError ? err.status : -1;
+      // Only transient failures are worth retrying (connection reset / 5xx).
+      // A 4xx is a hard rejection — stop immediately.
+      const transient = status === 0 || (status >= 500 && status < 600);
+      if (!transient || attempt === CHUNK_RETRIES) break;
+      await new Promise((r) => setTimeout(r, 500 * attempt));
+    }
+  }
+  throw lastErr;
 }
 
 async function uploadVideoFile(
   file: File,
   onProgress: (fraction: number) => void,
 ): Promise<{ name: string; size: number }> {
-  const uploadId = crypto.randomUUID();
-  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  const uploadId = makeUploadId();
+  const total = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
 
-  for (let i = 0; i < totalChunks; i++) {
-    const start = i * CHUNK_SIZE;
-    const chunk = file.slice(start, start + CHUNK_SIZE);
-    await sendChunk(uploadId, file.name || "video", chunk);
-    onProgress((i + 1) / totalChunks);
+  for (let i = 0; i < total; i++) {
+    const offset = i * CHUNK_SIZE;
+    const chunk = file.slice(offset, offset + CHUNK_SIZE);
+    try {
+      await sendChunkWithRetry(uploadId, file.name || "video", offset, chunk);
+    } catch (err) {
+      // Surface a precise, actionable diagnosis instead of a generic "Falha de rede".
+      if (err instanceof UploadRequestError) {
+        err.payload.source = "network";
+        err.payload.userMessage =
+          err.status === 0
+            ? `O envio foi interrompido ao transferir o trecho em ${fmtSize(offset)} (a conexão caiu antes da resposta do servidor). Tente novamente — se persistir, o proxy do servidor está recusando o upload.`
+            : `O servidor recusou o trecho em ${fmtSize(offset)} (código ${err.status}). Tente novamente.`;
+      }
+      throw err;
+    }
+    onProgress((i + 1) / total);
   }
 
   const res = await fetch("/api/youtube/uploads/finalize", {

@@ -16,7 +16,9 @@ import {
   mkdir,
   readFile,
   readdir,
+  rename,
   stat,
+  truncate,
   unlink,
   writeFile,
 } from "node:fs/promises";
@@ -381,30 +383,49 @@ export async function stageUpload(originalName, source, ownerId) {
   return { name, size };
 }
 
-// ----- Chunked upload (browser splits file into ≤5 MB pieces) -----
-// Each piece is a separate POST so no single request exceeds Railway's ~60 s
-// proxy timeout. The server appends chunks to a temp file; the client calls
-// finalizeChunkedUpload after the last chunk to get back the staged file name.
+// ----- Chunked upload (browser splits the file into small pieces) -----
+// Each piece is a separate POST so no single request body is large enough to
+// trip Railway's edge proxy (which resets/refuses big streamed request bodies —
+// even a few MB — surfacing as XHR status 0 "Falha de rede" on the client).
+//
+// Writes are OFFSET-BASED, not append-based: the client tells us exactly where
+// each chunk goes, so a retried chunk overwrites any half-written bytes from a
+// failed attempt instead of duplicating them. That makes per-chunk retry safe.
+// The client calls finalizeChunkedUpload after the last chunk.
 
-export async function appendChunk(uploadId, chunkStream, ownerId) {
+export async function writeChunkAt(uploadId, offset, chunkStream, ownerId) {
   const dir = uploadsDirForOwner(ownerId);
   await mkdir(dir, { recursive: true });
 
-  // Validate uploadId: only hex chars (we generate it as randomUUID stripped of dashes)
   if (!/^[a-f0-9]{32}$/.test(uploadId)) throw new Error("invalid_upload_id");
+  if (!Number.isInteger(offset) || offset < 0) throw new Error("invalid_offset");
 
   const tmpPath = join(dir, `${uploadId}.tmp`);
 
-  // Check cumulative size before appending
-  let existing = 0;
-  try { existing = (await stat(tmpPath)).size; } catch { /* new file */ }
-  if (existing >= MAX_STAGED_UPLOAD_BYTES) throw new Error("file_too_large");
+  let writeStream;
+  if (offset === 0) {
+    // Fresh start (or a full retry of the first chunk): truncate the whole file.
+    writeStream = createWriteStream(tmpPath, { flags: "w" });
+  } else {
+    // Chunks arrive strictly in order, so every byte before `offset` must
+    // already be on disk. Trim anything at/after `offset` (leftover from a
+    // half-written retry) so we write exactly at the boundary — idempotent.
+    let current = 0;
+    try {
+      current = (await stat(tmpPath)).size;
+    } catch {
+      throw new Error("upload_not_found");
+    }
+    if (current < offset) throw new Error("offset_gap");
+    if (current > offset) await truncate(tmpPath, offset);
+    writeStream = createWriteStream(tmpPath, { flags: "r+", start: offset });
+  }
 
   let chunkSize = 0;
   const counter = new Transform({
     transform(chunk, _enc, cb) {
       chunkSize += chunk.length;
-      if (existing + chunkSize > MAX_STAGED_UPLOAD_BYTES) {
+      if (offset + chunkSize > MAX_STAGED_UPLOAD_BYTES) {
         cb(new Error("file_too_large"));
         return;
       }
@@ -412,12 +433,8 @@ export async function appendChunk(uploadId, chunkStream, ownerId) {
     },
   });
 
-  try {
-    await pipeline(chunkStream, counter, createWriteStream(tmpPath, { flags: "a" }));
-  } catch (error) {
-    throw error;
-  }
-  return { uploadId, received: existing + chunkSize };
+  await pipeline(chunkStream, counter, writeStream);
+  return { received: offset + chunkSize };
 }
 
 export async function finalizeChunkedUpload(uploadId, originalName, ownerId) {
@@ -426,14 +443,15 @@ export async function finalizeChunkedUpload(uploadId, originalName, ownerId) {
   const tmpPath = join(dir, `${uploadId}.tmp`);
 
   let info;
-  try { info = await stat(tmpPath); } catch { throw new Error("upload_not_found"); }
+  try {
+    info = await stat(tmpPath);
+  } catch {
+    throw new Error("upload_not_found");
+  }
   if (info.size === 0) throw new Error("empty_file");
 
   const finalName = safeUploadName(originalName || "video");
   const finalPath = resolveUploadPath(finalName, ownerId);
-
-  // Rename tmp → final staged file
-  const { rename } = await import("node:fs/promises");
   await rename(tmpPath, finalPath);
   return { name: finalName, size: info.size };
 }

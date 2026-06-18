@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  CalendarClock,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -42,6 +43,24 @@ const dayShortFmt = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
   month: "short",
 });
+const monthFmt = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: SP_TZ,
+  month: "long",
+  year: "numeric",
+});
+const weekdayDayFmt = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: SP_TZ,
+  weekday: "short",
+  day: "2-digit",
+  month: "short",
+});
+function monthLabel(date: Date): string {
+  const s = monthFmt.format(date);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function weekdayDay(date: Date): string {
+  return weekdayDayFmt.format(date).replace(".", "");
+}
 
 function spDayKey(date: Date): string {
   return dayKeyFmt.format(date);
@@ -135,6 +154,24 @@ export function ReportsPanel() {
   const postedCount = weekItems.length - scheduledCount;
 
   const weekRange = `${fmtDayShort(weekStartKey)} – ${fmtDayShort(weekDays[6])}`;
+
+  // Todos os agendados futuros (próximos dias/meses), agrupados por mês — vai
+  // além da semana visível para você enxergar a fila inteira de programados.
+  const upcoming = history
+    .filter(isScheduled)
+    .sort((a, b) => getItemDate(a).getTime() - getItemDate(b).getTime());
+  const upcomingMonths: { label: string; items: HistoryItem[] }[] = [];
+  const monthIndex = new Map<string, number>();
+  for (const item of upcoming) {
+    const label = monthLabel(getItemDate(item));
+    let mi = monthIndex.get(label);
+    if (mi === undefined) {
+      mi = upcomingMonths.length;
+      monthIndex.set(label, mi);
+      upcomingMonths.push({ label, items: [] });
+    }
+    upcomingMonths[mi].items.push(item);
+  }
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-5">
@@ -347,6 +384,68 @@ export function ReportsPanel() {
         <p className="text-center text-[12px] text-[color:var(--muted)]">
           Nenhuma postagem nesta semana. Verde = postado · cor de destaque = agendado.
         </p>
+      )}
+
+      {/* Fila de agendados (próximos dias e meses) */}
+      {!loading && upcoming.length > 0 && (
+        <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--field)]">
+          <p className="flex items-center gap-2 border-b border-[color:var(--border)] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
+            <CalendarClock className="h-3.5 w-3.5" />
+            Próximos agendados · {upcoming.length}
+          </p>
+          <div className="divide-y divide-[color:var(--border)]">
+            {upcomingMonths.map((month) => (
+              <div key={month.label} className="px-4 py-3">
+                <p className="mb-2 text-[11px] font-semibold text-[color:var(--accent)]">
+                  {month.label}
+                </p>
+                <ul className="grid gap-1.5">
+                  {month.items.map((item, i) => {
+                    const date = getItemDate(item);
+                    const row = (
+                      <>
+                        <span className="flex w-[150px] shrink-0 items-center gap-2 text-[12px] text-[color:var(--text)]">
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--accent)]" />
+                          <span className="font-medium capitalize">{weekdayDay(date)}</span>
+                          <span className="font-mono tabular-nums text-[color:var(--muted)]">
+                            {spTime(date)}
+                          </span>
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[12px] font-medium text-[color:var(--text)]">
+                            {item.title}
+                          </span>
+                          {item.channelTitle && (
+                            <span className="block truncate text-[10px] text-[color:var(--muted)]">
+                              {item.channelTitle}
+                            </span>
+                          )}
+                        </span>
+                      </>
+                    );
+                    const cls =
+                      "flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-[color:var(--surface-soft)]";
+                    return item.videoId ? (
+                      <a
+                        key={`${item.videoId}-${i}`}
+                        href={`https://studio.youtube.com/video/${item.videoId}/edit`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={cls}
+                      >
+                        {row}
+                      </a>
+                    ) : (
+                      <li key={i} className={cls}>
+                        {row}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

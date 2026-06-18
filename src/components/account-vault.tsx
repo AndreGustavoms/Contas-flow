@@ -532,6 +532,10 @@ export function AccountVault({
   const [quickViewSecret, setQuickViewSecret] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [exportProgress, setExportProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [groupDialog, setGroupDialog] = useState<{
     mode: "create" | "rename";
@@ -1360,16 +1364,17 @@ export function AccountVault({
   async function exportBackup() {
     if (!activeGroupId) return;
     const groupName = activeGroup?.name ?? "contas";
+    const total = accounts.length;
+    setExportProgress({ done: 0, total });
     try {
-      // Passwords aren't in the listing anymore, so fetch each on demand (one
-      // re-auth unlocks the whole batch for the 5-min window). Build the export
-      // with the real secrets restored.
       const withSecrets: AccountRecord[] = [];
-      for (const account of accounts) {
+      for (let i = 0; i < accounts.length; i++) {
+        const account = accounts[i];
         const password = account.hasPassword
           ? await fetchSecret(account.id)
           : "";
         withSecrets.push({ ...account, password });
+        setExportProgress({ done: i + 1, total });
       }
       const payload = JSON.stringify(
         {
@@ -1387,8 +1392,11 @@ export function AccountVault({
       link.download = `contas-${slugify(groupName)}-${new Date().toISOString().slice(0, 10)}.json`;
       link.click();
       URL.revokeObjectURL(url);
+      notify(t("vault.toast_exported", { count: withSecrets.length }));
     } catch {
       notify(t("vault.error_export"), "error");
+    } finally {
+      setExportProgress(null);
     }
   }
 
@@ -1922,6 +1930,25 @@ export function AccountVault({
           tone={toast.tone}
           onDismiss={dismissToast}
         />
+      ) : null}
+
+      {exportProgress ? (
+        <div className="fixed bottom-5 left-1/2 z-[200] -translate-x-1/2 animate-pop-in">
+          <div className="flex items-center gap-3 rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel)] px-5 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.3)] backdrop-blur-md">
+            <Spinner className="h-4 w-4 shrink-0 text-[color:var(--accent)]" />
+            <span className="text-sm text-[color:var(--text)]">
+              {t("vault.exporting_progress", {
+                done: exportProgress.done,
+                total: exportProgress.total,
+              })}
+            </span>
+            <span className="ml-1 min-w-[3ch] text-right text-sm font-semibold tabular-nums text-[color:var(--accent)]">
+              {exportProgress.total > 0
+                ? Math.round((exportProgress.done / exportProgress.total) * 100)
+                : 0}%
+            </span>
+          </div>
+        </div>
       ) : null}
     </main>
   );

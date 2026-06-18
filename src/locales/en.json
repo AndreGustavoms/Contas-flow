@@ -346,6 +346,8 @@
     "error_import_format": "Invalid format",
     "import_group_name": "Imported accounts {{date}}",
     "toast_imported": "Imported to \"{{group}}\"",
+    "toast_exported": "{{count}} account(s) exported",
+    "exporting_progress": "Exporting {{done}} of {{total}}...",
     "error_backup_invalid": "Invalid backup",
     "post": "Post",
     "publish_section": "Functions",

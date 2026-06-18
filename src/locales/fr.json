@@ -344,6 +344,8 @@
     "error_import_format": "Format invalide",
     "import_group_name": "Comptes importés {{date}}",
     "toast_imported": "Importé dans \"{{group}}\"",
+    "toast_exported": "{{count}} compte(s) exporté(s)",
+    "exporting_progress": "Export {{done}} sur {{total}}...",
     "error_backup_invalid": "Sauvegarde invalide",
     "post": "Publier",
     "publish_section": "Fonctions",

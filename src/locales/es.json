@@ -344,6 +344,8 @@
     "error_import_format": "Formato inválido",
     "import_group_name": "Cuentas importadas {{date}}",
     "toast_imported": "Importado a \"{{group}}\"",
+    "toast_exported": "{{count}} cuenta(s) exportada(s)",
+    "exporting_progress": "Exportando {{done}} de {{total}}...",
     "error_backup_invalid": "Backup inválido",
     "post": "Publicar",
     "publish_section": "Funciones",

@@ -17,6 +17,7 @@ type Slot = {
   type: SlotType;
 };
 
+// Fixed weekly grade, keyed by weekday (0=Sun … 6=Sat).
 const WEEK_SCHEDULE: Record<number, Slot[]> = {
   1: [
     { time: "09:00", endTime: "09:30", type: "support" },
@@ -60,48 +61,76 @@ type HistoryItem = {
   thumbnailUrl?: string | null;
 };
 
-function getWeekStart(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
-  d.setHours(0, 0, 0, 0);
-  return d;
+// ---------------------------------------------------------------------------
+// All day/week math is pinned to Brazil time (America/Sao_Paulo). Timestamps
+// are stored in UTC (TIMESTAMPTZ); doing the grouping in the viewer's local
+// timezone would put posts on the wrong day for anyone not in BRT and would
+// drift the "today"/week boundaries. Working with BRT calendar-day keys
+// ("YYYY-MM-DD") makes everything deterministic and correct.
+// ---------------------------------------------------------------------------
+const SP_TZ = "America/Sao_Paulo";
+
+const dayKeyFmt = new Intl.DateTimeFormat("en-CA", {
+  timeZone: SP_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const timeFmt = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: SP_TZ,
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const hourFmt = new Intl.DateTimeFormat("en-GB", {
+  timeZone: SP_TZ,
+  hour: "2-digit",
+  hour12: false,
+});
+const dayShortFmt = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "UTC",
+  day: "2-digit",
+  month: "short",
+});
+
+// BRT calendar day ("YYYY-MM-DD") of an instant.
+function spDayKey(date: Date): string {
+  return dayKeyFmt.format(date);
+}
+// BRT "HH:MM" of an instant.
+function spTime(date: Date): string {
+  return timeFmt.format(date);
+}
+// BRT hour (0–23) of an instant.
+function spHour(date: Date): number {
+  return parseInt(hourFmt.format(date), 10);
 }
 
-function addDays(date: Date, n: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + n);
-  return d;
+// A day-key anchored at UTC noon: a stable Date for weekday lookup and ±day
+// arithmetic, immune to timezone/DST edges.
+function keyToNoon(key: string): Date {
+  return new Date(`${key}T12:00:00Z`);
 }
-
-function isSameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
+function noonToKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
 }
-
-function slotMatchesVideo(slot: Slot, day: Date, item: HistoryItem): boolean {
-  const ts = item.publishAt ?? item.uploadedAt;
-  const d = new Date(ts);
-  if (!isSameDay(d, day)) return false;
-  const h = d.getHours();
-  const slotH = parseInt(slot.time.split(":")[0], 10);
-  const endH = slot.endTime
-    ? parseInt(slot.endTime.split(":")[0], 10)
-    : slotH + 1;
-  return h >= slotH && h < endH;
+function weekdayOfKey(key: string): number {
+  return keyToNoon(key).getUTCDay(); // 0=Sun … 6=Sat
 }
-
-function fmtWeekRange(start: Date): string {
-  const end = addDays(start, 4);
-  const opts: Intl.DateTimeFormatOptions = { day: "2-digit", month: "short" };
-  return `${start.toLocaleDateString("pt-BR", opts)} - ${end.toLocaleDateString("pt-BR", opts)}`;
+function addDaysKey(key: string, n: number): string {
+  const d = keyToNoon(key);
+  d.setUTCDate(d.getUTCDate() + n);
+  return noonToKey(d);
 }
-
-function getSlotLabel(slot: Slot): string {
-  return slot.type === "post" ? "Postagem principal" : "Apoio";
+function mondayOfKey(key: string): string {
+  const wd = weekdayOfKey(key);
+  const back = wd === 0 ? 6 : wd - 1; // days since Monday
+  return addDaysKey(key, -back);
+}
+function dayNumber(key: string): number {
+  return parseInt(key.slice(8, 10), 10);
+}
+function fmtDayShort(key: string): string {
+  return dayShortFmt.format(keyToNoon(key));
 }
 
 function getItemDate(item: HistoryItem): Date {
@@ -112,65 +141,29 @@ function isScheduled(item: HistoryItem): boolean {
   return Boolean(item.publishAt && new Date(item.publishAt) > new Date());
 }
 
+function slotMatchesVideo(slot: Slot, item: HistoryItem): boolean {
+  const h = spHour(getItemDate(item));
+  const slotH = parseInt(slot.time.split(":")[0], 10);
+  const endH = slot.endTime ? parseInt(slot.endTime.split(":")[0], 10) : slotH + 1;
+  return h >= slotH && h < endH;
+}
+
+function getSlotLabel(slot: Slot): string {
+  return slot.type === "post" ? "Postagem principal" : "Apoio";
+}
+
 export function ReportsPanel() {
-  const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
+  const todayKey = spDayKey(new Date());
+  const [anchorKey, setAnchorKey] = useState(todayKey);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
-
-    function load(silent = false) {
-      if (!silent) setLoading(true);
-      if (silent) setRefreshing(true);
-      fetch("/api/youtube/history")
-        .then((r) => (r.ok ? r.json() : { items: [] }))
-        .then((d: { items?: HistoryItem[] }) => {
-          if (!alive) return;
-          setHistory(d.items ?? []);
-          setLoadError(false);
-        })
-        .catch(() => {
-          if (!alive) return;
-          setHistory([]);
-          setLoadError(true);
-        })
-        .finally(() => {
-          if (!alive) return;
-          setLoading(false);
-          setRefreshing(false);
-        });
-    }
-
-    load();
-    const interval = window.setInterval(() => load(true), 30000);
-    const onFocus = () => load(true);
-    window.addEventListener("focus", onFocus);
-
-    return () => {
-      alive = false;
-      window.clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, []);
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const workDays = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
-  const weekItems = history
-    .filter((item) => {
-      const d = getItemDate(item);
-      return d >= weekStart && d < addDays(weekStart, 5);
-    })
-    .sort((a, b) => getItemDate(a).getTime() - getItemDate(b).getTime());
-  const scheduledCount = weekItems.filter(isScheduled).length;
-  const postedCount = weekItems.length - scheduledCount;
-
-  function refreshNow() {
-    setRefreshing(true);
-    fetch("/api/youtube/history")
+  function fetchHistory(silent: boolean) {
+    if (silent) setRefreshing(true);
+    else setLoading(true);
+    return fetch("/api/youtube/history?reconcile=1")
       .then((r) => (r.ok ? r.json() : { items: [] }))
       .then((d: { items?: HistoryItem[] }) => {
         setHistory(d.items ?? []);
@@ -182,6 +175,36 @@ export function ReportsPanel() {
         setRefreshing(false);
       });
   }
+
+  useEffect(() => {
+    let alive = true;
+    function load(silent = false) {
+      if (!alive) return;
+      fetchHistory(silent);
+    }
+    load();
+    const interval = window.setInterval(() => load(true), 30000);
+    const onFocus = () => load(true);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      alive = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const weekStartKey = mondayOfKey(anchorKey);
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDaysKey(weekStartKey, i));
+  const weekSet = new Set(weekDays);
+
+  const weekItems = history
+    .filter((item) => weekSet.has(spDayKey(getItemDate(item))))
+    .sort((a, b) => getItemDate(a).getTime() - getItemDate(b).getTime());
+  const scheduledCount = weekItems.filter(isScheduled).length;
+  const postedCount = weekItems.length - scheduledCount;
+
+  const weekRange = `${fmtDayShort(weekStartKey)} - ${fmtDayShort(weekDays[6])}`;
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-5">
@@ -195,26 +218,26 @@ export function ReportsPanel() {
               Programação de postagens
             </h2>
             <p className="mt-0.5 text-[11px] text-[color:var(--muted)]">
-              Dados reais dos uploads feitos pelo app
+              Dados reais dos uploads feitos pelo app · horário de Brasília
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-1">
           <span className="mr-2 hidden min-w-[118px] text-center text-[12px] font-semibold text-[color:var(--text)] sm:inline">
-            {fmtWeekRange(weekStart)}
+            {weekRange}
           </span>
           <button
             type="button"
             aria-label="Semana anterior"
-            onClick={() => setWeekStart((w) => addDays(w, -7))}
+            onClick={() => setAnchorKey((k) => addDaysKey(k, -7))}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:bg-[color:var(--field)] hover:text-[color:var(--text)]"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             type="button"
-            onClick={() => setWeekStart(getWeekStart(new Date()))}
+            onClick={() => setAnchorKey(spDayKey(new Date()))}
             className="rounded-lg px-3 py-2 text-[11px] font-semibold text-[color:var(--muted)] transition hover:bg-[color:var(--field)] hover:text-[color:var(--text)]"
           >
             Hoje
@@ -222,7 +245,7 @@ export function ReportsPanel() {
           <button
             type="button"
             aria-label="Próxima semana"
-            onClick={() => setWeekStart((w) => addDays(w, 7))}
+            onClick={() => setAnchorKey((k) => addDaysKey(k, 7))}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:bg-[color:var(--field)] hover:text-[color:var(--text)]"
           >
             <ChevronRight className="h-4 w-4" />
@@ -230,12 +253,10 @@ export function ReportsPanel() {
           <button
             type="button"
             aria-label="Atualizar programação"
-            onClick={refreshNow}
+            onClick={() => fetchHistory(true)}
             className="ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:bg-[color:var(--field)] hover:text-[color:var(--text)]"
           >
-            <RefreshCw
-              className={cn("h-4 w-4", refreshing && "animate-spin")}
-            />
+            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
           </button>
         </div>
       </div>
@@ -278,25 +299,24 @@ export function ReportsPanel() {
             Nenhuma postagem registrada nesta semana
           </p>
           <p className="mt-1 text-[12px] text-[color:var(--muted)]">
-            Assim que um vídeo for postado ou agendado pelo app, ele aparece
-            aqui.
+            Assim que um vídeo for postado ou agendado pelo app, ele aparece aqui.
           </p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--field)]">
-          {workDays.map((day) => {
-            const dow = day.getDay();
+          {weekDays.map((dayKey) => {
+            const dow = weekdayOfKey(dayKey);
             const slots = WEEK_SCHEDULE[dow] ?? [];
-            const isToday = isSameDay(day, today);
-            const dayItems = weekItems.filter((item) =>
-              isSameDay(getItemDate(item), day),
+            const isToday = dayKey === todayKey;
+            const dayItems = weekItems.filter(
+              (item) => spDayKey(getItemDate(item)) === dayKey,
             );
 
             if (dayItems.length === 0) return null;
 
             return (
               <section
-                key={day.toISOString()}
+                key={dayKey}
                 className="grid gap-0 border-b border-[color:var(--border)] last:border-b-0 md:grid-cols-[150px_1fr]"
               >
                 <div
@@ -317,7 +337,7 @@ export function ReportsPanel() {
                       {DAY_NAMES[dow]}
                     </span>
                     <span className="text-base font-bold tabular-nums">
-                      {day.getDate()}
+                      {dayNumber(dayKey)}
                     </span>
                   </div>
                   <div className="min-w-0">
@@ -335,9 +355,8 @@ export function ReportsPanel() {
                 <div className="divide-y divide-[color:var(--border)]">
                   {dayItems.map((item, index) => {
                     const matchedSlot = slots.find((slot) =>
-                      slotMatchesVideo(slot, day, item),
+                      slotMatchesVideo(slot, item),
                     );
-                    const itemDate = getItemDate(item);
                     const scheduled = isScheduled(item);
 
                     return (
@@ -347,10 +366,7 @@ export function ReportsPanel() {
                       >
                         <div className="flex items-center gap-2 font-mono text-[12px] font-semibold text-[color:var(--text)]">
                           <Clock3 className="h-3.5 w-3.5 text-[color:var(--muted)]" />
-                          {itemDate.toLocaleTimeString("pt-BR", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {spTime(getItemDate(item))}
                         </div>
                         <div className="min-w-0">
                           <p className="truncate text-[13px] font-medium text-[color:var(--text)]">

@@ -2863,7 +2863,7 @@ async function handleApi(request, response, url, user, session) {
     for (const group of db.groups) {
       for (const account of group.accounts) {
         const hay = [
-          account.name,
+          account.label,
           account.username,
           account.email,
           account.url,

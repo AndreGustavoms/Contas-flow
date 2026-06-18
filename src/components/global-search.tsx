@@ -240,7 +240,7 @@ export function GlobalSearch({ onClose, onNavigate }: Props) {
                     className="truncate text-[13px] font-medium leading-tight"
                     style={{ color: "var(--text)" }}
                   >
-                    {r.name}
+                    {r.label}
                     {r.username && (
                       <span
                         className="ml-2 font-normal opacity-40"

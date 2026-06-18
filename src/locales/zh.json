@@ -298,6 +298,12 @@
     "field_username": "用户名",
     "field_password": "密码",
     "field_2fa": "2FA",
+    "email_missing": "无邮箱",
+    "username_missing": "无用户名",
+    "no_access_summary": "没有保存邮箱或用户名。",
+    "updated_label": "编辑于 {{date}}",
+    "updated_short": "更新于 {{date}}",
+    "updated_full": "账户更新于 {{date}}",
     "show_password": "显示密码",
     "hide_password": "隐藏密码",
     "copy_email": "复制邮箱",
@@ -334,6 +340,7 @@
     "form_identity": "身份",
     "form_access": "访问",
     "sensitive_field": "敏感",
+    "sensitive_change_requires_confirmation": "更改用户名或密码时，需要输入你的密码进行确认。",
     "no_accounts_title": "此保险库中没有账户",
     "no_accounts_body": "添加第一个登录项，按网络整理密码、用户名和 2FA。",
     "password_saved": "密码已保存在保险库中",
@@ -343,7 +350,10 @@
     "two_factor_on": "2FA 已标记为启用",
     "two_factor_on_short": "2FA",
     "two_factor_off": "2FA 未标记",
-    "two_factor_off_short": "2FA off"
+    "two_factor_off_short": "2FA off",
+    "accounts_list_label": "保险库账户",
+    "open_account_label": "打开账户 {{name}}",
+    "new_account_shortcut": "新建账户 (N)"
   },
   "platforms": {
     "Email": "邮箱",

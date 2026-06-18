@@ -317,6 +317,44 @@ function normalizeLegacyOption(value: string, fallback: string) {
   return normalized;
 }
 
+function areDraftsEqual(left: AccountDraft, right: AccountDraft) {
+  const normalizedLeft = normalizeDraft(left);
+  const normalizedRight = normalizeDraft(right);
+
+  return (
+    normalizedLeft.platform === normalizedRight.platform &&
+    normalizedLeft.role === normalizedRight.role &&
+    normalizedLeft.owner === normalizedRight.owner &&
+    normalizedLeft.label === normalizedRight.label &&
+    normalizedLeft.email === normalizedRight.email &&
+    normalizedLeft.username === normalizedRight.username &&
+    left.password === right.password &&
+    normalizedLeft.recoveryEmail === normalizedRight.recoveryEmail &&
+    normalizedLeft.phone === normalizedRight.phone &&
+    normalizedLeft.status === normalizedRight.status &&
+    normalizedLeft.twoFactor === normalizedRight.twoFactor &&
+    normalizedLeft.postDay === normalizedRight.postDay &&
+    normalizedLeft.niche === normalizedRight.niche &&
+    normalizedLeft.notes === normalizedRight.notes
+  );
+}
+
+function hasSensitiveDraftChanges(current: AccountDraft, baseline: AccountDraft) {
+  return (
+    current.username.trim() !== baseline.username.trim() ||
+    current.password !== baseline.password
+  );
+}
+
+function formatUpdatedAtLabel(value: string, locale: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "short",
+  }).format(date);
+}
+
 function migrateAccount(account: AccountRecord): AccountRecord {
   return {
     ...account,
@@ -934,6 +972,18 @@ export function AccountVault({
     return () => observer.disconnect();
   }, [visibleCount, filteredAccounts.length]);
 
+  function clearFilters() {
+    setQuery("");
+    setRoleFilter(ALL);
+    setStatusFilter(ALL);
+    // platformFilter fica no menu lateral — não reseta aqui
+  }
+
+  const activeFilterCount =
+    (query.trim() ? 1 : 0) +
+    (roleFilter !== ALL ? 1 : 0) +
+    (statusFilter !== ALL ? 1 : 0);
+
   const activeCount = accounts.filter(
     (account) => account.status === "active",
   ).length;
@@ -963,6 +1013,21 @@ export function AccountVault({
     draft.username,
     draft.password,
   ].some((value) => value.trim().length > 0);
+  const editingAccount = useMemo(
+    () => accounts.find((account) => account.id === editingId) ?? null,
+    [accounts, editingId],
+  );
+  const editingBaselineDraft = useMemo(
+    () => (editingAccount ? toDraft(editingAccount) : null),
+    [editingAccount],
+  );
+  const draftChanged = editingBaselineDraft
+    ? !areDraftsEqual(draft, editingBaselineDraft)
+    : canSaveDraft;
+  const saveRequiresConfirmation = editingBaselineDraft
+    ? hasSensitiveDraftChanges(draft, editingBaselineDraft)
+    : false;
+  const canSubmitDraft = canSaveDraft && draftChanged;
 
   function updateDraft<K extends keyof AccountDraft>(
     field: K,
@@ -1524,7 +1589,7 @@ export function AccountVault({
                   )}
                   role="menu"
                 >
-                  <p className="px-3 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
+                  <p className="micro-label px-3 pb-2 pt-1">
                     {t("vault.configuration")}
                   </p>
                   <div className="grid gap-1">
@@ -1537,7 +1602,7 @@ export function AccountVault({
                           role="menuitem"
                           onClick={() => setConfigurationOpen(false)}
                         >
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--field)] text-[color:var(--accent)]">
+                          <span className="menu-icon-tile shrink-0">
                             <item.icon className="h-4 w-4" />
                           </span>
                           <span className="truncate">{item.label}</span>
@@ -1550,7 +1615,7 @@ export function AccountVault({
                           type="button"
                           onClick={item.onClick}
                         >
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--field)] text-[color:var(--accent)]">
+                          <span className="menu-icon-tile shrink-0">
                             <item.icon className="h-4 w-4" />
                           </span>
                           <span className="truncate">{item.label}</span>
@@ -1596,15 +1661,41 @@ export function AccountVault({
                       ref={searchInputRef}
                       aria-label={t("vault.search_label")}
                       aria-keyshortcuts="Control+K Meta+K"
-                      className="pl-9 pr-20"
+                      className={query ? "pl-9 pr-8" : "pl-9 pr-20"}
                       placeholder={t("vault.search_placeholder")}
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
                     />
-                    <kbd className="shortcut-key pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 sm:block">
-                      Ctrl K
-                    </kbd>
+                    {query ? (
+                      <button
+                        aria-label={t("vault.search_clear")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-[color:var(--muted)] transition-colors hover:text-[color:var(--text)]"
+                        type="button"
+                        onClick={() => {
+                          setQuery("");
+                          searchInputRef.current?.focus();
+                        }}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    ) : (
+                      <kbd className="shortcut-key pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 sm:block">
+                        Ctrl K
+                      </kbd>
+                    )}
                   </div>
+                  {activeFilterCount > 0 ? (
+                    <button
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--accent-border)] bg-[color:var(--accent-surface)] px-3 py-1 text-xs font-medium text-[color:var(--accent)] transition-colors hover:bg-[color:var(--accent-surface-hover,var(--accent-surface))] hover:text-[color:var(--accent)]"
+                      type="button"
+                      onClick={clearFilters}
+                    >
+                      <X className="h-3 w-3" />
+                      {activeFilterCount === 1
+                        ? t("vault.active_filters", { count: activeFilterCount })
+                        : t("vault.active_filters_plural", { count: activeFilterCount })}
+                    </button>
+                  ) : null}
                   <FilterSelect
                     icon={Filter}
                     label={t("vault.role_label")}
@@ -1664,6 +1755,34 @@ export function AccountVault({
                       <div ref={listSentinelRef} aria-hidden className="h-10" />
                     ) : null}
                   </div>
+                ) : activeFilterCount > 0 || platformFilter !== ALL ? (
+                  <div className="vault-empty">
+                    <div
+                      aria-hidden
+                      className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--accent-surface)] text-[color:var(--accent)]"
+                    >
+                      <Search className="h-5 w-5" />
+                    </div>
+                    <div className="grid gap-1 text-center">
+                      <p className="text-sm font-semibold text-[color:var(--text)]">
+                        {t("vault.no_results_title")}
+                      </p>
+                      <p className="max-w-sm text-sm text-[color:var(--muted)]">
+                        {t("vault.no_results_body")}
+                      </p>
+                    </div>
+                    <button
+                      className="vault-btn-secondary mt-2"
+                      type="button"
+                      onClick={() => {
+                        clearFilters();
+                        setPlatformFilter(ALL);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                      {t("vault.clear_filters")}
+                    </button>
+                  </div>
                 ) : (
                   <div className="vault-empty">
                     <div
@@ -1698,11 +1817,12 @@ export function AccountVault({
 
       {isAccountModalOpen ? (
         <AccountWizardModal
-          canSave={canSaveDraft}
+          canSave={canSubmitDraft}
           draft={draft}
           editing={Boolean(editingId)}
           isSaving={isSaving}
           message={message}
+          saveRequiresConfirmation={saveRequiresConfirmation}
           showPassword={showPassword}
           onClose={closeAccountModal}
           onDelete={() => deleteAccount()}
@@ -2045,6 +2165,7 @@ type AccountWizardModalProps = {
   editing: boolean;
   isSaving: boolean;
   message: string;
+  saveRequiresConfirmation: boolean;
   onClose: () => void;
   onDelete: () => void;
   onSave: () => void;
@@ -2059,6 +2180,7 @@ function AccountWizardModal({
   editing,
   isSaving,
   message,
+  saveRequiresConfirmation,
   onClose,
   onDelete,
   onSave,
@@ -2136,6 +2258,13 @@ function AccountWizardModal({
           <p className="mt-4 text-sm font-medium text-[color:var(--accent-soft)]">
             {message}
           </p>
+        ) : null}
+
+        {editing && saveRequiresConfirmation ? (
+          <div className="mt-4 flex items-start gap-2 rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--accent-surface)] px-3 py-2.5 text-sm text-[color:var(--accent-soft)]">
+            <ShieldAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>{t("vault.sensitive_change_requires_confirmation")}</p>
+          </div>
         ) : null}
 
         <div className="mobile-bottom-actions mt-7 flex flex-col-reverse gap-3 md:flex-row md:items-center md:justify-between">
@@ -2331,7 +2460,7 @@ function FormSection({
     <section className="form-section grid gap-4">
       <div className="flex items-center gap-3">
         <span className="h-px flex-1 bg-[color:var(--border)]" />
-        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted-soft)]">
+        <span className="micro-label text-[11px] tracking-[0.16em]">
           {title}
         </span>
         <span className="h-px flex-1 bg-[color:var(--border)]" />
@@ -2620,7 +2749,7 @@ function GroupSwitcher({
             closing ? "animate-pop-out" : "animate-pop-in",
           )}
         >
-          <p className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
+          <p className="micro-label px-3 pb-1.5 pt-1">
             {t("vault.manage_groups")}
           </p>
           <GroupMenuItem
@@ -2656,7 +2785,7 @@ function GroupSwitcher({
           />
 
           <div className="my-1.5 h-px bg-[color:var(--border)]" />
-          <p className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
+          <p className="micro-label px-3 pb-1.5 pt-1">
             {t("vault.data_tools")}
           </p>
           <GroupMenuItem
@@ -3093,7 +3222,9 @@ type AccountRowProps = {
 };
 
 function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const updatedAtLabel = formatUpdatedAtLabel(account.updatedAt, i18n.language);
+  const hasAccess = Boolean(account.email || account.username);
   // Move a CSS variable to follow the cursor so the .spotlight-card highlight
   // tracks the mouse over the row.
   function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
@@ -3124,19 +3255,45 @@ function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
         type="button"
         onClick={onSelect}
       >
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-start gap-3">
           <PlatformGlyph platform={account.platform} />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-[color:var(--text)]">
-              {titleFor(account)}
-            </p>
-            <p className="mt-1 truncate text-xs text-[color:var(--muted)]">
-              {account.platform} / {account.role}
-            </p>
-            <p className="mt-1 truncate text-xs text-[color:var(--muted-soft)]">
-              {[account.email, account.username].filter(Boolean).join(" / ") ||
-                "Sem acesso"}
-            </p>
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <p className="truncate text-sm font-semibold text-[color:var(--text)]">
+                {titleFor(account)}
+              </p>
+              {updatedAtLabel ? (
+                <span className="hidden shrink-0 text-[11px] font-medium text-[color:var(--muted-soft)] sm:inline">
+                  {t("vault.updated_short", { date: updatedAtLabel })}
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[color:var(--muted)]">
+              <span>{account.platform}</span>
+              <span aria-hidden className="text-[color:var(--muted-soft)]">
+                /
+              </span>
+              <span>{account.role}</span>
+            </div>
+            <div className="mt-2 grid gap-1.5 text-xs text-[color:var(--muted-soft)] sm:grid-cols-2">
+              <span className="flex min-w-0 items-center gap-1.5">
+                <Mail aria-hidden className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">
+                  {account.email || t("vault.email_missing")}
+                </span>
+              </span>
+              <span className="flex min-w-0 items-center gap-1.5">
+                <UserRound aria-hidden className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">
+                  {account.username || t("vault.username_missing")}
+                </span>
+              </span>
+            </div>
+            {!hasAccess ? (
+              <p className="mt-2 text-xs font-medium text-[color:var(--muted-soft)]">
+                {t("vault.no_access_summary")}
+              </p>
+            ) : null}
           </div>
         </div>
       </button>
@@ -3186,6 +3343,16 @@ function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
             ? t("vault.two_factor_on_short")
             : t("vault.two_factor_off_short")}
         </span>
+        {updatedAtLabel ? (
+          <span
+            aria-label={t("vault.updated_full", { date: updatedAtLabel })}
+            className="security-chip security-chip-neutral hidden md:inline-flex"
+            title={t("vault.updated_full", { date: updatedAtLabel })}
+          >
+            <Pencil aria-hidden className="h-3.5 w-3.5" />
+            {t("vault.updated_label", { date: updatedAtLabel })}
+          </span>
+        ) : null}
         <Badge variant={account.status}>{statusLabel[account.status]}</Badge>
       </div>
     </div>

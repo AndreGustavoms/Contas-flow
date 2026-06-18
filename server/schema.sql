@@ -228,6 +228,9 @@ ALTER TABLE youtube_uploads ADD COLUMN IF NOT EXISTS tags TEXT;
 ALTER TABLE youtube_uploads ADD COLUMN IF NOT EXISTS publish_at TIMESTAMPTZ;
 ALTER TABLE youtube_uploads ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;
 ALTER TABLE youtube_uploads ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
+-- Nome do canal no momento do upload: preserva de qual conta o vídeo saiu
+-- mesmo depois que o canal é desconectado.
+ALTER TABLE youtube_uploads ADD COLUMN IF NOT EXISTS channel_title TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_youtube_uploads_owner ON youtube_uploads(owner_id);
 CREATE INDEX IF NOT EXISTS idx_youtube_uploads_channel ON youtube_uploads(channel_id);

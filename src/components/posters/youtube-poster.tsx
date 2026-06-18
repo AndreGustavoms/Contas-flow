@@ -40,6 +40,7 @@ type VideoType = "video" | "short" | "community";
 type HistoryItem = {
   videoId: string | null;
   channelId?: string;
+  channelTitle?: string;
   title: string;
   description?: string;
   durationSeconds: number | null;
@@ -1473,12 +1474,14 @@ function HistoryList({
 
   if (items.length === 0) return null;
 
-  const titleFor = (id?: string) =>
-    channels.find((c) => c.id === id)?.title ?? "Canal desconectado";
+  // Nome do canal: prioriza o título gravado no upload (sobrevive à
+  // desconexão), depois o canal conectado agora, e por fim o id.
+  const titleFor = (id?: string, stored?: string) =>
+    stored ?? channels.find((c) => c.id === id)?.title ?? id ?? "Canal";
 
   // Agrupa por canal preservando a ordem (mais recentes primeiro), pra o
   // histórico sempre mostrar de qual conta cada vídeo foi postado.
-  const groups: { channelId: string; items: HistoryItem[] }[] = [];
+  const groups: { channelId: string; title?: string; items: HistoryItem[] }[] = [];
   const groupIndex = new Map<string, number>();
   for (const item of items) {
     const cid = item.channelId ?? "—";
@@ -1489,6 +1492,9 @@ function HistoryList({
       groups.push({ channelId: cid, items: [] });
     }
     groups[gi].items.push(item);
+    if (!groups[gi].title && item.channelTitle) {
+      groups[gi].title = item.channelTitle;
+    }
   }
 
   async function handleDelete(videoId: string, itemChannelId?: string) {
@@ -1521,7 +1527,7 @@ function HistoryList({
               <span className="flex h-5 w-5 items-center justify-center rounded bg-red-500/10 text-red-500">
                 <YouTubeIcon className="h-3 w-3" />
               </span>
-              {titleFor(group.channelId)}
+              {titleFor(group.channelId, group.title)}
               <span className="text-[10px] font-normal text-[color:var(--muted)]">
                 · {group.items.length}{" "}
                 {group.items.length === 1 ? "vídeo" : "vídeos"}

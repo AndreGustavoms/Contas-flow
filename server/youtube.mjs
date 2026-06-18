@@ -522,10 +522,13 @@ export async function recordUpload({
 
 async function appendHistory(record) {
   if (isConnected()) {
+    // channel_title é capturado do canal conectado AGORA (subquery), então
+    // o nome fica gravado para sempre — mesmo que o canal seja desconectado.
     await query(
       `INSERT INTO youtube_uploads
-         (owner_id, channel_id, video_id, title, description, tags, privacy_status, publish_at, duration_seconds, thumbnail_url, uploaded_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+         (owner_id, channel_id, video_id, title, description, tags, privacy_status, publish_at, duration_seconds, thumbnail_url, uploaded_at, channel_title)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+         (SELECT title FROM youtube_channels WHERE owner_id = $1 AND channel_id = $2))`,
       [
         record.ownerId,
         record.channelId,
@@ -543,6 +546,18 @@ async function appendHistory(record) {
     return;
   }
 
+  // JSON fallback: resolve o título do canal conectado no momento.
+  if (!record.channelTitle) {
+    try {
+      const data = await readTokensJson();
+      const ch = data.channels.find(
+        (c) => c.id === record.channelId && c.ownerId === record.ownerId,
+      );
+      if (ch?.title) record.channelTitle = ch.title;
+    } catch {
+      /* sem título — cai no fallback do cliente */
+    }
+  }
   const items = await readHistoryJson();
   items.unshift(record);
   await mkdir(storageDir, { recursive: true });
@@ -562,7 +577,8 @@ export async function listUploadHistory(ownerId) {
       `SELECT owner_id AS "ownerId", channel_id AS "channelId", video_id AS "videoId",
               title, description, tags, privacy_status AS "privacyStatus",
               publish_at AS "publishAt", duration_seconds AS "durationSeconds",
-              thumbnail_url AS "thumbnailUrl", uploaded_at AS "uploadedAt"
+              thumbnail_url AS "thumbnailUrl", uploaded_at AS "uploadedAt",
+              channel_title AS "channelTitle"
        FROM youtube_uploads WHERE owner_id = $1
        ORDER BY uploaded_at DESC LIMIT 200`,
       [safeOwnerId]

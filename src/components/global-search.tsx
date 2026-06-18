@@ -210,13 +210,6 @@ export function GlobalSearch({ onClose, onNavigate }: Props) {
           </div>
         )}
 
-        {/* hint */}
-        {!query && (
-          <div className="px-4 py-5 text-center text-xs opacity-30" style={{ color: "var(--text)" }}>
-            {t("vault.global_search_hint")}
-          </div>
-        )}
-
         {/* footer shortcut hints */}
         {results.length > 0 && (
           <div

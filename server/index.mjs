@@ -3204,6 +3204,15 @@ setInterval(() => {
   void pruneSessions(storageDir);
 }, SESSION_IDLE_MS).unref();
 
+// Railway's proxy keeps the TCP connection alive as long as the Node server
+// holds it open. Default Node timeouts (5 s headers, 0 socket) are fine for
+// normal requests but kill large video uploads mid-stream. Set both to 30
+// minutes so uploads of any practical size complete before Node closes the
+// socket. Railway's own idle timeout is 10 min; this gives headroom above it.
+server.headersTimeout = 30 * 60 * 1000;
+server.requestTimeout = 30 * 60 * 1000;
+server.timeout = 0; // disable socket inactivity timeout (upload streams are active)
+
 server.listen(port, host, () => {
   console.log(`Contas API: listening on ${host}:${port}`);
   recordLog("info", `servidor no ar em ${host}:${port}`);

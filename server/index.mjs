@@ -28,6 +28,7 @@ import {
   stageUpload,
   writeChunkAt,
   deleteVideo,
+  disconnectChannel,
   finalizeChunkedUpload,
   initiateResumableUpload,
   reconcileHistory,
@@ -2483,6 +2484,26 @@ async function handleApi(request, response, url, user, session) {
   // List connected channels (no secrets).
   if (url.pathname === "/api/youtube/channels" && request.method === "GET") {
     sendJson(response, 200, { channels: await listConnectedChannels(user.id) });
+    return;
+  }
+
+  // DELETE /api/youtube/channels/<id> — desconecta o canal (esquece o token).
+  const channelMatch = url.pathname.match(/^\/api\/youtube\/channels\/([^/]+)$/);
+  if (channelMatch && request.method === "DELETE") {
+    const channelId = decodeURIComponent(channelMatch[1]);
+    try {
+      await disconnectChannel(channelId, user.id);
+      void logEvent(storageDir, {
+        userId: user.id,
+        username: user.username,
+        action: "youtube_channel_disconnected",
+        target: channelId,
+        ip: clientIp(request),
+      });
+      sendJson(response, 200, { ok: true });
+    } catch {
+      sendJson(response, 500, { error: "disconnect_failed" });
+    }
     return;
   }
 

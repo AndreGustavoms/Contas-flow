@@ -392,6 +392,8 @@ export function YouTubePoster() {
   const [tab, setTab] = useState<Tab>("post");
   const [channels, setChannels] = useState<Channel[] | null>(null);
   const [channelId, setChannelId] = useState("");
+  const [channelToDisconnect, setChannelToDisconnect] = useState<Channel | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
   const [videoType, setVideoType] = useState<VideoType>("video");
 
   // Video / Short
@@ -496,14 +498,34 @@ export function YouTubePoster() {
       .catch(() => setHistory([]));
   }, []);
 
-  useEffect(() => {
-    fetch("/api/youtube/channels")
+  const loadChannels = useCallback(() => {
+    return fetch("/api/youtube/channels")
       .then((r) => (r.ok ? r.json() : { channels: [] }))
       .then((d: { channels?: Channel[] }) => setChannels(d.channels ?? []))
       .catch(() => setChannels([]));
+  }, []);
+
+  useEffect(() => {
+    loadChannels();
     loadHistory(); // instant cached paint
     loadHistory(true); // then reconcile in the background
-  }, [loadHistory]);
+  }, [loadChannels, loadHistory]);
+
+  async function confirmDisconnect() {
+    if (!channelToDisconnect) return;
+    setDisconnecting(true);
+    try {
+      await fetch(
+        `/api/youtube/channels/${encodeURIComponent(channelToDisconnect.id)}`,
+        { method: "DELETE", credentials: "same-origin" },
+      );
+      if (channelId === channelToDisconnect.id) setChannelId("");
+      await loadChannels();
+      setChannelToDisconnect(null);
+    } finally {
+      setDisconnecting(false);
+    }
+  }
 
   // Keep the history live: while it's on screen, re-check against YouTube on a
   // light interval and whenever the tab/window regains focus, so a video deleted
@@ -803,46 +825,53 @@ export function YouTubePoster() {
               {channels.map((channel) => {
                 const selected = channel.id === channelId;
                 return (
-                  <button
-                    key={channel.id}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => {
-                      setChannelId(channel.id);
-                      clearFieldError("channel");
-                    }}
-                    className={cn(
-                      "group relative flex items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 text-left transition-all duration-200",
-                      selected
-                        ? "border-red-500/25 bg-gradient-to-r from-red-500/10 to-transparent"
-                        : "border-[color:var(--border)] hover:border-red-500/20 hover:bg-red-500/5",
-                    )}
-                  >
-                    {selected && (
-                      <div className="absolute left-0 top-0 h-full w-0.5 rounded-r bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.7)]" />
-                    )}
-                    <span
+                  <div key={channel.id} className="group relative">
+                    <button
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => {
+                        setChannelId(channel.id);
+                        clearFieldError("channel");
+                      }}
                       className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
+                        "flex w-full items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 pr-10 text-left transition-all duration-200",
                         selected
-                          ? "bg-red-500 text-white shadow-[0_6px_20px_-6px_rgba(239,68,68,0.8)]"
-                          : "bg-red-500/10 text-red-500 group-hover:bg-red-500/15",
+                          ? "border-red-500/25 bg-gradient-to-r from-red-500/10 to-transparent"
+                          : "border-[color:var(--border)] hover:border-red-500/20 hover:bg-red-500/5",
                       )}
                     >
-                      <YouTubeIcon className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-[color:var(--text)]">
-                        {channel.title}
+                      {selected && (
+                        <div className="absolute left-0 top-0 h-full w-0.5 rounded-r bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.7)]" />
+                      )}
+                      <span
+                        className={cn(
+                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
+                          selected
+                            ? "bg-red-500 text-white shadow-[0_6px_20px_-6px_rgba(239,68,68,0.8)]"
+                            : "bg-red-500/10 text-red-500 group-hover:bg-red-500/15",
+                        )}
+                      >
+                        <YouTubeIcon className="h-4 w-4" />
                       </span>
-                      <span className="block text-[11px] text-[color:var(--muted)]">
-                        {fmtConnectedAt(channel.connectedAt)}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-[color:var(--text)]">
+                          {channel.title}
+                        </span>
+                        <span className="block text-[11px] text-[color:var(--muted)]">
+                          {fmtConnectedAt(channel.connectedAt)}
+                        </span>
                       </span>
-                    </span>
-                    {selected && (
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-red-400/80" />
-                    )}
-                  </button>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Desconectar ${channel.title}`}
+                      title="Desconectar canal"
+                      onClick={() => setChannelToDisconnect(channel)}
+                      className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-[color:var(--muted)] opacity-0 transition-all duration-150 hover:bg-red-500/15 hover:text-red-400 focus-visible:opacity-100 group-hover:opacity-100"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -1262,6 +1291,63 @@ export function YouTubePoster() {
           issue={uploadIssue}
           onClose={() => setUploadIssue(null)}
         />
+      )}
+      {channelToDisconnect && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !disconnecting)
+              setChannelToDisconnect(null);
+          }}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl p-5"
+            style={{
+              background: "var(--panel)",
+              border: "1px solid var(--accent-border)",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.45)",
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-500">
+                <Trash2 className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-[color:var(--text)]">
+                  Desconectar canal
+                </h3>
+                <p className="mt-1 text-[13px] leading-relaxed text-[color:var(--muted)]">
+                  O canal{" "}
+                  <strong className="text-[color:var(--text)]">
+                    {channelToDisconnect.title}
+                  </strong>{" "}
+                  será desconectado. O histórico é mantido; para postar de novo,
+                  basta reconectar.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={disconnecting}
+                onClick={() => setChannelToDisconnect(null)}
+                className="rounded-lg px-3 py-2 text-[13px] font-medium text-[color:var(--muted)] transition hover:bg-[color:var(--field)] hover:text-[color:var(--text)] disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={disconnecting}
+                onClick={confirmDisconnect}
+                className="flex items-center gap-2 rounded-lg bg-red-500 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-red-600 disabled:opacity-60"
+              >
+                {disconnecting && <Spinner className="h-3.5 w-3.5" />}
+                Desconectar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

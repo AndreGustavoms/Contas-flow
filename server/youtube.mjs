@@ -221,6 +221,24 @@ export async function listConnectedChannels(ownerId) {
     .map(({ id, title, connectedAt }) => ({ id, title, connectedAt }));
 }
 
+// Remove a connected channel (forgets its refresh token). The video history is
+// kept — only the connection is dropped. Reconnect via the OAuth flow.
+export async function disconnectChannel(channelId, ownerId) {
+  const safeOwnerId = safeStorageKey(ownerId);
+  if (isConnected()) {
+    await query(
+      "DELETE FROM youtube_channels WHERE channel_id = $1 AND owner_id = $2",
+      [channelId, safeOwnerId],
+    );
+    return;
+  }
+  const data = await readTokensJson();
+  data.channels = data.channels.filter(
+    (channel) => !(channel.id === channelId && channel.ownerId === safeOwnerId),
+  );
+  await writeTokensJson(data);
+}
+
 // Build an authenticated client for a given channel using its refresh token.
 async function clientForChannel(channelId, ownerId) {
   const safeOwnerId = safeStorageKey(ownerId);

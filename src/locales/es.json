@@ -283,6 +283,9 @@
     "delete": "Eliminar",
     "wizard_edit": "Editar",
     "wizard_new": "Nueva cuenta",
+    "form_identity": "Identidad",
+    "form_access": "Acceso",
+    "sensitive_field": "sensible",
     "wizard_step_name": "Nombre",
     "wizard_step_network": "Red",
     "wizard_step_role": "Función",
@@ -335,7 +338,17 @@
     "toast_imported": "Importado a \"{{group}}\"",
     "error_backup_invalid": "Backup inválido",
     "post": "Publicar",
-    "publish_section": "Funciones"
+    "publish_section": "Funciones",
+    "no_accounts_title": "No hay cuentas en este cofre",
+    "no_accounts_body": "Añade el primer acceso para organizar contraseñas, usuarios y 2FA por red.",
+    "password_saved": "Contraseña guardada en el cofre",
+    "password_saved_short": "Contraseña",
+    "password_missing": "Sin contraseña guardada",
+    "password_missing_short": "Sin contraseña",
+    "two_factor_on": "2FA marcado como activo",
+    "two_factor_on_short": "2FA",
+    "two_factor_off": "2FA no marcado",
+    "two_factor_off_short": "2FA off"
   },
   "platforms": {
     "Email": "Email",

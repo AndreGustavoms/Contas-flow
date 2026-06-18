@@ -285,6 +285,9 @@
     "delete": "Delete",
     "wizard_edit": "Edit",
     "wizard_new": "New account",
+    "form_identity": "Identity",
+    "form_access": "Access",
+    "sensitive_field": "sensitive",
     "wizard_step_name": "Name",
     "wizard_step_network": "Network",
     "wizard_step_role": "Role",
@@ -337,7 +340,17 @@
     "toast_imported": "Imported to \"{{group}}\"",
     "error_backup_invalid": "Invalid backup",
     "post": "Post",
-    "publish_section": "Functions"
+    "publish_section": "Functions",
+    "no_accounts_title": "No accounts in this vault",
+    "no_accounts_body": "Add the first login to start organizing passwords, usernames and 2FA by network.",
+    "password_saved": "Password saved in the vault",
+    "password_saved_short": "Password",
+    "password_missing": "No password saved",
+    "password_missing_short": "No password",
+    "two_factor_on": "2FA marked as active",
+    "two_factor_on_short": "2FA",
+    "two_factor_off": "2FA not marked",
+    "two_factor_off_short": "2FA off"
   },
   "platforms": {
     "Email": "Email",

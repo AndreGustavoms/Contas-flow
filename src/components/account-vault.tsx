@@ -71,6 +71,10 @@ import { SocialPoster } from "./social-poster";
 import { Button } from "./ui/button";
 import { ThemeToggle } from "./theme-toggle";
 import { Input } from "./ui/input";
+import {
+  GeneratePasswordButton,
+  PasswordStrengthMeter,
+} from "./ui/password-tools";
 
 // Account data is NEVER cached in the browser: it holds secrets (passwords,
 // recovery emails, phones, notes) and persisting it to localStorage would leak
@@ -373,6 +377,22 @@ function platformIconFor(platform: string) {
 
 function metaForPlatform(platform: string) {
   return platformMeta[platform] ?? defaultPlatformMeta;
+}
+
+// Cor "viva" usada para tematizar o quick-view (aurora, glow, botões). Em geral
+// é a cor de marca da plataforma; o TikTok é exceção porque sua cor de marca é
+// quase preta (#111114) — usamos o vermelho/magenta do logo pra poder brilhar.
+const platformAccent: Record<string, string> = {
+  YouTube: "#FF3B30",
+  Instagram: "#E1306C",
+  TikTok: "#64748B",
+  Facebook: "#1877F2",
+  Kwai: "#FF6A00",
+  Email: "#3B82F6",
+};
+
+function accentForPlatform(platform: string) {
+  return platformAccent[platform] ?? "#22c55e";
 }
 
 function labelFor(options: SelectOption[], value: string) {
@@ -994,12 +1014,14 @@ export function AccountVault({
 
     try {
       if (editingId) {
-        const updated = await requestJson<AccountRecord>(
-          `${accountsBase}/${encodeURIComponent(editingId)}`,
-          {
-            method: "PUT",
-            body: JSON.stringify(cleaned),
-          },
+        const updated = await withReauth(() =>
+          requestJson<AccountRecord>(
+            `${accountsBase}/${encodeURIComponent(editingId)}`,
+            {
+              method: "PUT",
+              body: JSON.stringify(cleaned),
+            },
+          ),
         );
 
         setAccountList(
@@ -1023,7 +1045,8 @@ export function AccountVault({
       notify(t("vault.toast_account_added"));
       setIsAccountModalOpen(false);
       resetForm();
-    } catch {
+    } catch (error) {
+      if (isReauthRequired(error)) return;
       notify(t("vault.toast_account_save_error"), "error");
     } finally {
       setIsSaving(false);
@@ -1554,9 +1577,25 @@ export function AccountVault({
                   </div>
                 ) : (
                   <div className="vault-empty">
-                    <span className="text-[color:var(--muted)]">
-                      {t("vault.no_accounts")}
-                    </span>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--accent-surface)] text-[color:var(--accent)]">
+                      <KeyRound className="h-5 w-5" />
+                    </div>
+                    <div className="grid gap-1 text-center">
+                      <p className="text-sm font-semibold text-[color:var(--text)]">
+                        {t("vault.no_accounts_title")}
+                      </p>
+                      <p className="max-w-sm text-sm text-[color:var(--muted)]">
+                        {t("vault.no_accounts_body")}
+                      </p>
+                    </div>
+                    <button
+                      className="vault-btn-secondary mt-2"
+                      type="button"
+                      onClick={openCreateModal}
+                    >
+                      <Plus className="h-4 w-4" />
+                      {t("vault.new_account")}
+                    </button>
                   </div>
                 )}
               </div>
@@ -2063,112 +2102,150 @@ function AccountForm({
 
   return (
     <div className="grid gap-5">
-      <Field label={t("vault.wizard_step_name")}>
-        <Input
-          autoFocus
-          value={draft.label}
-          placeholder={t("vault.wizard_name_placeholder")}
-          className={HINT_PLACEHOLDER}
-          onChange={(event) => onUpdate("label", event.target.value)}
-        />
-      </Field>
-
-      <Field label={t("vault.wizard_step_network")}>
-        <ChoiceGrid>
-          {platformOptions.map((platform) => (
-            <ChoiceButton
-              key={platform}
-              selected={draft.platform === platform}
-              onClick={() => onUpdate("platform", platform)}
-            >
-              <MiniPlatformIcon platform={platform} />
-              {platform}
-            </ChoiceButton>
-          ))}
-        </ChoiceGrid>
-      </Field>
-
-      <Field label={t("vault.wizard_step_role")}>
-        <ChoiceGrid>
-          {roleOptions.map((role) => (
-            <ChoiceButton
-              key={role}
-              selected={draft.role === role}
-              onClick={() => onUpdate("role", role)}
-            >
-              {role}
-            </ChoiceButton>
-          ))}
-        </ChoiceGrid>
-      </Field>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field label={t("vault.field_email")}>
+      <FormSection title={t("vault.form_identity")}>
+        <Field label={t("vault.wizard_step_name")}>
           <Input
-            autoComplete="username"
-            inputMode="email"
+            autoFocus
+            value={draft.label}
+            placeholder={t("vault.wizard_name_placeholder")}
             className={HINT_PLACEHOLDER}
-            value={draft.email}
-            placeholder={t("vault.wizard_email_placeholder")}
-            onChange={(event) => onUpdate("email", event.target.value)}
+            onChange={(event) => onUpdate("label", event.target.value)}
           />
         </Field>
 
-        <Field label={t("vault.field_username")}>
-          <Input
-            className={HINT_PLACEHOLDER}
-            value={draft.username}
-            placeholder={t("vault.wizard_username_placeholder")}
-            onChange={(event) => onUpdate("username", event.target.value)}
-          />
+        <Field label={t("vault.wizard_step_network")}>
+          <ChoiceGrid>
+            {platformOptions.map((platform) => (
+              <ChoiceButton
+                key={platform}
+                selected={draft.platform === platform}
+                onClick={() => onUpdate("platform", platform)}
+              >
+                <MiniPlatformIcon platform={platform} />
+                {platform}
+              </ChoiceButton>
+            ))}
+          </ChoiceGrid>
         </Field>
-      </div>
 
-      <Field label={t("vault.field_password")}>
-        <div className="relative">
-          <Input
-            autoComplete="current-password"
-            className={cn("pr-11", HINT_PLACEHOLDER)}
-            type={showPassword ? "text" : "password"}
-            value={draft.password}
-            placeholder={t("vault.field_password")}
-            onChange={(event) => onUpdate("password", event.target.value)}
-          />
-          <button
-            aria-label={
-              showPassword ? t("vault.hide_password") : t("vault.show_password")
-            }
-            className="icon-soft absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg transition"
-            type="button"
-            onClick={onTogglePassword}
-          >
-            {showPassword ? (
-              <EyeOff className="h-4 w-4" />
-            ) : (
-              <Eye className="h-4 w-4" />
-            )}
-          </button>
+        <Field label={t("vault.wizard_step_role")}>
+          <ChoiceGrid>
+            {roleOptions.map((role) => (
+              <ChoiceButton
+                key={role}
+                selected={draft.role === role}
+                onClick={() => onUpdate("role", role)}
+              >
+                {role}
+              </ChoiceButton>
+            ))}
+          </ChoiceGrid>
+        </Field>
+      </FormSection>
+
+      <FormSection title={t("vault.form_access")}>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label={t("vault.field_email")}>
+            <Input
+              autoComplete="username"
+              inputMode="email"
+              className={HINT_PLACEHOLDER}
+              value={draft.email}
+              placeholder={t("vault.wizard_email_placeholder")}
+              onChange={(event) => onUpdate("email", event.target.value)}
+            />
+          </Field>
+
+          <Field label={t("vault.field_username")} sensitive>
+            <Input
+              className={HINT_PLACEHOLDER}
+              value={draft.username}
+              placeholder={t("vault.wizard_username_placeholder")}
+              onChange={(event) => onUpdate("username", event.target.value)}
+            />
+          </Field>
         </div>
-      </Field>
 
-      <Field label={t("vault.wizard_step_2fa")}>
-        <ChoiceGrid>
-          <ChoiceButton
-            selected={draft.twoFactor}
-            onClick={() => onUpdate("twoFactor", true)}
-          >
-            <ShieldCheck className="h-4 w-4" />
-            {t("vault.wizard_2fa_active")}
-          </ChoiceButton>
-          <ChoiceButton
-            selected={!draft.twoFactor}
-            onClick={() => onUpdate("twoFactor", false)}
-          >
-            {t("vault.wizard_2fa_no")}
-          </ChoiceButton>
-        </ChoiceGrid>
-      </Field>
+        <Field label={t("vault.field_password")} sensitive>
+          <div className="grid gap-2">
+            <div className="relative">
+              <Input
+                autoComplete="current-password"
+                className={cn("pr-11", HINT_PLACEHOLDER)}
+                type={showPassword ? "text" : "password"}
+                value={draft.password}
+                placeholder={t("vault.field_password")}
+                onChange={(event) => onUpdate("password", event.target.value)}
+              />
+              <button
+                aria-label={
+                  showPassword
+                    ? t("vault.hide_password")
+                    : t("vault.show_password")
+                }
+                className="icon-soft absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg transition"
+                type="button"
+                onClick={onTogglePassword}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <PasswordStrengthMeter password={draft.password} />
+              <GeneratePasswordButton
+                onGenerate={(password) => {
+                  onUpdate("password", password);
+                  if (!showPassword) onTogglePassword();
+                }}
+              />
+            </div>
+          </div>
+        </Field>
+
+        <Field label={t("vault.wizard_step_2fa")}>
+          <ChoiceGrid>
+            <ChoiceButton
+              selected={draft.twoFactor}
+              onClick={() => onUpdate("twoFactor", true)}
+            >
+              <ShieldCheck className="h-4 w-4" />
+              {t("vault.wizard_2fa_active")}
+            </ChoiceButton>
+            <ChoiceButton
+              selected={!draft.twoFactor}
+              onClick={() => onUpdate("twoFactor", false)}
+            >
+              {t("vault.wizard_2fa_no")}
+            </ChoiceButton>
+          </ChoiceGrid>
+        </Field>
+      </FormSection>
     </div>
+  );
+}
+
+function FormSection({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  title: string;
+}) {
+  return (
+    <section className="form-section grid gap-4">
+      <div className="flex items-center gap-3">
+        <span className="h-px flex-1 bg-[color:var(--border)]" />
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted-soft)]">
+          {title}
+        </span>
+        <span className="h-px flex-1 bg-[color:var(--border)]" />
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -2190,10 +2267,10 @@ function ChoiceButton({ children, onClick, selected }: ChoiceButtonProps) {
   return (
     <button
       className={cn(
-        "flex min-h-12 items-center gap-2 rounded-2xl border px-3 text-left text-sm font-semibold transition duration-300",
+        "flex min-h-12 items-center gap-2 rounded-xl border px-3 text-left text-sm font-semibold transition duration-200",
         selected
-          ? "border-[color:var(--accent-border)] bg-[color:var(--accent-surface)] text-[color:var(--accent-soft)] shadow-[0_0_32px_var(--accent-glow)]"
-          : "border-[color:var(--border)] bg-[color:var(--surface-soft)] text-[color:var(--muted)] hover:-translate-y-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)] hover:text-[color:var(--text)]",
+          ? "border-[color:var(--accent-border)] bg-[color:var(--accent-surface)] text-[color:var(--accent-soft)]"
+          : "border-[color:var(--border)] bg-[color:var(--surface-soft)] text-[color:var(--muted)] hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)] hover:text-[color:var(--text)]",
       )}
       type="button"
       onClick={onClick}
@@ -2206,13 +2283,21 @@ function ChoiceButton({ children, onClick, selected }: ChoiceButtonProps) {
 type FieldProps = {
   label: string;
   children: ReactNode;
+  sensitive?: boolean;
 };
 
-function Field({ label, children }: FieldProps) {
+function Field({ label, children, sensitive }: FieldProps) {
+  const { t } = useTranslation();
   return (
     <div className="grid gap-1.5">
-      <span className="text-xs font-medium text-[color:var(--muted)]">
-        {label}
+      <span className="flex items-center gap-2 text-xs font-medium text-[color:var(--muted)]">
+        <span>{label}</span>
+        {sensitive ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--accent-border)] bg-[color:var(--accent-surface)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--accent-muted)]">
+            <KeyRound className="h-3 w-3" />
+            {t("vault.sensitive_field")}
+          </span>
+        ) : null}
       </span>
       {children}
     </div>
@@ -2643,15 +2728,22 @@ function SidebarButton({
 
 type PlatformGlyphProps = {
   platform: string;
+  // "lg" é a variante hero do quick-view (maior); o padrão "md" é o usado nas
+  // linhas/cabeçalhos e mantém o tamanho original.
+  size?: "md" | "lg";
 };
 
-function PlatformGlyph({ platform }: PlatformGlyphProps) {
+function PlatformGlyph({ platform, size = "md" }: PlatformGlyphProps) {
   const meta = metaForPlatform(platform);
   const Icon = meta.icon;
+  const lg = size === "lg";
 
   return (
     <span
-      className="glass-glyph relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border transition duration-300 group-hover:scale-105"
+      className={cn(
+        "glass-glyph relative flex shrink-0 items-center justify-center overflow-hidden border transition duration-300 group-hover:scale-105",
+        lg ? "h-16 w-16 rounded-[22px]" : "h-11 w-11 rounded-2xl",
+      )}
       style={{
         borderColor: `${meta.color}3d`,
         boxShadow: `0 8px 26px -10px ${meta.color}80`,
@@ -2665,7 +2757,10 @@ function PlatformGlyph({ platform }: PlatformGlyphProps) {
         style={{ background: meta.gradient ?? meta.color }}
       />
       <span className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.22),transparent_46%)]" />
-      <Icon className="relative h-5 w-5" style={{ color: meta.color }} />
+      <Icon
+        className={cn("relative", lg ? "h-7 w-7" : "h-5 w-5")}
+        style={{ color: meta.color }}
+      />
     </span>
   );
 }
@@ -2905,6 +3000,7 @@ type AccountRowProps = {
 };
 
 function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
+  const { t } = useTranslation();
   // Move a CSS variable to follow the cursor so the .spotlight-card highlight
   // tracks the mouse over the row.
   function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
@@ -2945,46 +3041,43 @@ function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
       </button>
 
       <div className="flex flex-wrap items-center gap-2 sm:justify-end md:pr-1">
+        <span
+          className={cn(
+            "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold",
+            account.hasPassword
+              ? "border-[color:var(--accent-border)] bg-[color:var(--accent-surface)] text-[color:var(--accent-soft)]"
+              : "border-amber-400/35 bg-amber-400/10 text-amber-200",
+          )}
+          title={
+            account.hasPassword
+              ? t("vault.password_saved")
+              : t("vault.password_missing")
+          }
+        >
+          <KeyRound className="h-3.5 w-3.5" />
+          {account.hasPassword
+            ? t("vault.password_saved_short")
+            : t("vault.password_missing_short")}
+        </span>
+        <span
+          className={cn(
+            "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold",
+            account.twoFactor
+              ? "border-sky-300/35 bg-sky-400/10 text-sky-200"
+              : "border-[color:var(--border)] bg-[color:var(--surface-soft)] text-[color:var(--muted)]",
+          )}
+          title={
+            account.twoFactor ? t("vault.two_factor_on") : t("vault.two_factor_off")
+          }
+        >
+          <ShieldCheck className="h-3.5 w-3.5" />
+          {account.twoFactor
+            ? t("vault.two_factor_on_short")
+            : t("vault.two_factor_off_short")}
+        </span>
         <Badge variant={account.status}>{statusLabel[account.status]}</Badge>
       </div>
     </div>
-  );
-}
-
-type IconButtonProps = {
-  disabled?: boolean;
-  icon: LucideIcon;
-  label: string;
-  onClick: () => void;
-  selected?: boolean;
-};
-
-function IconButton({
-  disabled,
-  icon: Icon,
-  label,
-  onClick,
-  selected,
-}: IconButtonProps) {
-  return (
-    <button
-      aria-label={label}
-      className={cn(
-        // 44px no mobile (alvo de toque confortável), 36px no desktop.
-        "flex h-11 w-11 items-center justify-center rounded-xl border transition duration-300 sm:h-9 sm:w-9",
-        selected
-          ? "border-emerald-300/30 bg-emerald-300/12 text-emerald-100"
-          : "border-[color:var(--border)] bg-[color:var(--surface-soft)] text-[color:var(--muted)] hover:-translate-y-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)] hover:text-[color:var(--accent-soft)]",
-        disabled &&
-          "cursor-not-allowed opacity-40 hover:translate-y-0 hover:border-[color:var(--border)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--muted)]",
-      )}
-      disabled={disabled}
-      title={label}
-      type="button"
-      onClick={onClick}
-    >
-      {selected ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
-    </button>
   );
 }
 
@@ -3095,6 +3188,9 @@ function QuickViewModal({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [close]);
 
+  // O painel inteiro é tematizado pela cor da plataforma desta conta.
+  const accent = accentForPlatform(account.platform);
+
   return (
     <div className="modal-viewport fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
       <button
@@ -3111,39 +3207,47 @@ function QuickViewModal({
         aria-labelledby="account-quickview-title"
         aria-modal="true"
         className={cn(
-          "modal-panel modal-panel-md app-panel relative m-auto w-full max-w-md overflow-hidden rounded-[28px] border p-5 backdrop-blur-2xl sm:p-6",
+          "modal-panel modal-panel-xl quickview-panel relative m-auto w-full overflow-hidden",
           closing ? "animate-pop-out" : "animate-pop-in",
         )}
         role="dialog"
+        style={{ "--qv-accent": accent } as CSSProperties}
       >
-        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />
+        {/* fio de acento no topo (decorativo) */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--qv-accent)] to-transparent opacity-80" />
 
-        <div className="relative flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <PlatformGlyph platform={account.platform} />
-            <div className="min-w-0">
-              <h2
-                className="truncate text-xl font-semibold tracking-normal text-[color:var(--text)]"
-                id="account-quickview-title"
-              >
-                {titleFor(account)}
-              </h2>
-              <p className="mt-0.5 truncate text-xs text-[color:var(--muted)]">
-                {account.platform} / {account.role}
-              </p>
-            </div>
+        {/* fechar (flutuante) */}
+        <button
+          aria-label={t("vault.close")}
+          className="absolute right-4 top-4 z-10 rounded-full border border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] p-2 text-[color:var(--muted)] backdrop-blur-md transition-all duration-200 hover:scale-110 hover:border-[color:var(--qv-accent)] hover:text-[color:var(--text)] sm:right-5 sm:top-5"
+          type="button"
+          onClick={close}
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        {/* hero: glyph + título + categoria, centralizados */}
+        <div className="flex flex-col items-center px-6 pt-10 text-center sm:px-10">
+          <div className="group relative">
+            <div className="pointer-events-none absolute -inset-4 rounded-[28px] bg-[radial-gradient(circle,var(--qv-glow),transparent_70%)] opacity-70 blur-lg transition-opacity duration-300 group-hover:opacity-100" />
+            <PlatformGlyph platform={account.platform} size="lg" />
           </div>
-          <Button
-            aria-label={t("vault.close")}
-            size="icon"
-            variant="ghost"
-            onClick={close}
+          <h2
+            className="mt-5 max-w-full truncate text-2xl font-bold tracking-tight text-[color:var(--text)] sm:text-[28px]"
+            id="account-quickview-title"
           >
-            <X className="h-4 w-4" />
-          </Button>
+            {titleFor(account)}
+          </h2>
+          <span className="mt-2.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--qv-label)]">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--qv-accent)] shadow-[0_0_8px_var(--qv-accent)]" />
+            <span className="truncate">
+              {account.platform} · {account.role}
+            </span>
+          </span>
         </div>
 
-        <div className="mt-6 grid gap-3">
+        {/* campos */}
+        <div className="grid gap-3 px-6 py-7 sm:px-10">
           <QuickField
             copied={copiedKey === `${account.id}:email`}
             icon={Mail}
@@ -3155,8 +3259,6 @@ function QuickViewModal({
           <QuickField
             copied={copiedKey === `${account.id}:password`}
             icon={KeyRound}
-            // While revealed, show the fetched secret; while masked, a non-empty
-            // sentinel so the dots render when a password exists ("" → "—").
             value={
               passwordRevealed
                 ? revealedPassword
@@ -3175,20 +3277,25 @@ function QuickViewModal({
           />
         </div>
 
-        <div className="mt-6 flex items-center justify-between">
+        {/* ações */}
+        <footer className="flex items-center justify-between gap-3 px-6 pb-7 sm:px-10">
           <button
-            className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-medium text-red-300/80 transition duration-300 hover:bg-red-500/10 hover:text-red-200"
+            className="group inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-red-400 transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-500/10 hover:text-red-300"
             type="button"
             onClick={onDelete}
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
             {t("vault.delete")}
           </button>
-          <Button size="sm" variant="outline" onClick={onEdit}>
-            <Pencil className="h-4 w-4" />
+          <button
+            className="group inline-flex items-center gap-2 rounded-xl bg-[color:var(--qv-accent)] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_10px_30px_-10px_var(--qv-glow),inset_0_1px_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-10px_var(--qv-glow),inset_0_1px_0_rgba(255,255,255,0.4)] active:translate-y-0"
+            type="button"
+            onClick={onEdit}
+          >
+            <Pencil className="h-4 w-4 transition-transform duration-200 group-hover:-rotate-6" />
             {t("vault.edit")}
-          </Button>
-        </div>
+          </button>
+        </footer>
       </section>
     </div>
   );
@@ -3227,36 +3334,79 @@ function QuickField({
 }: QuickFieldProps) {
   const masked = secret && !revealed;
   return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-soft)] p-3">
-      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--accent-muted)]">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
-      </div>
-      <div className="mt-2 flex items-center gap-2">
-        <p className="min-w-0 flex-1 truncate font-mono text-sm text-[color:var(--text)]">
-          {value ? (masked ? "••••••••" : value) : "—"}
-        </p>
-        {secret ? (
-          <IconButton
-            disabled={!value}
-            icon={revealed ? EyeOff : Eye}
-            label={
-              revealed
-                ? (hideLabel ?? "Ocultar senha")
-                : (showLabel ?? "Mostrar senha")
-            }
-            onClick={() => onToggleReveal?.()}
-            selected={revealed}
-          />
-        ) : null}
-        <IconButton
-          disabled={!value}
-          icon={Copy}
-          label={copyLabel ?? `Copiar ${label.toLowerCase()}`}
-          onClick={onCopy}
-          selected={copied}
-        />
+    <div className="group relative overflow-hidden rounded-2xl border border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--qv-accent)] hover:shadow-[0_14px_38px_-18px_var(--qv-glow),inset_0_1px_0_rgba(255,255,255,0.08)] focus-within:border-[color:var(--qv-accent)]">
+      <div className="px-5 pb-4 pt-3.5">
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--qv-label)]">
+          <Icon className="h-3 w-3" />
+          {label}
+        </div>
+        <div className="mt-3 flex items-center gap-2.5">
+          <p className={cn(
+            "min-w-0 flex-1 truncate font-mono text-[15px] text-[color:var(--text)]",
+            masked && "tracking-[0.18em] text-[color:var(--muted)]",
+          )}>
+            {value ? (masked ? "••••••••••••" : value) : "—"}
+          </p>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {secret ? (
+              <QvActionButton
+                disabled={!value}
+                icon={revealed ? EyeOff : Eye}
+                label={
+                  revealed
+                    ? (hideLabel ?? "Ocultar senha")
+                    : (showLabel ?? "Mostrar senha")
+                }
+                onClick={() => onToggleReveal?.()}
+              />
+            ) : null}
+            <QvActionButton
+              active={copied}
+              disabled={!value}
+              icon={copied ? Check : Copy}
+              label={copyLabel ?? `Copiar ${label.toLowerCase()}`}
+              onClick={onCopy}
+            />
+          </div>
+        </div>
       </div>
     </div>
+  );
+}
+
+// Botão de ação do quick-view (copiar/revelar) tematizado pela cor da
+// plataforma via os tokens --qv-*. `active` pinta o estado "copiado".
+function QvActionButton({
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+  active,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  active?: boolean;
+}) {
+  return (
+    <button
+      aria-label={label}
+      className={cn(
+        // 44px no mobile (toque), 40px no desktop.
+        "flex h-11 w-11 items-center justify-center rounded-xl border transition-all duration-200 sm:h-10 sm:w-10",
+        active
+          ? "border-[color:var(--qv-accent)] bg-[color:var(--qv-surface-strong)] text-[color:var(--qv-accent)]"
+          : "border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] text-[color:var(--qv-label)] hover:-translate-y-0.5 hover:border-[color:var(--qv-accent)] hover:bg-[color:var(--qv-surface-strong)] hover:text-[color:var(--text)] hover:shadow-[0_8px_20px_-10px_var(--qv-glow)]",
+        disabled &&
+          "cursor-not-allowed opacity-40 hover:translate-y-0 hover:border-[color:var(--qv-line)] hover:bg-[color:var(--qv-surface)] hover:text-[color:var(--qv-label)] hover:shadow-none",
+      )}
+      disabled={disabled}
+      title={label}
+      type="button"
+      onClick={onClick}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
   );
 }

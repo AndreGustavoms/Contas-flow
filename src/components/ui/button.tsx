@@ -2,13 +2,13 @@ import * as React from "react";
 import { cn } from "../../lib/utils";
 
 const baseClasses =
-  "inline-flex items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--page-bg)] disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--page-bg)] disabled:pointer-events-none disabled:opacity-50";
 
 const variantClasses = {
   default:
-    "border-[color:var(--accent-border)] bg-[color:var(--accent)] text-[color:var(--accent-foreground)] shadow-[0_0_34px_var(--accent-glow)] hover:-translate-y-0.5 hover:border-[color:var(--accent-soft)] hover:bg-[color:var(--accent-hover)]",
+    "border-[color:var(--accent-border)] bg-[color:var(--accent)] text-[color:var(--accent-foreground)] shadow-[0_10px_26px_-18px_var(--accent-glow)] hover:border-[color:var(--accent-soft)] hover:bg-[color:var(--accent-hover)]",
   outline:
-    "border-[color:var(--border)] bg-[color:var(--surface-soft)] text-[color:var(--text)] backdrop-blur hover:-translate-y-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)]",
+    "border-[color:var(--border)] bg-[color:var(--surface-soft)] text-[color:var(--text)] backdrop-blur hover:border-[color:var(--accent-border)] hover:bg-[color:var(--accent-surface)]",
   ghost:
     "border-transparent bg-transparent text-[color:var(--muted)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]",
   secondary:
@@ -16,7 +16,7 @@ const variantClasses = {
   danger: "border-red-700 bg-red-700 text-white hover:bg-red-800",
   // Animated neon border (see .btn-neon in index.css). Flat themed fill with a
   // sweeping glow ring; lifts slightly on hover like the other variants.
-  neon: "btn-neon border-transparent bg-[color:var(--accent)] text-[color:var(--accent-foreground)] hover:-translate-y-0.5",
+  neon: "btn-neon border-transparent bg-[color:var(--accent)] text-[color:var(--accent-foreground)]",
 } as const;
 
 // No mobile os botões sobem para ≥44px (alvo de toque recomendado); a partir

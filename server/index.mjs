@@ -540,6 +540,16 @@ function normalizeRecord(input = {}, existing = {}) {
   };
 }
 
+function requiresAccountUpdateReauth(input = {}, existing = {}) {
+  const incomingUsername = asString(input.username).trim();
+  const currentUsername = asString(existing.username).trim();
+  if (incomingUsername !== currentUsername) return true;
+
+  const incomingPassword = asString(input.password);
+  const currentPassword = asString(existing.password);
+  return incomingPassword !== "" && incomingPassword !== currentPassword;
+}
+
 function normalizeGroup(input = {}) {
   const accounts = Array.isArray(input.accounts)
     ? input.accounts.map((record) => normalizeRecord(record, record))
@@ -2896,9 +2906,14 @@ async function handleApi(request, response, url, user, session) {
     }
 
     if (request.method === "PUT") {
-      if (!requireRecentReauth(session, response)) return;
       const body = await readBody(request);
       const existing = group.accounts[accountIndex];
+      if (
+        requiresAccountUpdateReauth(body, existing) &&
+        !requireRecentReauth(session, response)
+      ) {
+        return;
+      }
       // The listing sends the password masked (""), so an edit that didn't touch
       // it would otherwise wipe the stored password. Treat an empty incoming
       // password as "unchanged" and keep the existing one.
@@ -2915,7 +2930,8 @@ async function handleApi(request, response, url, user, session) {
     }
 
     if (request.method === "DELETE") {
-      if (!requireRecentReauth(session, response)) return;
+      // Excluir conta de rede social do cofre NÃO exige reauth (item do
+      // gerenciador, não a conta do usuário). A confirmação no front já basta.
       group.accounts.splice(accountIndex, 1);
       await writeVault(vaultUserId, db);
       sendJson(response, 200, { ok: true });

@@ -176,6 +176,87 @@ describe("user isolation", () => {
       },
     );
     assert.equal(createdAccount.response.status, 201);
+    const accountId = createdAccount.data.id;
+
+    const commonAccountBody = {
+      ...createdAccount.data,
+      password: "",
+    };
+
+    const ordinaryEdit = await request(
+      `/api/groups/${encodeURIComponent(gustavoGroupId)}/accounts/${encodeURIComponent(accountId)}`,
+      {
+        cookie: gustavo.cookie,
+        method: "PUT",
+        body: {
+          ...commonAccountBody,
+          label: "Netflix Gustavo atualizado",
+        },
+      },
+    );
+    assert.equal(ordinaryEdit.response.status, 200);
+    assert.equal(ordinaryEdit.data.label, "Netflix Gustavo atualizado");
+
+    const usernameEditWithoutReauth = await request(
+      `/api/groups/${encodeURIComponent(gustavoGroupId)}/accounts/${encodeURIComponent(accountId)}`,
+      {
+        cookie: gustavo.cookie,
+        method: "PUT",
+        body: {
+          ...ordinaryEdit.data,
+          password: "",
+          username: "gustavo-netflix-2",
+        },
+      },
+    );
+    assert.equal(usernameEditWithoutReauth.response.status, 403);
+    assert.equal(usernameEditWithoutReauth.data.error, "reauth_required");
+
+    const passwordEditWithoutReauth = await request(
+      `/api/groups/${encodeURIComponent(gustavoGroupId)}/accounts/${encodeURIComponent(accountId)}`,
+      {
+        cookie: gustavo.cookie,
+        method: "PUT",
+        body: {
+          ...ordinaryEdit.data,
+          password: "Secret@456",
+        },
+      },
+    );
+    assert.equal(passwordEditWithoutReauth.response.status, 403);
+    assert.equal(passwordEditWithoutReauth.data.error, "reauth_required");
+
+    const deleteWithoutReauth = await request(
+      `/api/groups/${encodeURIComponent(gustavoGroupId)}/accounts/${encodeURIComponent(accountId)}`,
+      {
+        cookie: gustavo.cookie,
+        method: "DELETE",
+      },
+    );
+    assert.equal(deleteWithoutReauth.response.status, 403);
+    assert.equal(deleteWithoutReauth.data.error, "reauth_required");
+
+    const reauth = await request("/api/auth/reauth", {
+      cookie: gustavo.cookie,
+      method: "POST",
+      body: { password: gustavoPassword },
+    });
+    assert.equal(reauth.response.status, 200);
+
+    const usernameEditAfterReauth = await request(
+      `/api/groups/${encodeURIComponent(gustavoGroupId)}/accounts/${encodeURIComponent(accountId)}`,
+      {
+        cookie: gustavo.cookie,
+        method: "PUT",
+        body: {
+          ...ordinaryEdit.data,
+          password: "",
+          username: "gustavo-netflix-2",
+        },
+      },
+    );
+    assert.equal(usernameEditAfterReauth.response.status, 200);
+    assert.equal(usernameEditAfterReauth.data.username, "gustavo-netflix-2");
 
     await makeAdmin(joao.user.id);
 

@@ -283,6 +283,9 @@
     "delete": "Supprimer",
     "wizard_edit": "Modifier",
     "wizard_new": "Nouveau compte",
+    "form_identity": "Identité",
+    "form_access": "Accès",
+    "sensitive_field": "sensible",
     "wizard_step_name": "Nom",
     "wizard_step_network": "Réseau",
     "wizard_step_role": "Fonction",
@@ -335,7 +338,17 @@
     "toast_imported": "Importé dans \"{{group}}\"",
     "error_backup_invalid": "Sauvegarde invalide",
     "post": "Publier",
-    "publish_section": "Fonctions"
+    "publish_section": "Fonctions",
+    "no_accounts_title": "Aucun compte dans ce coffre",
+    "no_accounts_body": "Ajoutez le premier accès pour organiser mots de passe, identifiants et 2FA par réseau.",
+    "password_saved": "Mot de passe enregistré dans le coffre",
+    "password_saved_short": "Mot de passe",
+    "password_missing": "Aucun mot de passe enregistré",
+    "password_missing_short": "Sans mot de passe",
+    "two_factor_on": "2FA marqué comme actif",
+    "two_factor_on_short": "2FA",
+    "two_factor_off": "2FA non marqué",
+    "two_factor_off_short": "2FA off"
   },
   "platforms": {
     "Email": "E-mail",

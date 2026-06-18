@@ -330,7 +330,20 @@
     "toast_imported": "已导入到「{{group}}」",
     "error_backup_invalid": "备份无效",
     "post": "发布",
-    "publish_section": "功能"
+    "publish_section": "功能",
+    "form_identity": "身份",
+    "form_access": "访问",
+    "sensitive_field": "敏感",
+    "no_accounts_title": "此保险库中没有账户",
+    "no_accounts_body": "添加第一个登录项，按网络整理密码、用户名和 2FA。",
+    "password_saved": "密码已保存在保险库中",
+    "password_saved_short": "密码",
+    "password_missing": "未保存密码",
+    "password_missing_short": "无密码",
+    "two_factor_on": "2FA 已标记为启用",
+    "two_factor_on_short": "2FA",
+    "two_factor_off": "2FA 未标记",
+    "two_factor_off_short": "2FA off"
   },
   "platforms": {
     "Email": "邮箱",

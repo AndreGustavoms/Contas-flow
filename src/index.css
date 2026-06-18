@@ -2826,6 +2826,60 @@ td {
   --modal-max-width: 48rem;
 }
 
+/* Quick-view de credencial: o painel inteiro é tematizado pela cor da
+   plataforma da conta (--qv-accent, setado inline por instância). A partir dela
+   derivamos superfícies, bordas e glow via color-mix, e o fundo ganha uma
+   "aurora" na cor da marca no topo. Tokens trocam por tema pra não quebrar no
+   white. Definido depois de .modal-panel pra vencer o border-radius base. */
+.quickview-panel {
+  --qv-accent: #22c55e; /* fallback; sobrescrito inline por plataforma */
+  --qv-surface: color-mix(in srgb, var(--qv-accent) 11%, transparent);
+  --qv-surface-strong: color-mix(in srgb, var(--qv-accent) 20%, transparent);
+  --qv-line: color-mix(in srgb, var(--qv-accent) 32%, transparent);
+  --qv-glow: color-mix(in srgb, var(--qv-accent) 55%, transparent);
+  --qv-label: var(--text); /* contraste forte: gelo no dark, fosco no white */
+  border-radius: 28px;
+  border: 1px solid var(--qv-edge);
+  background: var(--qv-bg);
+  box-shadow: var(--qv-shadow);
+}
+
+.theme-dark .quickview-panel {
+  --qv-edge: color-mix(in srgb, var(--qv-accent) 30%, rgba(255, 255, 255, 0.06));
+  --qv-bg:
+    radial-gradient(
+      95% 65% at 50% -12%,
+      color-mix(in srgb, var(--qv-accent) 42%, transparent) 0%,
+      color-mix(in srgb, var(--qv-accent) 12%, transparent) 38%,
+      transparent 66%
+    ),
+    radial-gradient(120% 120% at 50% 0%, #0d1b34 0%, #081227 48%, #03070f 100%);
+  --qv-shadow:
+    0 44px 130px -30px rgba(0, 0, 0, 0.94),
+    0 0 0 1px color-mix(in srgb, var(--qv-accent) 18%, transparent),
+    0 0 110px -24px var(--qv-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.theme-white .quickview-panel {
+  --qv-surface: color-mix(in srgb, var(--qv-accent) 7%, #ffffff);
+  --qv-surface-strong: color-mix(in srgb, var(--qv-accent) 13%, #ffffff);
+  --qv-line: color-mix(in srgb, var(--qv-accent) 22%, transparent);
+  --qv-edge: color-mix(in srgb, var(--qv-accent) 22%, rgba(15, 23, 42, 0.08));
+  --qv-bg:
+    radial-gradient(
+      130% 80% at 50% -8%,
+      color-mix(in srgb, var(--qv-accent) 14%, transparent) 0%,
+      transparent 60%
+    ),
+    radial-gradient(120% 120% at 50% 0%, #ffffff 0%, #f3f7fc 100%);
+  --qv-shadow:
+    0 40px 110px -34px rgba(15, 23, 42, 0.4),
+    0 0 0 1px color-mix(in srgb, var(--qv-accent) 12%, transparent),
+    0 0 70px -30px var(--qv-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
 .account-settings-panel {
   max-width: min(1080px, calc(100vw - 32px));
   height: min(760px, calc(100dvh - 48px));
@@ -3722,6 +3776,13 @@ td {
     box-shadow: none;
   }
 
+  /* O quick-view distribui o padding nos blocos internos (header/campos/footer)
+     pra ter divisórias full-bleed, então zera o padding do painel no mobile. */
+  .modal-panel.quickview-panel {
+    padding: 0;
+    border-radius: 20px;
+  }
+
   .modal-panel h2,
   #account-wizard-title,
   #account-quickview-title {
@@ -3795,4 +3856,104 @@ td {
     height: 40px;
     border-radius: 8px;
   }
+}
+
+/*
+   Premium polish pass: calm the neon-heavy identity into a more trustworthy
+   vault UI. These overrides intentionally sit late in the cascade so existing
+   layout rules stay intact while global visual noise is reduced.
+*/
+.app-shell h1,
+.app-shell h2,
+.app-shell h3 {
+  text-shadow: none;
+}
+
+.app-panel {
+  box-shadow:
+    0 22px 70px -52px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 var(--inset-light);
+}
+
+.accent-pill {
+  box-shadow: none;
+}
+
+.brand-mark,
+.glass-glyph {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 10px 28px -22px rgba(0, 0, 0, 0.85);
+}
+
+.btn-neon::before {
+  animation: none;
+  opacity: 0.55;
+}
+
+.btn-neon::after {
+  opacity: 0.28;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.spotlight-card::before {
+  background: radial-gradient(
+    220px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    color-mix(in srgb, var(--accent-surface) 58%, transparent),
+    transparent 64%
+  );
+}
+
+.vault-navbar {
+  background: color-mix(in srgb, var(--page-bg) 86%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.theme-dark .vault-navbar,
+.theme-white .vault-navbar {
+  background: color-mix(in srgb, var(--page-bg) 86%, transparent);
+}
+
+.vault-card {
+  border-radius: var(--radius-card);
+  box-shadow: 0 18px 52px -42px rgba(0, 0, 0, 0.82);
+}
+
+.vault-btn-primary,
+.vault-btn-secondary,
+.vault-nav-btn {
+  border-radius: var(--radius-button);
+}
+
+.vault-btn-primary:hover:not(:disabled),
+.vault-btn-secondary:hover:not(:disabled),
+.vault-nav-btn:hover {
+  transform: none;
+}
+
+.account-row-card {
+  transition:
+    background-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.account-row-card .glass-glyph,
+.account-row-card .glass-glyph svg {
+  transition-duration: 160ms;
+}
+
+.modal-panel {
+  border-radius: var(--radius-modal);
+  box-shadow: 0 24px 80px -42px rgba(0, 0, 0, 0.88);
+}
+
+.toast {
+  box-shadow: 0 18px 52px -30px rgba(0, 0, 0, 0.86);
+}
+
+input:hover,
+textarea:hover,
+select:hover {
+  transform: none;
 }

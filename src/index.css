@@ -7,6 +7,9 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-family:
+    "Segoe UI", Inter, "SF Pro Text", -apple-system, BlinkMacSystemFont,
+    "Helvetica Neue", Arial, sans-serif;
 
   /* Curvas de easing da identidade. --ease-fluid (easeOutExpo) dá aquela
      desaceleração suave "premium"; --ease-spring um leve overshoot pra toques
@@ -358,8 +361,10 @@ body {
   overflow-x: hidden;
   background: var(--page-bg, #070a12);
   color: var(--text, #e2e8f0);
+  font-family: inherit;
   font-size: var(--font-app);
   line-height: var(--line-app);
+  letter-spacing: 0;
   overflow-wrap: anywhere;
 }
 
@@ -2019,6 +2024,24 @@ td {
   color: var(--muted);
 }
 
+.icon-crisp {
+  display: block;
+  flex-shrink: 0;
+  vector-effect: non-scaling-stroke;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.close-glyph {
+  width: 16px !important;
+  height: 16px !important;
+  margin: auto;
+  stroke-width: 2.15;
+  transform: translate3d(0.5px, 0.5px, 0);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 .metric-card-main {
   background-image: linear-gradient(
     135deg,
@@ -2603,6 +2626,15 @@ td {
   min-width: 0;
 }
 
+.vault-toolbar-top {
+  width: 100%;
+  min-width: 0;
+}
+
+.vault-toolbar-actions {
+  flex-shrink: 0;
+}
+
 .vault-filters {
   width: 100%;
   max-width: 100%;
@@ -2612,37 +2644,130 @@ td {
 .vault-search-shell {
   min-width: 0;
   isolation: isolate;
+  max-width: 100%;
+}
+
+.vault-search-field {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent-border) 42%, var(--border) 58%);
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel) 90%, var(--accent-surface) 10%) 0%,
+      color-mix(in srgb, var(--panel) 84%, #07111d 16%) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.02),
+    0 18px 42px -34px rgba(0, 0, 0, 0.74);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
 .vault-search-input {
-  border-color: color-mix(in srgb, var(--border) 65%, white 35%) !important;
-  background: color-mix(in srgb, var(--panel) 84%, white 16%) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.24),
-    0 16px 34px -28px rgba(15, 23, 42, 0.26);
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
   color: var(--text);
+  letter-spacing: 0;
+  padding-block: 0.75rem;
+  font-size: 0.97rem;
+  font-weight: 600;
 }
 
-.vault-search-shell:focus-within .vault-search-input {
+.vault-search-input::placeholder {
+  color: color-mix(in srgb, var(--muted) 86%, var(--text) 14%);
+  font-weight: 600;
+}
+
+.vault-search-highlight {
+  position: absolute;
+  inset: 1px;
+  z-index: 0;
+  width: 0;
+  border-radius: 17px;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent-surface) 22%, transparent) 0%,
+      color-mix(in srgb, var(--accent-glow) 20%, transparent) 48%,
+      color-mix(in srgb, white 4%, transparent) 100%
+    );
+  opacity: 0.85;
+  transition:
+    width 220ms ease,
+    opacity 180ms ease;
+}
+
+.vault-search-underline {
+  position: absolute;
+  right: 18px;
+  bottom: 0;
+  left: 18px;
+  z-index: 1;
+  height: 2px;
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent-border) 18%, transparent) 0%,
+      color-mix(in srgb, var(--accent-soft) 82%, white 18%) 50%,
+      color-mix(in srgb, var(--accent-border) 18%, transparent) 100%
+    );
+  transform: scaleX(0.22);
+  transform-origin: center;
+  opacity: 0.44;
+  transition:
+    transform 220ms ease,
+    opacity 180ms ease;
+}
+
+.vault-search-icon {
+  z-index: 2;
+  color: color-mix(in srgb, var(--muted-soft) 82%, var(--accent-soft) 18%);
+}
+
+.vault-search-shell:focus-within .vault-search-field {
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--accent) 42%, white 8%) !important;
-  background: color-mix(in srgb, var(--panel) 94%, white 6%) !important;
+  border-color: color-mix(in srgb, var(--accent-border) 76%, white 24%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.96),
-    0 18px 44px -28px var(--accent-glow);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 0 1px color-mix(in srgb, var(--accent-glow) 26%, transparent),
+    0 20px 48px -36px rgba(0, 0, 0, 0.84);
 }
 
-.vault-search-shell:focus-within svg {
-  color: var(--accent);
+.vault-search-shell:focus-within .vault-search-highlight {
+  width: 100%;
+}
+
+.vault-search-shell:focus-within .vault-search-underline {
+  transform: scaleX(1);
+  opacity: 0.94;
+}
+
+.vault-search-shell:focus-within .vault-search-icon {
+  color: color-mix(in srgb, var(--accent-soft) 72%, white 28%);
+}
+
+.vault-search-input:focus-visible {
+  outline: none !important;
 }
 
 .vault-search-shell > button:last-child {
-  border: 1px solid color-mix(in srgb, var(--border) 74%, white 26%);
+  border: 1px solid color-mix(in srgb, var(--accent-border) 54%, var(--border) 46%);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel) 82%, white 18%);
+  background: color-mix(in srgb, var(--accent-surface) 56%, var(--panel) 44%);
   padding: 4px 6px 4px 10px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 24px -22px rgba(0, 0, 0, 0.58);
 }
 
 .vault-search-shell > button:last-child kbd:first-child {
@@ -2651,22 +2776,51 @@ td {
 
 .vault-filter-pill {
   border: 1px solid color-mix(in srgb, var(--accent-border) 82%, transparent);
-  background: color-mix(in srgb, var(--accent-surface) 88%, white 12%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  background: color-mix(in srgb, var(--accent-surface) 76%, var(--panel) 24%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .vault-filter-pill:hover {
   transform: translateY(-1px);
-  background: color-mix(in srgb, var(--accent-surface) 96%, white 4%);
+  background: color-mix(in srgb, var(--accent-surface) 88%, var(--panel) 12%);
 }
 
 .vault-toolbar-cta {
-  border-color: color-mix(in srgb, var(--border) 72%, white 28%);
-  background: color-mix(in srgb, var(--panel) 82%, white 18%);
+  border-color: color-mix(in srgb, var(--accent-border) 48%, var(--border) 52%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel) 84%, var(--accent-surface) 16%) 0%,
+      color-mix(in srgb, var(--panel) 76%, transparent) 100%
+    );
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.88),
-    0 12px 30px -28px rgba(15, 23, 42, 0.34);
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 12px 30px -28px rgba(0, 0, 0, 0.46);
   padding-inline: 16px;
+}
+
+.vault-toolbar-cta:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent-border) 76%, white 24%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel) 88%, var(--accent-surface) 12%) 0%,
+      color-mix(in srgb, var(--panel) 78%, transparent) 100%
+    );
+}
+
+@media (min-width: 1024px) {
+  .vault-toolbar-heading {
+    min-width: 92px;
+  }
+
+  .vault-search-shell {
+    min-width: 360px;
+  }
+
+  .vault-toolbar-actions {
+    margin-left: auto;
+  }
 }
 
 .vault-list {
@@ -2887,26 +3041,51 @@ td {
 .status-tab-active {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--panel) 76%, white 24%) 0%,
-    color-mix(in srgb, var(--accent-surface) 88%, white 12%) 100%
+    color-mix(in srgb, var(--panel) 82%, var(--accent-surface) 18%) 0%,
+    color-mix(in srgb, var(--panel) 72%, transparent) 100%
   );
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.82),
-    0 10px 24px -22px rgba(15, 23, 42, 0.28);
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 10px 24px -22px rgba(0, 0, 0, 0.42);
+}
+
+.toolbar-select-trigger {
+  border: 1px solid color-mix(in srgb, var(--accent-border) 42%, var(--border) 58%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel) 84%, var(--accent-surface) 16%) 0%,
+      color-mix(in srgb, var(--panel) 76%, transparent) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 12px 26px -26px rgba(0, 0, 0, 0.52);
+}
+
+.toolbar-select-trigger:hover,
+.toolbar-select-trigger:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-border) 76%, white 24%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel) 88%, var(--accent-surface) 12%) 0%,
+      color-mix(in srgb, var(--panel) 78%, transparent) 100%
+    );
 }
 
 .global-search-panel {
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--panel) 96%, white 4%) 0%,
-      color-mix(in srgb, var(--panel) 90%, transparent) 100%
+      color-mix(in srgb, var(--panel) 95%, var(--accent-surface) 5%) 0%,
+      color-mix(in srgb, var(--panel) 91%, transparent) 100%
     );
-  border: 1px solid color-mix(in srgb, var(--border) 76%, white 24%);
+  border: 1px solid color-mix(in srgb, var(--accent-border) 34%, var(--border) 66%);
+  border-radius: 26px;
   box-shadow:
-    0 34px 90px -34px rgba(15, 23, 42, 0.34),
-    0 0 0 1px rgba(255, 255, 255, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.76);
+    0 28px 68px -46px rgba(0, 0, 0, 0.78),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(14px);
 }
 
 .global-search-input-row {
@@ -2914,11 +3093,17 @@ td {
 }
 
 .global-search-input-shell {
-  background: color-mix(in srgb, var(--panel) 76%, white 24%);
-  border: 1px solid color-mix(in srgb, var(--border) 70%, white 30%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel) 84%, var(--accent-surface) 16%) 0%,
+      color-mix(in srgb, var(--panel) 78%, transparent) 100%
+    );
+  border: 1px solid color-mix(in srgb, var(--accent-border) 40%, var(--border) 60%);
+  border-radius: 18px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.86),
-    0 16px 34px -32px rgba(15, 23, 42, 0.28);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 16px 32px -30px rgba(0, 0, 0, 0.56);
   transition:
     border-color 180ms ease,
     box-shadow 180ms ease,
@@ -2928,26 +3113,58 @@ td {
 
 .global-search-input-shell:focus-within {
   transform: translateY(-1px);
-  border-color: var(--accent-border);
-  background: color-mix(in srgb, var(--panel) 88%, white 12%);
+  border-color: color-mix(in srgb, var(--accent-border) 88%, white 12%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel) 88%, var(--accent-surface) 12%) 0%,
+      color-mix(in srgb, var(--panel) 80%, transparent) 100%
+    );
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 24px 52px -34px var(--accent-glow);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 0 3px color-mix(in srgb, var(--accent-glow) 34%, transparent),
+    0 18px 40px -32px rgba(0, 0, 0, 0.66);
+}
+
+.global-search-icon {
+  color: color-mix(in srgb, var(--muted) 82%, var(--accent-soft) 18%);
+}
+
+.global-search-input-shell:focus-within .global-search-icon {
+  color: var(--accent-soft);
+}
+
+.global-search-input {
+  outline: none !important;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.global-search-input::placeholder {
+  color: color-mix(in srgb, var(--muted) 72%, transparent);
+}
+
+.global-search-input:focus-visible {
+  outline: none !important;
 }
 
 .global-search-esc {
   align-items: center;
   justify-content: center;
-  min-width: 38px;
-  height: 34px;
+  min-width: 42px;
+  height: 30px;
   padding: 0 10px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--border) 74%, white 26%);
-  background: color-mix(in srgb, var(--panel) 74%, white 26%);
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent-border) 44%, var(--border) 56%);
+  background: color-mix(in srgb, var(--accent-surface) 48%, var(--panel) 52%);
+  color: color-mix(in srgb, var(--accent-soft) 72%, var(--muted) 28%);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .modal-viewport {
@@ -4124,9 +4341,13 @@ td {
 .micro-label {
   color: var(--muted-soft);
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.icon-action-stable svg {
+  transform: none !important;
 }
 
 .menu-icon-tile {
@@ -4207,4 +4428,230 @@ input:hover,
 textarea:hover,
 select:hover {
   transform: none;
+}
+
+/* Registros do vault: integra busca, filtros e lista no mesmo padrão do painel. */
+.vault-toolbar {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel) 86%, var(--field) 14%) 0%,
+      color-mix(in srgb, var(--panel) 78%, transparent) 100%
+    );
+}
+
+.vault-toolbar::before {
+  background:
+    radial-gradient(
+      52% 120% at 0% 0%,
+      color-mix(in srgb, var(--accent-surface) 44%, transparent) 0%,
+      transparent 70%
+    );
+  opacity: 0.7;
+}
+
+.vault-toolbar-top {
+  gap: 12px;
+}
+
+.vault-record-count {
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--field) 70%, transparent);
+  color: var(--muted-soft);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  padding: 3px 9px;
+}
+
+.vault-toolbar-actions {
+  justify-content: flex-start;
+}
+
+.vault-toolbar-filter-row {
+  border-top: 1px solid color-mix(in srgb, var(--border) 64%, transparent);
+  padding-top: 12px;
+}
+
+.vault-filter-actions {
+  justify-content: flex-start;
+}
+
+.vault-filter-actions > .relative {
+  min-width: 12rem;
+}
+
+.status-tabs {
+  border-color: color-mix(in srgb, var(--border) 78%, transparent) !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--field) 72%, transparent) !important;
+  gap: 4px !important;
+  padding: 4px !important;
+  box-shadow: inset 0 1px 0 var(--inset-light) !important;
+  scrollbar-width: none;
+}
+
+.status-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.status-tabs button {
+  height: 32px;
+  border-radius: 8px !important;
+  padding-inline: 12px;
+}
+
+.status-tab-active {
+  background: color-mix(in srgb, var(--accent-surface) 78%, var(--field) 22%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-border) 72%, transparent);
+}
+
+.toolbar-select-trigger {
+  border-radius: 10px !important;
+  background: color-mix(in srgb, var(--field) 78%, var(--panel) 22%);
+  box-shadow: inset 0 1px 0 var(--inset-light);
+}
+
+.vault-list {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.vault-list .account-row-card {
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  min-height: 76px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--field) 62%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--inset-light) 70%, transparent);
+  overflow: hidden;
+}
+
+.vault-list .account-row-card:last-child {
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+}
+
+.vault-list .account-row-card:hover {
+  background: color-mix(in srgb, var(--surface-soft) 84%, var(--field) 16%);
+}
+
+.vault-list .account-row-card .glass-glyph {
+  height: 38px;
+  width: 38px;
+  border-radius: 10px;
+}
+
+.vault-list .account-row-card .glass-glyph svg {
+  height: 18px;
+  width: 18px;
+}
+
+.account-row-meta {
+  min-width: 0;
+}
+
+.account-row-meta .security-chip {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  justify-content: center;
+  gap: 0;
+  padding-inline: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 0;
+}
+
+.account-row-meta .security-chip svg {
+  height: 15px;
+  width: 15px;
+}
+
+.account-row-meta .badge-status {
+  min-height: 28px;
+  align-items: center;
+  border-radius: 999px;
+  padding-inline: 10px;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.account-row-card p,
+.account-row-card span {
+  min-width: 0;
+}
+
+.account-row-card button {
+  min-height: 0;
+}
+
+@media (min-width: 768px) {
+  .vault-list .account-row-card {
+    grid-template-columns: minmax(360px, 1fr) max-content;
+    align-items: center;
+  }
+
+  .account-row-meta {
+    justify-self: end;
+    max-width: 12rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .vault-toolbar-heading {
+    min-width: 84px;
+  }
+
+  .vault-toolbar-actions {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .vault-toolbar {
+    padding: 12px !important;
+  }
+
+  .vault-toolbar-filter-row {
+    padding-top: 10px;
+  }
+
+  .vault-toolbar-actions,
+  .vault-filter-actions {
+    width: 100%;
+  }
+
+  .vault-toolbar-actions .vault-toolbar-cta,
+  .vault-filter-actions > .relative {
+    width: 100%;
+  }
+
+  .status-tabs {
+    width: 100%;
+  }
+
+  .status-tabs button {
+    flex: 1 0 auto;
+    min-width: max-content;
+  }
+
+  .vault-list {
+    display: grid;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .vault-list .account-row-card {
+    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--field) 58%, transparent);
+    padding: 12px;
+  }
+
+  .account-row-meta {
+    justify-content: flex-start;
+  }
 }

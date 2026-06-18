@@ -1676,41 +1676,41 @@ export function AccountVault({
               className="vault-card animate-rise"
               style={{ animationDelay: "60ms" }}
             >
-              <div className="vault-toolbar flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
-                <div className="vault-toolbar-heading shrink-0">
-                  <p className="text-base font-semibold tracking-[-0.02em] text-[color:var(--text)]">
-                    {t("vault.records")}
-                  </p>
-                  <p className="mt-1 text-sm text-[color:var(--muted)]">
-                    {filteredAccounts.length} / {scopedAccounts.length}
-                  </p>
-                </div>
-                <div className="vault-filters flex flex-wrap items-center gap-2.5 sm:gap-3">
-                  {message && !isAccountModalOpen ? (
-                    <span className="accent-pill rounded-full border px-3 py-1 text-xs font-medium">
-                      {message}
+              <div className="vault-toolbar flex flex-col gap-4 p-4 sm:p-5">
+                <div className="vault-toolbar-top flex flex-col gap-3 lg:flex-row lg:items-center">
+                  <div className="vault-toolbar-heading shrink-0">
+                    <p className="text-base font-semibold tracking-[-0.02em] text-[color:var(--text)]">
+                      {t("vault.records")}
+                    </p>
+                    <span className="vault-record-count mt-1 inline-flex">
+                      {filteredAccounts.length} / {scopedAccounts.length}
                     </span>
-                  ) : null}
-                  <div className="vault-search-shell relative min-w-0 flex-[1.35] basis-full lg:basis-[20rem]">
-                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--muted-soft)] transition-colors duration-200" />
-                    <Input
-                      ref={searchInputRef}
-                      aria-label={t("vault.search_label")}
-                      aria-keyshortcuts="Control+K Meta+K"
-                      className={cn(
-                        "vault-search-input h-12 rounded-[18px] border-white/55 bg-white/72 shadow-none backdrop-blur-md transition-all duration-200 sm:h-11",
-                        query ? "pl-11 pr-10" : "pl-11 pr-20",
-                      )}
-                      placeholder={t("vault.global_search_placeholder")}
-                      value={query}
-                      onChange={(event) => setQuery(event.target.value)}
-                      onFocus={() => {
-                        if (!query) {
-                          searchInputRef.current?.blur();
-                          setGlobalSearchOpen(true);
-                        }
-                      }}
-                    />
+                  </div>
+                  <div className="vault-search-shell relative min-w-0 flex-1">
+                    <div className="vault-search-field">
+                      <span className="vault-search-highlight" aria-hidden />
+                      <span className="vault-search-underline" aria-hidden />
+                      <Search className="vault-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 transition-colors duration-200" />
+                      <input
+                        ref={searchInputRef}
+                        aria-label={t("vault.search_label")}
+                        aria-keyshortcuts="Control+K Meta+K"
+                        className={cn(
+                          "vault-search-input h-12 sm:h-11",
+                          query ? "pl-11 pr-10" : "pl-11 pr-20",
+                        )}
+                        placeholder={t("vault.global_search_placeholder")}
+                        type="text"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        onFocus={() => {
+                          if (!query) {
+                            searchInputRef.current?.blur();
+                            setGlobalSearchOpen(true);
+                          }
+                        }}
+                      />
+                    </div>
                     {query ? (
                       <button
                         aria-label={t("vault.search_clear")}
@@ -1721,7 +1721,7 @@ export function AccountVault({
                           searchInputRef.current?.focus();
                         }}
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <X className="icon-crisp close-glyph h-[18px] w-[18px]" />
                       </button>
                     ) : (
                       <button
@@ -1735,50 +1735,63 @@ export function AccountVault({
                       </button>
                     )}
                   </div>
-                  {activeFilterCount > 0 ? (
+                  <div className="vault-toolbar-actions flex flex-wrap items-center gap-2.5 sm:gap-3">
+                    {message && !isAccountModalOpen ? (
+                      <span className="accent-pill rounded-full border px-3 py-1 text-xs font-medium">
+                        {message}
+                      </span>
+                    ) : null}
                     <button
-                      className="vault-filter-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-[color:var(--accent)] transition-all duration-200"
+                      aria-keyshortcuts="N"
+                      className="vault-btn-secondary vault-toolbar-cta"
+                      title={t("vault.new_account_shortcut")}
                       type="button"
-                      onClick={clearFilters}
+                      onClick={openCreateModal}
                     >
-                      <X className="h-3 w-3" />
-                      {activeFilterCount === 1
-                        ? t("vault.active_filters", { count: activeFilterCount })
-                        : t("vault.active_filters_plural", { count: activeFilterCount })}
+                      <Plus className="h-4 w-4" />
+                      {t("vault.new_account")}
+                      <kbd className="shortcut-key ml-1 hidden sm:inline-flex">
+                        N
+                      </kbd>
                     </button>
-                  ) : null}
-                  <FilterSelect
-                    icon={Filter}
-                    label={t("vault.role_label")}
-                    options={[
-                      { value: ALL, label: t("vault.roles_default") },
-                      ...accountRoles.map((value) => ({ value })),
-                    ]}
-                    value={roleFilter}
-                    onChange={setRoleFilter}
-                  />
-                  <button
-                    aria-keyshortcuts="N"
-                    className="vault-btn-secondary vault-toolbar-cta"
-                    title={t("vault.new_account_shortcut")}
-                    type="button"
-                    onClick={openCreateModal}
-                  >
-                    <Plus className="h-4 w-4" />
-                    {t("vault.new_account")}
-                    <kbd className="shortcut-key ml-1 hidden sm:inline-flex">
-                      N
-                    </kbd>
-                  </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="border-t border-[color:var(--border)] px-4 py-3 sm:px-5">
-                <StatusTabs
-                  tabs={statusTabs}
-                  value={statusFilter}
-                  onChange={setStatusFilter}
-                />
+                <div className="vault-toolbar-filter-row flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <StatusTabs
+                    tabs={statusTabs}
+                    value={statusFilter}
+                    onChange={setStatusFilter}
+                  />
+                  <div className="vault-filter-actions flex flex-wrap items-center gap-2.5 sm:gap-3">
+                    {activeFilterCount > 0 ? (
+                      <button
+                        className="vault-filter-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-[color:var(--accent)] transition-all duration-200"
+                        type="button"
+                        onClick={clearFilters}
+                      >
+                        <X className="h-3 w-3" />
+                        {activeFilterCount === 1
+                          ? t("vault.active_filters", {
+                              count: activeFilterCount,
+                            })
+                          : t("vault.active_filters_plural", {
+                              count: activeFilterCount,
+                            })}
+                      </button>
+                    ) : null}
+                    <FilterSelect
+                      icon={Filter}
+                      label={t("vault.role_label")}
+                      options={[
+                        { value: ALL, label: t("vault.roles_default") },
+                        ...accountRoles.map((value) => ({ value })),
+                      ]}
+                      value={roleFilter}
+                      onChange={setRoleFilter}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="border-t border-[color:var(--border)]">
@@ -2082,7 +2095,7 @@ function ModalShell({
               variant="ghost"
               onClick={close}
             >
-              <X className="h-4 w-4" />
+              <X className="icon-crisp close-glyph h-[18px] w-[18px]" />
             </Button>
           </div>
         ) : null}
@@ -2307,7 +2320,7 @@ function AccountWizardModal({
             variant="ghost"
             onClick={close}
           >
-            <X className="h-4 w-4" />
+            <X className="icon-crisp close-glyph h-[18px] w-[18px]" />
           </Button>
         </div>
 
@@ -2625,7 +2638,7 @@ function StatusTabs({ onChange, tabs, value }: StatusTabsProps) {
     <div className="flex min-w-0 justify-start">
       <nav
         aria-label="Status"
-        className="status-tabs inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-[20px] border border-[color:var(--border)] bg-[color:var(--field)] p-1.5 shadow-[inset_0_1px_0_var(--inset-light)] backdrop-blur-xl"
+        className="status-tabs inline-flex max-w-full items-center gap-1.5 overflow-x-auto rounded-2xl border border-[color:var(--border)] bg-[color:var(--field)] p-1.5 shadow-[inset_0_1px_0_var(--inset-light)]"
       >
         {tabs.map((tab) => {
           const active = tab.value === value;
@@ -2633,7 +2646,7 @@ function StatusTabs({ onChange, tabs, value }: StatusTabsProps) {
           return (
             <button
               className={cn(
-                "flex h-9 shrink-0 items-center justify-center gap-2 rounded-[16px] px-3.5 text-xs font-semibold transition-all duration-200 sm:h-8 sm:px-4",
+                "flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl px-3.5 text-xs font-semibold transition-colors duration-150 sm:h-8 sm:px-4",
                 active
                   ? "status-tab-active text-[color:var(--text)]"
                   : "text-[color:var(--muted)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]",
@@ -2645,9 +2658,9 @@ function StatusTabs({ onChange, tabs, value }: StatusTabsProps) {
               <span>{tab.label}</span>
               <span
                 className={cn(
-                  "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 font-mono text-[10px] leading-none",
+                  "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] leading-none",
                   active
-                    ? "bg-white/70 text-[color:var(--accent-soft)]"
+                    ? "bg-white/14 text-[color:var(--text)]"
                     : "bg-[color:var(--surface-soft)] text-[color:var(--muted)]",
                 )}
               >
@@ -2943,7 +2956,7 @@ function SidebarSection({
   return (
     <div className="min-w-0">
       {label ? (
-        <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
+        <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--muted-soft)]">
           {label}
         </p>
       ) : null}
@@ -3224,7 +3237,7 @@ function CustomSelect({
         aria-label={label}
         className={cn(
           compact
-            ? "flex h-11 w-full items-center justify-between gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--field)] pl-9 pr-3 text-sm font-medium text-[color:var(--text)] shadow-[inset_0_1px_0_var(--inset-light),0_16px_34px_var(--field-shadow)] outline-none backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:border-[color:var(--accent-border)] hover:bg-[color:var(--field-hover)] focus:border-[color:var(--accent)] focus:ring-4 focus:ring-[color:var(--focus-ring)] sm:h-10"
+            ? "toolbar-select-trigger flex h-11 w-full items-center justify-between gap-2 rounded-2xl pl-9 pr-3 text-sm font-medium text-[color:var(--text)] outline-none transition duration-200 sm:h-10"
             : selectTriggerClass,
         )}
         type="button"
@@ -3319,7 +3332,7 @@ function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
   return (
     <div
       className={cn(
-        "account-row-card spotlight-card relative animate-row group grid gap-3 px-4 py-3 transition-colors duration-200 md:grid-cols-[minmax(0,1fr)_auto]",
+        "account-row-card spotlight-card relative animate-row group grid gap-3 p-3 transition-colors duration-200 sm:p-3.5 md:grid-cols-[minmax(0,1fr)_auto]",
         isActive
           ? "bg-[color:var(--surface-soft)] shadow-[inset_3px_0_0_var(--accent)]"
           : "hover:bg-[color:var(--surface-soft)]",
@@ -3332,7 +3345,7 @@ function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
         aria-label={t("vault.open_account_label", {
           name: titleFor(account),
         })}
-        className="min-w-0 text-left"
+        className="w-full min-w-0 text-left"
         type="button"
         onClick={onSelect}
       >
@@ -3368,7 +3381,7 @@ function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
         </div>
       </button>
 
-      <div className="flex flex-wrap items-center gap-2 sm:justify-end md:pr-1">
+      <div className="account-row-meta flex flex-wrap items-center gap-2 sm:justify-end md:self-center md:pr-1">
         <span
           aria-label={
             account.hasPassword
@@ -3588,7 +3601,7 @@ function QuickViewModal({
           type="button"
           onClick={close}
         >
-          <X className="h-4 w-4" />
+          <X className="icon-crisp close-glyph h-[18px] w-[18px]" />
         </button>
 
         {/* hero: glyph + título + categoria, centralizados */}
@@ -3651,15 +3664,15 @@ function QuickViewModal({
                 type="button"
                 onClick={onDelete}
               >
-                <Trash2 className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+                <Trash2 className="icon-crisp h-4 w-4" />
                 {t("vault.delete")}
               </button>
               <button
-                className="group inline-flex items-center gap-2 rounded-xl bg-[color:var(--qv-accent)] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_10px_30px_-10px_var(--qv-glow),inset_0_1px_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-10px_var(--qv-glow),inset_0_1px_0_rgba(255,255,255,0.4)] active:translate-y-0"
+                className="icon-action-stable group inline-flex items-center gap-2 rounded-xl bg-[color:var(--qv-accent)] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_10px_30px_-10px_var(--qv-glow),inset_0_1px_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-10px_var(--qv-glow),inset_0_1px_0_rgba(255,255,255,0.4)] active:translate-y-0"
                 type="button"
                 onClick={enterEdit}
               >
-                <Pencil className="h-4 w-4 transition-transform duration-200 group-hover:-rotate-6" />
+                <Pencil className="icon-crisp h-4 w-4" />
                 {t("vault.edit")}
               </button>
             </footer>

@@ -167,7 +167,7 @@ export function SocialPoster({ onClose }: { onClose: () => void }) {
         type="button"
         onClick={onClose}
       >
-        <X className="h-4 w-4" />
+        <X className="icon-crisp close-glyph h-[18px] w-[18px]" />
       </button>
     </section>
   );

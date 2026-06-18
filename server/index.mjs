@@ -65,6 +65,7 @@ import {
   verifyUserTotp,
 } from "./users-pg.mjs";
 import { sendEmail } from "./email.mjs";
+import { notifyIfNewIp } from "./login-notify.mjs";
 import {
   consumeResetToken,
   createResetToken,
@@ -1119,6 +1120,12 @@ async function handleApi(request, response, url, user, session) {
 
       await markReauth(storageDir, token);
       setSessionCookie(request, response, token);
+      void notifyIfNewIp(
+        storageDir,
+        { ...result.user, email: profile.email },
+        ip,
+        request.headers["user-agent"],
+      );
       void logEvent(storageDir, {
         userId: result.user.id,
         username: result.user.username,
@@ -1235,6 +1242,12 @@ async function handleApi(request, response, url, user, session) {
 
       await markReauth(storageDir, token);
       setSessionCookie(request, response, token);
+      void notifyIfNewIp(
+        storageDir,
+        { ...result.user, email: profile.email },
+        ip,
+        request.headers["user-agent"],
+      );
       void logEvent(storageDir, {
         userId: result.user.id,
         username: result.user.username,
@@ -1301,6 +1314,7 @@ async function handleApi(request, response, url, user, session) {
         userAgent: request.headers["user-agent"],
       });
       setSessionCookie(request, response, token);
+      void notifyIfNewIp(storageDir, account, ip, request.headers["user-agent"]);
       void logEvent(storageDir, {
         userId: account.id,
         username: account.username,
@@ -1385,6 +1399,7 @@ async function handleApi(request, response, url, user, session) {
       userAgent: request.headers["user-agent"],
     });
     setSessionCookie(request, response, token);
+    void notifyIfNewIp(storageDir, account, ip, request.headers["user-agent"]);
     void logEvent(storageDir, {
       userId: account.id,
       username: account.username,

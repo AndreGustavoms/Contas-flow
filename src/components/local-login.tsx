@@ -466,25 +466,26 @@ export function LocalLogin({
             )}
           </div>
 
-          <div className="mt-6 flex justify-center gap-4 pb-4">
-            <a
-              href="/privacy"
-              className="text-xs underline-offset-4 hover:underline"
-              style={{ color: "var(--muted-soft)" }}
-            >
-              Privacidade
-            </a>
-            <span style={{ color: "var(--border)" }}>·</span>
-            <a
-              href="/terms"
-              className="text-xs underline-offset-4 hover:underline"
-              style={{ color: "var(--muted-soft)" }}
-            >
-              Termos
-            </a>
-          </div>
         </section>
       </div>
+
+      <footer className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center gap-4 pb-5">
+        <a
+          href="/privacy"
+          className="pointer-events-auto text-xs underline-offset-4 hover:underline"
+          style={{ color: "var(--muted-soft)" }}
+        >
+          Privacidade
+        </a>
+        <span style={{ color: "var(--border)" }}>·</span>
+        <a
+          href="/terms"
+          className="pointer-events-auto text-xs underline-offset-4 hover:underline"
+          style={{ color: "var(--muted-soft)" }}
+        >
+          Termos
+        </a>
+      </footer>
     </main>
   );
 }

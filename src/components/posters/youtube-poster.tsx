@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   Calendar,
@@ -510,6 +511,22 @@ export function YouTubePoster() {
     loadHistory(); // instant cached paint
     loadHistory(true); // then reconcile in the background
   }, [loadChannels, loadHistory]);
+
+  // While the confirm modal is open, freeze the background scroll and allow Esc
+  // to dismiss it (unless a disconnect is in flight).
+  useEffect(() => {
+    if (!channelToDisconnect) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !disconnecting) setChannelToDisconnect(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [channelToDisconnect, disconnecting]);
 
   async function confirmDisconnect() {
     if (!channelToDisconnect) return;
@@ -1292,7 +1309,7 @@ export function YouTubePoster() {
           onClose={() => setUploadIssue(null)}
         />
       )}
-      {channelToDisconnect && (
+      {channelToDisconnect && createPortal(
         <div
           className="fixed inset-0 z-[200] flex items-center justify-center p-4"
           style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
@@ -1347,7 +1364,8 @@ export function YouTubePoster() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

@@ -62,7 +62,10 @@ const SKIP_FILES = new Set([
   "package-lock.json",
   ".env.example",
 ]);
-const skipPiiEmail = (file) => file.endsWith(".md") || file.startsWith("docs/");
+const skipPiiEmail = (file) =>
+  file.endsWith(".md") ||
+  file.startsWith("docs/") ||
+  file === "src/lib/site.ts"; // e-mail de contato público intencional
 
 function trackedFiles() {
   try {

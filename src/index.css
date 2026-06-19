@@ -3143,30 +3143,12 @@ td {
   position: relative;
   overflow: hidden;
   background: color-mix(in srgb, var(--panel) 86%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
   border-radius: 30px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 0 14px -4px color-mix(in srgb, var(--accent-glow) 32%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent),
-    0 0 16px -2px color-mix(in srgb, var(--accent) 42%, transparent),
-    0 0 38px 0 color-mix(in srgb, var(--accent-glow) 34%, transparent),
-    0 0 80px 8px color-mix(in srgb, var(--accent-glow) 20%, transparent);
-  animation: search-neon-pulse 3.2s ease-in-out infinite;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition:
-    border-radius 0.5s ease,
-    box-shadow 180ms ease,
+    border-color 180ms ease,
     background 180ms ease;
-}
-
-@keyframes search-neon-pulse {
-  0%,
-  100% {
-    filter: brightness(1);
-  }
-  50% {
-    filter: brightness(1.1);
-  }
 }
 
 .global-search-input-shell::before {
@@ -3186,19 +3168,51 @@ td {
 .global-search-input-shell:focus-within {
   transform: none;
   border-radius: 30px;
-  border-color: color-mix(in srgb, var(--accent) 80%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border) 55%);
   background: color-mix(in srgb, var(--panel) 92%, transparent);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    inset 0 0 18px -4px color-mix(in srgb, var(--accent-glow) 45%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent),
-    0 0 20px -2px color-mix(in srgb, var(--accent) 55%, transparent),
-    0 0 50px 2px color-mix(in srgb, var(--accent-glow) 48%, transparent),
-    0 0 100px 12px color-mix(in srgb, var(--accent-glow) 28%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 .global-search-input-shell:focus-within::before {
   transform: scaleX(1);
+}
+
+/* Barra de baixo interativa: a cada letra (o elemento remonta via key) uma
+   varredura de luz verde corre da esquerda pra direita, uma única vez. */
+.global-search-typing-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: center;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent) 50%,
+    transparent 100%
+  );
+  box-shadow: 0 0 14px -2px color-mix(in srgb, var(--accent-glow) 80%, transparent);
+  animation: search-underline-pulse 0.42s ease-out;
+}
+
+/* Cada letra remonta o elemento (key) e dispara este pulso: cresce do centro,
+   acende e some. */
+@keyframes search-underline-pulse {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.25);
+  }
+  40% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
 }
 
 .global-search-icon {
@@ -5163,22 +5177,9 @@ select:hover {
 
 .records-card .records-toolbar::before,
 /* Busca estilo "underline": barra inferior accent que cresce no foco. */
+.records-card .vault-search-highlight,
 .records-card .vault-search-underline {
-  right: 0;
-  left: 0;
-  height: 2px;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left;
-  opacity: 1;
-}
-
-.records-card .vault-search-highlight {
-  top: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: 0;
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  display: none;
 }
 
 .records-card .records-toolbar-top {
@@ -5215,34 +5216,31 @@ select:hover {
 
 .records-card .vault-search-field {
   min-height: 46px;
-  /* pill que "endireita" no foco (igual ao componente uiverse) + neon verde */
-  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
-  border-radius: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
   background: var(--records-fill-soft);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.045),
-    inset 0 0 12px -2px color-mix(in srgb, var(--accent-glow) 40%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 14px -3px color-mix(in srgb, var(--accent-glow) 45%, transparent),
     0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent),
-    0 0 10px 0 color-mix(in srgb, var(--accent) 55%, transparent),
-    0 0 28px 2px color-mix(in srgb, var(--accent-glow) 45%, transparent),
-    0 0 60px 6px color-mix(in srgb, var(--accent-glow) 30%, transparent);
-  animation: search-neon-pulse 2.4s ease-in-out infinite;
+    0 0 14px 0 color-mix(in srgb, var(--accent) 60%, transparent),
+    0 0 34px 2px color-mix(in srgb, var(--accent-glow) 50%, transparent),
+    0 0 70px 8px color-mix(in srgb, var(--accent-glow) 30%, transparent);
   transition:
-    border-radius 0.5s ease,
+    border-color 0.2s ease,
     box-shadow 0.2s ease;
 }
 
 .records-card .vault-search-shell:focus-within .vault-search-field {
   transform: none;
-  border-radius: 30px;
-  border-color: color-mix(in srgb, var(--accent) 80%, transparent);
+  border-color: var(--accent);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    inset 0 0 18px -4px color-mix(in srgb, var(--accent-glow) 45%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent),
-    0 0 20px -2px color-mix(in srgb, var(--accent) 55%, transparent),
-    0 0 50px 2px color-mix(in srgb, var(--accent-glow) 48%, transparent),
-    0 0 100px 12px color-mix(in srgb, var(--accent-glow) 28%, transparent);
+    inset 0 0 18px -3px color-mix(in srgb, var(--accent-glow) 60%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent),
+    0 0 18px 0 color-mix(in srgb, var(--accent) 70%, transparent),
+    0 0 46px 4px color-mix(in srgb, var(--accent-glow) 60%, transparent),
+    0 0 90px 12px color-mix(in srgb, var(--accent-glow) 40%, transparent);
 }
 
 .records-card .vault-search-icon {
@@ -5895,28 +5893,24 @@ select:hover {
 }
 
 .qv-standard-panel .qv-password-toggle {
-  right: 8px;
+  right: 4px;
   display: inline-flex;
   width: 32px;
   height: 32px;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  border: 1px solid transparent;
+  border-radius: 999px;
+  border: 0;
   background: transparent;
   color: var(--qv-label);
   padding: 0;
   line-height: 1;
   box-shadow: none;
-  transition:
-    border-color 0.16s ease,
-    background 0.16s ease,
-    color 0.16s ease;
+  transition: color 0.16s ease;
 }
 
 .qv-standard-panel .qv-password-toggle:hover {
-  border-color: var(--qv-line);
-  background: var(--qv-surface-strong);
+  background: transparent;
   color: var(--text);
 }
 

@@ -3585,6 +3585,37 @@ function QuickViewModal({
                   </button>
                 </div>
               </div>
+
+              <div className="grid gap-1.5">
+                <label className="qv-edit-label flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--qv-label)]">
+                  <ShieldCheck className="h-3 w-3" />
+                  {t("vault.field_status")}
+                </label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {(
+                    ["active", "review", "archived", "inactive"] as AccountStatus[]
+                  ).map((status) => {
+                    const selected = editDraft.status === status;
+                    return (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() =>
+                          setEditDraft((d) => ({ ...d, status }))
+                        }
+                        className={cn(
+                          "flex h-10 items-center justify-center rounded-xl border px-3 text-[13px] font-semibold transition duration-150",
+                          selected
+                            ? "border-[color:var(--qv-accent)] bg-[color:var(--qv-surface-strong)] text-[color:var(--text)]"
+                            : "border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] text-[color:var(--qv-label)] hover:border-[color:var(--qv-accent)] hover:text-[color:var(--text)]",
+                        )}
+                      >
+                        {statusLabel[status]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* ações — modo edição */}

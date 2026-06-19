@@ -64,6 +64,8 @@ type UploadIssue = {
   status?: number;
   reason?: string;
   retryable?: boolean;
+  actionHref?: string;
+  actionLabel?: string;
 };
 
 type UploadErrorPayload = {
@@ -91,6 +93,8 @@ class UploadRequestError extends Error {
 const YOUTUBE_MAX_UPLOAD_BYTES = 256 * 1024 * 1024 * 1024;
 const YOUTUBE_MAX_DURATION_SECONDS = 12 * 60 * 60;
 const YOUTUBE_SHORT_MAX_SECONDS = 3 * 60;
+const YOUTUBE_CREATE_CHANNEL_URL =
+  "https://m.youtube.com/create_channel?chromeless=1&next=/channel_creation_done";
 
 type Translate = (key: string, opts?: Record<string, unknown>) => string;
 
@@ -353,13 +357,45 @@ function issueFromError(error: unknown, t: Translate): UploadIssue {
   if (error instanceof UploadRequestError) {
     const payload = error.payload;
     const source = payload.source ?? "local";
+    const status = payload.status ?? (error.status > 0 ? error.status : undefined);
+    if (source === "youtube" && payload.reason === "youtubeSignupRequired") {
+      return {
+        title: t("post.youtube.error_modal_youtube_channel_title"),
+        source,
+        status,
+        retryable: payload.retryable,
+        message: t("post.youtube.error_youtube_signup_required"),
+        userMessage: t("post.youtube.error_youtube_signup_required_hint"),
+        actionHref: YOUTUBE_CREATE_CHANNEL_URL,
+        actionLabel: t("post.youtube.create_channel_btn"),
+      };
+    }
+    if (
+      source === "youtube" &&
+      (status === 401 ||
+        payload.reason === "authError" ||
+        payload.reason === "invalidCredentials" ||
+        payload.error === "invalid_grant")
+    ) {
+      return {
+        title: t("post.youtube.error_modal_youtube_auth_title"),
+        source,
+        status,
+        reason: payload.reason,
+        retryable: payload.retryable,
+        message: t("post.youtube.error_youtube_auth_expired"),
+        userMessage: t("post.youtube.error_youtube_auth_expired_hint"),
+        actionHref: "/api/youtube/connect",
+        actionLabel: t("post.youtube.connect_btn"),
+      };
+    }
     return {
       title:
         source === "youtube"
           ? t("post.youtube.error_modal_youtube_title")
           : t("post.youtube.error_modal_local_title"),
       source,
-      status: payload.status ?? (error.status > 0 ? error.status : undefined),
+      status,
       reason: payload.reason,
       retryable: payload.retryable,
       message:
@@ -1447,7 +1483,17 @@ function UploadIssueModal({
           )}
         </div>
 
-        <div className="mt-5 flex justify-end">
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          {issue.actionHref && issue.actionLabel ? (
+            <a
+              className="login-btn-primary px-5"
+              href={issue.actionHref}
+              rel="noreferrer"
+              target={issue.actionHref.startsWith("http") ? "_blank" : undefined}
+            >
+              {issue.actionLabel}
+            </a>
+          ) : null}
           <Button variant="outline" onClick={onClose}>
             {t("post.youtube.error_modal_close")}
           </Button>
@@ -1640,4 +1686,3 @@ function HistoryList({
     </section>
   );
 }
-

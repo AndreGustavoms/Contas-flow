@@ -25,7 +25,7 @@ interface SearchResult extends AccountRecord {
 
 interface Props {
   onClose: () => void;
-  onNavigate: (groupId: string) => void;
+  onNavigate: (result: SearchResult) => void;
 }
 
 async function fetchResults(q: string): Promise<SearchResult[]> {
@@ -128,6 +128,9 @@ export function GlobalSearch({ onClose, onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
   const [cursor, setCursor] = useState(0);
   const [visible, setVisible] = useState(false);
+  // Incrementa a cada tecla digitada; usado como `key` da barra de baixo pra
+  // remontá-la e reativar a animação de varredura a cada letra.
+  const [pulse, setPulse] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -182,7 +185,7 @@ export function GlobalSearch({ onClose, onNavigate }: Props) {
 
   const pick = useCallback(
     (result: SearchResult) => {
-      onNavigate(result.groupId);
+      onNavigate(result);
       close();
     },
     [onNavigate, close],
@@ -219,7 +222,7 @@ export function GlobalSearch({ onClose, onNavigate }: Props) {
     >
       <div
         className={cn(
-          "global-search-panel w-full max-w-[680px] overflow-visible transition-[transform,opacity] duration-300",
+          "global-search-panel w-full max-w-[960px] overflow-visible transition-[transform,opacity] duration-300",
           visible
             ? "translate-y-0 opacity-100"
             : "-translate-y-2 opacity-0",
@@ -241,7 +244,10 @@ export function GlobalSearch({ onClose, onNavigate }: Props) {
             <input
               ref={inputRef}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPulse((p) => p + 1);
+              }}
               onKeyDown={onKey}
               placeholder={t("vault.global_search_placeholder")}
               className="global-search-input min-w-0 flex-1 bg-transparent text-[15px] leading-snug outline-none placeholder:opacity-30"
@@ -258,6 +264,16 @@ export function GlobalSearch({ onClose, onNavigate }: Props) {
               >
                 <X className="icon-crisp close-glyph h-[18px] w-[18px]" />
               </button>
+            ) : null}
+
+            {/* Barra de baixo: remonta a cada tecla (key={pulse}) e dispara uma
+                varredura de luz verde — feedback por letra digitada. */}
+            {query ? (
+              <span
+                key={pulse}
+                aria-hidden
+                className="global-search-typing-bar"
+              />
             ) : null}
           </div>
         </div>

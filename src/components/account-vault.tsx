@@ -1904,7 +1904,10 @@ export function AccountVault({
       {globalSearchOpen ? (
         <GlobalSearch
           onClose={() => setGlobalSearchOpen(false)}
-          onNavigate={(groupId) => setActiveGroupId(groupId)}
+          onNavigate={(result) => {
+            setActiveGroupId(result.groupId);
+            setQuickViewAccount(result);
+          }}
         />
       ) : null}
 
@@ -3585,7 +3588,7 @@ function QuickViewModal({
                   />
                   <button
                     aria-label={showEditPassword ? t("vault.hide_password") : t("vault.show_password")}
-                    className="qv-password-toggle absolute top-1/2 -translate-y-1/2"
+                    className="qv-password-toggle absolute inset-y-0 right-1 my-auto flex h-8 w-8 items-center justify-center rounded-full border-0 bg-transparent outline-none"
                     type="button"
                     onClick={() => setShowEditPassword((v) => !v)}
                   >

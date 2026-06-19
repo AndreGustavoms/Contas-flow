@@ -547,16 +547,6 @@ function normalizeRecord(input = {}, existing = {}) {
   };
 }
 
-function requiresAccountUpdateReauth(input = {}, existing = {}) {
-  const incomingUsername = asString(input.username).trim();
-  const currentUsername = asString(existing.username).trim();
-  if (incomingUsername !== currentUsername) return true;
-
-  const incomingPassword = asString(input.password);
-  const currentPassword = asString(existing.password);
-  return incomingPassword !== "" && incomingPassword !== currentPassword;
-}
-
 function normalizeGroup(input = {}) {
   const accounts = Array.isArray(input.accounts)
     ? input.accounts.map((record) => normalizeRecord(record, record))
@@ -2994,7 +2984,6 @@ async function handleApi(request, response, url, user, session) {
     }
 
     if (request.method === "DELETE") {
-      if (!requireRecentReauth(session, response)) return;
       const deletedId = db.groups[index].id;
       db.groups.splice(index, 1);
       await writeVault(vaultUserId, db);
@@ -3049,10 +3038,7 @@ async function handleApi(request, response, url, user, session) {
     const body = await readBody(request);
     const entry = await resolveGroupEntry(importMatch[1]);
     if (!entry) return;
-    // Importar substitui TODAS as contas do grupo (destrutivo), então exige
-    // reauth recente como as outras ações que apagam dados (deletar grupo, ver
-    // segredo).
-    if (!requireRecentReauth(session, response)) return;
+    // Importar substitui TODAS as contas do grupo.
     const { db, index, vaultUserId } = entry;
     const group = db.groups[index];
 
@@ -3066,15 +3052,14 @@ async function handleApi(request, response, url, user, session) {
     return;
   }
 
-  // Fetch ONE account's password in clear text, on demand. Vault-scoped and
-  // gated by a recent re-auth; the reveal/copy is recorded in the audit trail.
+  // Fetch ONE account's password in clear text, on demand. Vault-scoped; the
+  // reveal/copy is recorded in the audit trail.
   const secretMatch = url.pathname.match(
     /^\/api\/groups\/([^/]+)\/accounts\/([^/]+)\/secret$/,
   );
   if (secretMatch && request.method === "GET") {
     const entry = await resolveGroupEntry(secretMatch[1]);
     if (!entry) return;
-    if (!requireRecentReauth(session, response)) return;
     const { db, index } = entry;
     const group = db.groups[index];
 
@@ -3117,12 +3102,6 @@ async function handleApi(request, response, url, user, session) {
     if (request.method === "PUT") {
       const body = await readBody(request);
       const existing = group.accounts[accountIndex];
-      if (
-        requiresAccountUpdateReauth(body, existing) &&
-        !requireRecentReauth(session, response)
-      ) {
-        return;
-      }
       // The listing sends the password masked (""), so an edit that didn't touch
       // it would otherwise wipe the stored password. Treat an empty incoming
       // password as "unchanged" and keep the existing one.

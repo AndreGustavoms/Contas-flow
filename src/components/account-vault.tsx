@@ -454,9 +454,6 @@ export function AccountVault({
   // read from or written to localStorage (they carry secrets; see activeGroupKey).
   const [accounts, setAccounts] = useState<AccountRecord[]>([]);
   const [groups, setGroups] = useState<GroupSummary[]>([]);
-  // Re-auth modal state. When a critical action gets 403 reauth_required, we open
-  // this modal; the resolver is fulfilled once the user re-authenticates so the
-  // pending action can retry. `reauthError` shows a wrong-password message.
   // Mede a largura da scrollbar do conteúdo pra navbar fixa não cobri-la.
   const contentRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -501,12 +498,6 @@ export function AccountVault({
       alive = false;
     };
   }, []);
-  const reauthResolverRef = useRef<((ok: boolean) => void) | null>(null);
-  // The single in-flight reauth prompt, shared by concurrent callers so a second
-  // request doesn't orphan the first's resolver.
-  const reauthPromiseRef = useRef<Promise<boolean> | null>(null);
-  const [reauthOpen, setReauthOpen] = useState(false);
-  const [reauthError, setReauthError] = useState("");
   const [activeGroupId, setActiveGroupId] = useState<string>(
     () => window.localStorage.getItem(activeGroupStorageKey) ?? "",
   );
@@ -521,7 +512,7 @@ export function AccountVault({
   const [showPassword, setShowPassword] = useState(false);
   // Whether the quick-view password is currently revealed (it starts masked).
   const [quickViewReveal, setQuickViewReveal] = useState(false);
-  // The password fetched on demand from the reauth-gated /secret endpoint. Held
+  // The password fetched on demand from the /secret endpoint. Held
   // only in memory, only while revealed; never persisted.
   const [quickViewSecret, setQuickViewSecret] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
@@ -821,7 +812,7 @@ export function AccountVault({
       setConfirmDeleteGroup(false);
       notify(t("vault.toast_group_deleted"));
     } catch (error) {
-      if (isReauthRequired(error)) return; // user cancelled re-auth
+      if (isReauthRequired(error)) return;
       notify(t("vault.toast_group_delete_error"), "error");
     }
   }
@@ -1085,7 +1076,6 @@ export function AccountVault({
         Boolean(groupDialog) ||
         confirmDeleteGroup ||
         Boolean(deleteAccountId) ||
-        reauthOpen ||
         usersDialogOpen ||
         accountSettingsOpen ||
         Boolean(quickViewAccount);
@@ -1113,7 +1103,6 @@ export function AccountVault({
     groupDialog,
     isAccountModalOpen,
     quickViewAccount,
-    reauthOpen,
     usersDialogOpen,
   ]);
 
@@ -1274,59 +1263,13 @@ export function AccountVault({
     }
   }
 
-  // Runs a critical action that may require recent re-authentication. If the
-  // server answers 403 reauth_required, opens the re-auth modal, waits for the
-  // user to confirm their password, then retries the action once. Other errors
-  // propagate to the caller.
+  // Runs the action directly; the vault no longer asks for a password
+  // confirmation before in-app account actions.
   async function withReauth<T>(action: () => Promise<T>): Promise<T> {
-    try {
-      return await action();
-    } catch (error) {
-      if (!isReauthRequired(error)) throw error;
-      const ok = await promptReauth();
-      if (!ok) throw error; // user cancelled
-      return action();
-    }
+    return action();
   }
 
-  // Opens the modal and resolves true once re-auth succeeds, false if cancelled.
-  // If a prompt is already open (two critical actions raced into reauth_required),
-  // both callers share the SAME pending promise instead of the second clobbering
-  // the first's resolver (which would leave the first action hung forever).
-  function promptReauth(): Promise<boolean> {
-    if (reauthPromiseRef.current) return reauthPromiseRef.current;
-    setReauthError("");
-    setReauthOpen(true);
-    const promise = new Promise<boolean>((resolve) => {
-      reauthResolverRef.current = resolve;
-    });
-    reauthPromiseRef.current = promise;
-    return promise;
-  }
-
-  function settleReauth(ok: boolean) {
-    setReauthOpen(false);
-    const resolve = reauthResolverRef.current;
-    reauthResolverRef.current = null;
-    reauthPromiseRef.current = null;
-    resolve?.(ok);
-  }
-
-  // Called by the modal when the user submits their password.
-  async function submitReauth(password: string) {
-    setReauthError("");
-    try {
-      await requestJson("/api/auth/reauth", {
-        method: "POST",
-        body: JSON.stringify({ password }),
-      });
-      settleReauth(true);
-    } catch {
-      setReauthError(t("vault.reauth_error"));
-    }
-  }
-
-  // Fetches one account's password on demand from the reauth-gated endpoint. The
+  // Fetches one account's password on demand from the secret endpoint. The
   // value is returned to the caller and never stored beyond the ephemeral
   // reveal/copy use. Returns "" on failure (e.g. cancelled re-auth).
   async function fetchSecret(accountId: string): Promise<string> {
@@ -1673,13 +1616,13 @@ export function AccountVault({
             <SocialPoster onClose={() => setPosterOpen(false)} />
           ) : (
             <div
-              className="vault-card animate-rise"
+              className="vault-card records-card animate-rise"
               style={{ animationDelay: "60ms" }}
             >
-              <div className="vault-toolbar flex flex-col gap-4 p-4 sm:p-5">
-                <div className="vault-toolbar-top flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="vault-toolbar records-toolbar flex flex-col gap-0">
+                <div className="vault-toolbar-top records-toolbar-top flex flex-col gap-3 lg:flex-row lg:items-center">
                   <div className="vault-toolbar-heading shrink-0">
-                    <p className="text-base font-semibold tracking-[-0.02em] text-[color:var(--text)]">
+                    <p className="text-base font-semibold text-[color:var(--text)]">
                       {t("vault.records")}
                     </p>
                     <span className="vault-record-count mt-1 inline-flex">
@@ -1697,7 +1640,7 @@ export function AccountVault({
                         aria-keyshortcuts="Control+K Meta+K"
                         className={cn(
                           "vault-search-input h-12 sm:h-11",
-                          query ? "pl-11 pr-10" : "pl-11 pr-20",
+                          query ? "pl-11 pr-10" : "pl-11 pr-4",
                         )}
                         placeholder={t("vault.global_search_placeholder")}
                         type="text"
@@ -1723,17 +1666,7 @@ export function AccountVault({
                       >
                         <X className="icon-crisp close-glyph h-[18px] w-[18px]" />
                       </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setGlobalSearchOpen(true)}
-                        className="pointer-events-auto absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-1 sm:flex"
-                        tabIndex={-1}
-                      >
-                        <kbd className="shortcut-key">⌘</kbd>
-                        <kbd className="shortcut-key">K</kbd>
-                      </button>
-                    )}
+                    ) : null}
                   </div>
                   <div className="vault-toolbar-actions flex flex-wrap items-center gap-2.5 sm:gap-3">
                     {message && !isAccountModalOpen ? (
@@ -1750,12 +1683,11 @@ export function AccountVault({
                     >
                       <Plus className="h-4 w-4" />
                       {t("vault.new_account")}
-                      <kbd className="shortcut-key ml-1 hidden sm:inline-flex">
-                        N
-                      </kbd>
                     </button>
                   </div>
                 </div>
+
+                <span className="vault-toolbar-divider" aria-hidden />
 
                 <div className="vault-toolbar-filter-row flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <StatusTabs
@@ -1794,7 +1726,7 @@ export function AccountVault({
                 </div>
               </div>
 
-              <div className="border-t border-[color:var(--border)]">
+              <div className="vault-records-list-shell">
                 {filteredAccounts.length ? (
                   <div
                     aria-label={t("vault.accounts_list_label")}
@@ -1897,14 +1829,6 @@ export function AccountVault({
           passwordRevealed={quickViewReveal}
           revealedPassword={quickViewSecret}
           onTogglePassword={() => revealQuickViewSecret(quickViewAccount.id)}
-        />
-      ) : null}
-
-      {reauthOpen ? (
-        <ReauthModal
-          error={reauthError}
-          onCancel={() => settleReauth(false)}
-          onSubmit={submitReauth}
         />
       ) : null}
 
@@ -3067,16 +2991,17 @@ function PlatformGlyph({ platform, size = "md" }: PlatformGlyphProps) {
       }}
     >
       <span
-        className={cn(
-          "absolute inset-0",
-          !meta.solidBackground && "opacity-[0.16]",
-        )}
-        style={{ background: meta.gradient ?? meta.color }}
+        className="absolute inset-0"
+        style={{
+          background: meta.gradient
+            ? meta.gradient
+            : `linear-gradient(140deg, ${meta.color}, ${meta.color}cc)`,
+        }}
       />
       <span className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.22),transparent_46%)]" />
       <Icon
         className={cn("relative", lg ? "h-7 w-7" : "h-5 w-5")}
-        style={{ color: meta.color }}
+        style={{ color: "#fff" }}
       />
     </span>
   );
@@ -3332,10 +3257,8 @@ function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
   return (
     <div
       className={cn(
-        "account-row-card spotlight-card relative animate-row group grid gap-3 p-3 transition-colors duration-200 sm:p-3.5 md:grid-cols-[minmax(0,1fr)_auto]",
-        isActive
-          ? "bg-[color:var(--surface-soft)] shadow-[inset_3px_0_0_var(--accent)]"
-          : "hover:bg-[color:var(--surface-soft)]",
+        "account-row-card spotlight-card relative animate-row group grid gap-3 transition-colors duration-200 md:grid-cols-[minmax(0,1fr)_auto]",
+        isActive && "account-row-active",
       )}
       role="listitem"
       style={{ animationDelay: `${Math.min(index, 12) * 28}ms` }}
@@ -3345,20 +3268,20 @@ function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
         aria-label={t("vault.open_account_label", {
           name: titleFor(account),
         })}
-        className="w-full min-w-0 text-left"
+        className="account-row-button w-full min-w-0 text-left"
         type="button"
         onClick={onSelect}
       >
-        <div className="flex min-w-0 items-start gap-3">
+        <div className="account-row-leading flex min-w-0 items-start gap-3">
           <PlatformGlyph platform={account.platform} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-[color:var(--text)]">
+          <div className="account-row-copy min-w-0 flex-1">
+            <p className="account-row-title truncate text-[15px] font-semibold text-[color:var(--text)]">
               {titleFor(account)}
             </p>
-            <div className="mt-1 text-xs text-[color:var(--muted)]">
+            <div className="account-row-role mt-1 text-xs text-[color:var(--muted)]">
               {account.role}
             </div>
-            <div className="mt-2 grid gap-1.5 text-xs text-[color:var(--muted-soft)] sm:grid-cols-2">
+            <div className="account-row-access mt-2 grid gap-1.5 text-xs text-[color:var(--muted-soft)] sm:grid-cols-2">
               <span className="flex min-w-0 items-center gap-1.5">
                 <Mail aria-hidden className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">
@@ -3423,72 +3346,6 @@ function AccountRow({ account, index, isActive, onSelect }: AccountRowProps) {
         <Badge variant={account.status}>{statusLabel[account.status]}</Badge>
       </div>
     </div>
-  );
-}
-
-// Re-auth prompt shown when a critical action needs the password re-typed.
-// Controlled by the vault (open/error state); submitting calls back into it.
-function ReauthModal({
-  error,
-  onCancel,
-  onSubmit,
-}: {
-  error: string;
-  onCancel: () => void;
-  onSubmit: (password: string) => void;
-}) {
-  const { t } = useTranslation();
-  const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!password || submitting) return;
-    setSubmitting(true);
-    await onSubmit(password);
-    setSubmitting(false);
-  }
-
-  return (
-    <ModalShell
-      layer="reauth"
-      onClose={onCancel}
-      size="sm"
-      title={t("vault.reauth_title")}
-    >
-      <p className="mt-1 text-sm text-[color:var(--muted)]">
-        {t("vault.reauth_instruction")}
-      </p>
-      <form className="mt-5 grid gap-4" onSubmit={handleSubmit}>
-        <Input
-          autoFocus
-          autoComplete="current-password"
-          className="h-11 rounded-2xl px-4"
-          placeholder={t("vault.reauth_password")}
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
-        {error ? <p className="text-sm text-red-300">{error}</p> : null}
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            {t("vault.reauth_cancel")}
-          </Button>
-          <Button
-            type="submit"
-            variant="neon"
-            disabled={!password || submitting}
-          >
-            {submitting ? (
-              <Spinner className="h-4 w-4" />
-            ) : (
-              <KeyRound className="h-4 w-4" />
-            )}
-            {t("vault.reauth_confirm")}
-          </Button>
-        </div>
-      </form>
-    </ModalShell>
   );
 }
 
@@ -3567,7 +3424,7 @@ function QuickViewModal({
   const accent = accentForPlatform(account.platform);
 
   const inputClass =
-    "w-full rounded-xl border border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] px-4 py-2.5 font-mono text-[14px] text-[color:var(--text)] placeholder:text-[color:var(--muted)] outline-none transition-all duration-150 focus:border-[color:var(--qv-accent)] focus:shadow-[0_0_0_2px_var(--qv-surface-strong)]";
+    "qv-input w-full rounded-xl border border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] px-4 py-2.5 text-[14px] text-[color:var(--text)] placeholder:text-[color:var(--muted)] outline-none transition-all duration-150 focus:border-[color:var(--qv-accent)] focus:shadow-[0_0_0_2px_var(--qv-surface-strong)]";
 
   return (
     <div className="modal-viewport fixed inset-0 z-50 flex overflow-y-auto overscroll-contain px-4 py-6">
@@ -3585,19 +3442,19 @@ function QuickViewModal({
         aria-labelledby="account-quickview-title"
         aria-modal="true"
         className={cn(
-          "modal-panel modal-panel-xl quickview-panel relative m-auto w-full overflow-hidden",
+          "modal-panel modal-panel-xl quickview-panel qv-standard-panel relative m-auto w-full overflow-hidden",
           closing ? "animate-pop-out" : "animate-pop-in",
         )}
         role="dialog"
         style={{ "--qv-accent": accent } as CSSProperties}
       >
         {/* fio de acento no topo (decorativo) */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--qv-accent)] to-transparent opacity-80" />
+        <div className="qv-top-line pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--qv-accent)] to-transparent opacity-80" />
 
         {/* fechar (flutuante) */}
         <button
           aria-label={t("vault.close")}
-          className="absolute right-4 top-4 z-10 rounded-full border border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] p-2 text-[color:var(--muted)] backdrop-blur-md transition-all duration-200 hover:scale-110 hover:border-[color:var(--qv-accent)] hover:text-[color:var(--text)] sm:right-5 sm:top-5"
+          className="qv-close-btn absolute right-4 top-4 z-10 rounded-full border border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] p-2 text-[color:var(--muted)] backdrop-blur-md transition-all duration-200 hover:scale-110 hover:border-[color:var(--qv-accent)] hover:text-[color:var(--text)] sm:right-5 sm:top-5"
           type="button"
           onClick={close}
         >
@@ -3605,19 +3462,19 @@ function QuickViewModal({
         </button>
 
         {/* hero: glyph + título + categoria, centralizados */}
-        <div className="flex flex-col items-center px-6 pt-10 text-center sm:px-10">
-          <div className="group relative">
-            <div className="pointer-events-none absolute -inset-4 rounded-[28px] bg-[radial-gradient(circle,var(--qv-glow),transparent_70%)] opacity-70 blur-lg transition-opacity duration-300 group-hover:opacity-100" />
+        <div className="qv-header flex flex-col items-center px-6 pt-10 text-center sm:px-10">
+          <div className="qv-icon-shell group relative">
+            <div className="qv-icon-glow pointer-events-none absolute -inset-4 rounded-[28px] bg-[radial-gradient(circle,var(--qv-glow),transparent_70%)] opacity-70 blur-lg transition-opacity duration-300 group-hover:opacity-100" />
             <PlatformGlyph platform={account.platform} size="lg" />
           </div>
           <h2
-            className="mt-5 max-w-full truncate text-2xl font-bold tracking-tight text-[color:var(--text)] sm:text-[28px]"
+            className="qv-title mt-5 max-w-full truncate text-2xl font-bold tracking-tight text-[color:var(--text)] sm:text-[28px]"
             id="account-quickview-title"
           >
             {titleFor(account)}
           </h2>
-          <span className="mt-2.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--qv-label)]">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--qv-accent)] shadow-[0_0_8px_var(--qv-accent)]" />
+          <span className="qv-chip mt-2.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--qv-label)]">
+            <span className="qv-chip-dot h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--qv-accent)] shadow-[0_0_8px_var(--qv-accent)]" />
             <span className="truncate">
               {account.platform} · {account.role}
             </span>
@@ -3627,7 +3484,7 @@ function QuickViewModal({
         {mode === "view" ? (
           <>
             {/* campos — modo leitura */}
-            <div className="grid gap-3 px-6 py-7 sm:px-10">
+            <div className="qv-fields grid gap-3 px-6 py-7 sm:px-10">
               <QuickField
                 copied={copiedKey === `${account.id}:email`}
                 icon={Mail}
@@ -3658,9 +3515,9 @@ function QuickViewModal({
             </div>
 
             {/* ações — modo leitura */}
-            <footer className="flex items-center justify-between gap-3 px-6 pb-7 sm:px-10">
+            <footer className="qv-footer flex items-center justify-between gap-3 px-6 pb-7 sm:px-10">
               <button
-                className="group inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-red-400 transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-500/10 hover:text-red-300"
+                className="qv-delete-btn group inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-red-400 transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-500/10 hover:text-red-300"
                 type="button"
                 onClick={onDelete}
               >
@@ -3668,7 +3525,7 @@ function QuickViewModal({
                 {t("vault.delete")}
               </button>
               <button
-                className="icon-action-stable group inline-flex items-center gap-2 rounded-xl bg-[color:var(--qv-accent)] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_10px_30px_-10px_var(--qv-glow),inset_0_1px_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-10px_var(--qv-glow),inset_0_1px_0_rgba(255,255,255,0.4)] active:translate-y-0"
+                className="qv-primary-btn icon-action-stable group inline-flex items-center gap-2 rounded-xl bg-[color:var(--qv-accent)] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_10px_30px_-10px_var(--qv-glow),inset_0_1px_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-10px_var(--qv-glow),inset_0_1px_0_rgba(255,255,255,0.4)] active:translate-y-0"
                 type="button"
                 onClick={enterEdit}
               >
@@ -3680,9 +3537,9 @@ function QuickViewModal({
         ) : (
           <>
             {/* campos — modo edição */}
-            <div className="grid gap-4 px-6 py-7 sm:px-10">
+            <div className="qv-edit-fields grid gap-4 px-6 py-7 sm:px-10">
               <div className="grid gap-1.5">
-                <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--qv-label)]">
+                <label className="qv-edit-label flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--qv-label)]">
                   <Mail className="h-3 w-3" />
                   {t("vault.field_email")}
                 </label>
@@ -3697,7 +3554,7 @@ function QuickViewModal({
                 />
               </div>
               <div className="grid gap-1.5">
-                <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--qv-label)]">
+                <label className="qv-edit-label flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--qv-label)]">
                   <UserRound className="h-3 w-3" />
                   {t("vault.field_username")}
                 </label>
@@ -3712,7 +3569,7 @@ function QuickViewModal({
                 />
               </div>
               <div className="grid gap-1.5">
-                <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--qv-label)]">
+                <label className="qv-edit-label flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--qv-label)]">
                   <KeyRound className="h-3 w-3" />
                   {t("vault.field_password")}
                 </label>
@@ -3728,7 +3585,7 @@ function QuickViewModal({
                   />
                   <button
                     aria-label={showEditPassword ? t("vault.hide_password") : t("vault.show_password")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--muted)] transition-colors hover:text-[color:var(--text)]"
+                    className="qv-password-toggle absolute right-2 top-1/2 -translate-y-1/2 text-[color:var(--muted)] transition-colors hover:text-[color:var(--text)]"
                     type="button"
                     onClick={() => setShowEditPassword((v) => !v)}
                   >
@@ -3743,9 +3600,9 @@ function QuickViewModal({
             </div>
 
             {/* ações — modo edição */}
-            <footer className="flex items-center justify-end gap-3 px-6 pb-7 sm:px-10">
+            <footer className="qv-footer qv-edit-footer flex items-center justify-end gap-3 px-6 pb-7 sm:px-10">
               <button
-                className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--qv-line)] px-5 py-2.5 text-sm font-medium text-[color:var(--muted)] transition-all duration-200 hover:border-[color:var(--qv-accent)] hover:text-[color:var(--text)]"
+                className="qv-secondary-btn inline-flex items-center gap-2 rounded-xl border border-[color:var(--qv-line)] px-5 py-2.5 text-sm font-medium text-[color:var(--muted)] transition-all duration-200 hover:border-[color:var(--qv-accent)] hover:text-[color:var(--text)]"
                 disabled={editSaving}
                 type="button"
                 onClick={cancelEdit}
@@ -3753,7 +3610,7 @@ function QuickViewModal({
                 {t("vault.cancel")}
               </button>
               <button
-                className="inline-flex items-center gap-2 rounded-xl bg-[color:var(--qv-accent)] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_10px_30px_-10px_var(--qv-glow),inset_0_1px_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-10px_var(--qv-glow)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0"
+                className="qv-primary-btn inline-flex items-center gap-2 rounded-xl bg-[color:var(--qv-accent)] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_10px_30px_-10px_var(--qv-glow),inset_0_1px_0_rgba(255,255,255,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-10px_var(--qv-glow)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0"
                 disabled={editSaving}
                 type="button"
                 onClick={handleSave}
@@ -3806,20 +3663,20 @@ function QuickField({
 }: QuickFieldProps) {
   const masked = secret && !revealed;
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--qv-accent)] hover:shadow-[0_14px_38px_-18px_var(--qv-glow),inset_0_1px_0_rgba(255,255,255,0.08)] focus-within:border-[color:var(--qv-accent)]">
-      <div className="px-5 pb-4 pt-3.5">
-        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--qv-label)]">
+    <div className="qv-field group relative rounded-2xl border border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors duration-200 hover:border-[color:var(--qv-accent)] focus-within:border-[color:var(--qv-accent)]">
+      <div className="qv-field-inner px-5 pb-4 pt-3.5">
+        <div className="qv-field-label flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--qv-label)]">
           <Icon className="h-3 w-3" />
           {label}
         </div>
-        <div className="mt-3 flex items-center gap-2.5">
+        <div className="qv-field-row mt-3 flex items-center gap-2.5">
           <p className={cn(
-            "min-w-0 flex-1 truncate font-mono text-[15px] text-[color:var(--text)]",
+            "qv-field-value min-w-0 flex-1 truncate text-[15px] text-[color:var(--text)]",
             masked && "tracking-[0.18em] text-[color:var(--muted)]",
           )}>
             {value ? (masked ? "••••••••••••" : value) : "—"}
           </p>
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="qv-field-actions flex shrink-0 items-center gap-1.5">
             {secret ? (
               <QvActionButton
                 disabled={!value}
@@ -3866,12 +3723,12 @@ function QvActionButton({
       aria-label={label}
       className={cn(
         // 44px no mobile (toque), 40px no desktop.
-        "flex h-11 w-11 items-center justify-center rounded-xl border transition-all duration-200 sm:h-10 sm:w-10",
+        "qv-action-btn flex h-11 w-11 items-center justify-center rounded-xl border transition-all duration-200 sm:h-10 sm:w-10",
         active
-          ? "border-[color:var(--qv-accent)] bg-[color:var(--qv-surface-strong)] text-[color:var(--qv-accent)]"
-          : "border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] text-[color:var(--qv-label)] hover:-translate-y-0.5 hover:border-[color:var(--qv-accent)] hover:bg-[color:var(--qv-surface-strong)] hover:text-[color:var(--text)] hover:shadow-[0_8px_20px_-10px_var(--qv-glow)]",
+          ? "qv-action-btn-active border-[color:var(--qv-accent)] bg-[color:var(--qv-surface-strong)] text-[color:var(--qv-accent)]"
+          : "qv-action-btn-default border-[color:var(--qv-line)] bg-[color:var(--qv-surface)] text-[color:var(--qv-label)] hover:border-[color:var(--qv-accent)] hover:bg-[color:var(--qv-surface-strong)] hover:text-[color:var(--text)]",
         disabled &&
-          "cursor-not-allowed opacity-40 hover:translate-y-0 hover:border-[color:var(--qv-line)] hover:bg-[color:var(--qv-surface)] hover:text-[color:var(--qv-label)] hover:shadow-none",
+          "cursor-not-allowed opacity-40 hover:border-[color:var(--qv-line)] hover:bg-[color:var(--qv-surface)] hover:text-[color:var(--qv-label)]",
       )}
       disabled={disabled}
       title={label}

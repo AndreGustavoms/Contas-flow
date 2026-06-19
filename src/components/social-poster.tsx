@@ -91,11 +91,11 @@ export function SocialPoster({ onClose }: { onClose: () => void }) {
   const Panel = current.Panel;
 
   return (
-    <section className="vault-card animate-rise relative flex min-h-[calc(100dvh-150px)] overflow-hidden">
-      <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--accent)] to-transparent" />
+    <section className="vault-card social-poster-shell animate-rise relative flex min-h-[calc(100dvh-150px)] overflow-hidden">
+      <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--border)] to-transparent" />
 
       {/* Menu de redes */}
-      <nav className="account-settings-nav flex w-52 shrink-0 flex-col border-r border-[color:var(--border)] p-4 pt-5">
+      <nav className="account-settings-nav social-poster-nav flex w-52 shrink-0 flex-col border-r p-4 pt-5">
         <div className="mb-5 flex items-center gap-2 px-1">
           <Send className="h-4 w-4 text-[color:var(--accent)]" />
           <span className="text-sm font-semibold text-[color:var(--text)]">

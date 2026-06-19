@@ -226,10 +226,10 @@ export function DatePicker({
                     isSelected
                       ? "bg-[color:var(--accent)] text-[color:var(--accent-foreground)] shadow-[0_4px_14px_-4px_var(--accent)] font-bold"
                       : isToday
-                        ? "border border-[color:var(--accent-border)] text-[color:var(--accent-soft)]"
+                        ? "border border-[color:var(--accent)] bg-[color:var(--accent-surface)] text-[color:var(--accent)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--accent)_28%,transparent),0_10px_24px_-18px_var(--accent)] font-bold"
                         : isOff
                           ? "cursor-not-allowed text-[color:var(--muted)] opacity-30"
-                          : "text-[color:var(--text)] hover:bg-[color:var(--accent-surface)] hover:text-[color:var(--accent)]",
+                          : "text-[color:var(--muted)] hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text)]",
                   )}
                 >
                   {date.getDate()}

@@ -4,7 +4,8 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  RefreshCw,
+  ExternalLink,
+  X,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -18,12 +19,13 @@ type HistoryItem = {
   publishAt?: string | null;
   privacyStatus?: string;
   thumbnailUrl?: string | null;
+  example?: boolean;
 };
 
 // ---------------------------------------------------------------------------
-// Todo o cálculo de dia/semana/hora é fixado em America/Sao_Paulo via chaves de
+// Todo o cálculo de dia/mês/hora é fixado em America/Sao_Paulo via chaves de
 // dia "YYYY-MM-DD": determinístico, imune ao fuso de quem abre e ao servidor em
-// UTC. A semana é seg→dom (7 dias).
+// UTC. A grade mensal começa na segunda-feira e fecha semanas completas.
 // ---------------------------------------------------------------------------
 const SP_TZ = "America/Sao_Paulo";
 
@@ -37,11 +39,6 @@ const timeFmt = new Intl.DateTimeFormat("pt-BR", {
   timeZone: SP_TZ,
   hour: "2-digit",
   minute: "2-digit",
-});
-const dayShortFmt = new Intl.DateTimeFormat("pt-BR", {
-  timeZone: "UTC",
-  day: "2-digit",
-  month: "short",
 });
 const monthFmt = new Intl.DateTimeFormat("pt-BR", {
   timeZone: SP_TZ,
@@ -87,27 +84,47 @@ function mondayOfKey(key: string): string {
   const back = wd === 0 ? 6 : wd - 1;
   return addDaysKey(key, -back);
 }
+function shiftMonthKey(key: string, delta: number): string {
+  const d = keyToNoon(key);
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + delta);
+  return noonToKey(d);
+}
+function monthTargetKey(key: string, todayKey: string): string {
+  return key.slice(0, 7) === todayKey.slice(0, 7) ? todayKey : key;
+}
 function dayNumber(key: string): number {
   return parseInt(key.slice(8, 10), 10);
 }
-function fmtDayShort(key: string): string {
-  return dayShortFmt.format(keyToNoon(key));
+function exampleDayForMonth(monthYm: string, todayKey: string): string {
+  if (monthYm === todayKey.slice(0, 7)) {
+    const next = addDaysKey(todayKey, 2);
+    return next.slice(0, 7) === monthYm ? next : `${monthYm}-15`;
+  }
+  return `${monthYm}-15`;
 }
-
 function getItemDate(item: HistoryItem): Date {
   return new Date(item.publishAt ?? item.uploadedAt);
 }
 function isScheduled(item: HistoryItem): boolean {
   return Boolean(item.publishAt && new Date(item.publishAt) > new Date());
 }
+function studioUrl(videoId: string): string {
+  return `https://studio.youtube.com/video/${videoId}/edit`;
+}
+function watchUrl(videoId: string): string {
+  return `https://www.youtube.com/watch?v=${videoId}`;
+}
 
 export function ReportsPanel() {
   const todayKey = spDayKey(new Date());
   const [anchorKey, setAnchorKey] = useState(todayKey);
+  const [selectedKey, setSelectedKey] = useState(todayKey);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<HistoryItem | null>(null);
 
   function fetchHistory(silent: boolean) {
     if (silent) setRefreshing(true);
@@ -143,20 +160,45 @@ export function ReportsPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const weekStartKey = mondayOfKey(anchorKey);
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDaysKey(weekStartKey, i));
-  const weekSet = new Set(weekDays);
+  // Mês exibido (anchorKey é qualquer dia dele) montado como grade seg→dom
+  // com 6 linhas (42 células), incluindo dias "fora do mês" pra completar.
+  const monthYm = anchorKey.slice(0, 7);
+  const monthFirstKey = `${monthYm}-01`;
+  const gridStartKey = mondayOfKey(monthFirstKey);
+  const gridDays = Array.from({ length: 42 }, (_, i) =>
+    addDaysKey(gridStartKey, i),
+  );
 
-  const weekItems = history
-    .filter((item) => weekSet.has(spDayKey(getItemDate(item))))
+  const monthItems = history
+    .filter((item) => spDayKey(getItemDate(item)).slice(0, 7) === monthYm)
     .sort((a, b) => getItemDate(a).getTime() - getItemDate(b).getTime());
-  const scheduledCount = weekItems.filter(isScheduled).length;
-  const postedCount = weekItems.length - scheduledCount;
+  const showExamplePost = monthItems.length === 0;
+  const exampleKey = exampleDayForMonth(monthYm, todayKey);
+  const exampleItem: HistoryItem = {
+    videoId: null,
+    channelTitle: "Canal exemplo",
+    title: "Post agendado de exemplo",
+    uploadedAt: `${exampleKey}T12:00:00-03:00`,
+    publishAt: `${exampleKey}T12:00:00-03:00`,
+    example: true,
+  };
+  const visibleHistory = showExamplePost ? [...history, exampleItem] : history;
+  const visibleMonthItems = showExamplePost ? [exampleItem] : monthItems;
+  const scheduledCount = visibleMonthItems.filter(isScheduled).length;
+  const postedCount = visibleMonthItems.length - scheduledCount;
+  const effectiveSelectedKey =
+    showExamplePost && selectedKey === todayKey ? exampleKey : selectedKey;
 
-  const weekRange = `${fmtDayShort(weekStartKey)} – ${fmtDayShort(weekDays[6])}`;
+  const monthTitle = monthLabel(keyToNoon(monthFirstKey));
+  const isCurrentMonth = monthYm === todayKey.slice(0, 7);
 
-  // Todos os agendados futuros (próximos dias/meses), agrupados por mês — vai
-  // além da semana visível para você enxergar a fila inteira de programados.
+  // Posts do dia selecionado (painel de detalhe ao lado da grade).
+  const selectedItems = visibleHistory
+    .filter((item) => spDayKey(getItemDate(item)) === effectiveSelectedKey)
+    .sort((a, b) => getItemDate(a).getTime() - getItemDate(b).getTime());
+
+
+  // Todos os agendados futuros, agrupados por mês.
   const upcoming = history
     .filter(isScheduled)
     .sort((a, b) => getItemDate(a).getTime() - getItemDate(b).getTime());
@@ -173,75 +215,93 @@ export function ReportsPanel() {
     upcomingMonths[mi].items.push(item);
   }
 
+  // Preview dos próximos 4 meses (a partir do mês seguinte ao âncora). Cada card
+  // mostra quantos posts estão agendados naquele mês e, ao clicar, abre o mês.
+  const monthPreviews = Array.from({ length: 4 }, (_, i) => {
+    const base = keyToNoon(anchorKey);
+    base.setUTCDate(1);
+    base.setUTCMonth(base.getUTCMonth() + i + 1);
+    const firstKey = noonToKey(base);
+    const ym = firstKey.slice(0, 7);
+    const count = upcoming.filter(
+      (it) => spDayKey(getItemDate(it)).slice(0, 7) === ym,
+    ).length;
+    return { key: firstKey, label: monthLabel(base), count };
+  });
+
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       {/* Cabeçalho */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border)] bg-[color:var(--field)] text-[color:var(--accent)]">
-            <CalendarDays className="h-4 w-4" />
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[color:var(--accent-border)] bg-[color:var(--accent-surface)] text-[color:var(--accent)]">
+            <CalendarDays className="h-5 w-5" />
           </div>
-          <div>
-            <h2 className="text-base font-semibold text-[color:var(--text)]">
+          <div className="leading-none">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
               Programação de postagens
-            </h2>
-            <p className="mt-0.5 text-[11px] text-[color:var(--muted)]">
-              Uploads feitos pelo app · horário de Brasília
             </p>
+            <h2 className="mt-1.5 text-2xl font-bold capitalize tracking-tight text-[color:var(--text)] sm:text-3xl">
+              {monthTitle}
+            </h2>
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
-          <span className="mr-2 hidden min-w-[118px] text-center text-[12px] font-semibold text-[color:var(--text)] sm:inline">
-            {weekRange}
-          </span>
+        {/* Navegação por mês: setas anterior/próximo + "Hoje" quando fora do
+            mês atual. */}
+        <div className="reports-nav flex items-center gap-2">
           <button
             type="button"
-            aria-label="Semana anterior"
-            onClick={() => setAnchorKey((k) => addDaysKey(k, -7))}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:bg-[color:var(--field)] hover:text-[color:var(--text)]"
+            aria-label="Mês anterior"
+            onClick={() => {
+              const next = shiftMonthKey(anchorKey, -1);
+              setAnchorKey(next);
+              setSelectedKey(monthTargetKey(next, todayKey));
+            }}
+            className="reports-monthnav-arrow"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             type="button"
-            onClick={() => setAnchorKey(spDayKey(new Date()))}
-            className="rounded-lg px-3 py-2 text-[11px] font-semibold text-[color:var(--muted)] transition hover:bg-[color:var(--field)] hover:text-[color:var(--text)]"
-          >
-            Hoje
-          </button>
-          <button
-            type="button"
-            aria-label="Próxima semana"
-            onClick={() => setAnchorKey((k) => addDaysKey(k, 7))}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:bg-[color:var(--field)] hover:text-[color:var(--text)]"
+            aria-label="Próximo mês"
+            onClick={() => {
+              const next = shiftMonthKey(anchorKey, 1);
+              setAnchorKey(next);
+              setSelectedKey(monthTargetKey(next, todayKey));
+            }}
+            className="reports-monthnav-arrow"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
-          <button
-            type="button"
-            aria-label="Atualizar"
-            onClick={() => fetchHistory(true)}
-            className="ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--muted)] transition hover:bg-[color:var(--field)] hover:text-[color:var(--text)]"
-          >
-            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
-          </button>
+          {!isCurrentMonth && (
+            <button
+              type="button"
+              onClick={() => {
+                setAnchorKey(todayKey);
+                setSelectedKey(todayKey);
+              }}
+              className="reports-today-btn ml-1"
+            >
+              Hoje
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Resumo */}
+      {/* Resumo do mês */}
       <div className="grid gap-2 sm:grid-cols-2">
-        <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-4 py-3">
+        <div className="report-neon-card rounded-xl border px-4 py-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-            Agendados na semana
+            Agendados no mês
           </p>
           <p className="mt-1 text-2xl font-semibold tabular-nums text-[color:var(--text)]">
             {scheduledCount}
           </p>
         </div>
-        <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--field)] px-4 py-3">
+        <div className="report-neon-card rounded-xl border px-4 py-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-            Postados na semana
+            Postados no mês
           </p>
           <p className="mt-1 text-2xl font-semibold tabular-nums text-[color:var(--text)]">
             {postedCount}
@@ -255,127 +315,192 @@ export function ReportsPanel() {
         </div>
       )}
 
-      {/* Calendário da semana (seg → dom) */}
+      {/* Calendário do mês + detalhe do dia selecionado */}
       {loading ? (
-        <div className="skeleton h-44 rounded-xl" />
+        <div className="skeleton h-80 rounded-xl" />
       ) : (
-        <div className="overflow-x-auto">
-          <div className="grid min-w-[680px] grid-cols-7 gap-2">
-            {weekDays.map((dayKey) => {
-              const dow = weekdayOfKey(dayKey);
-              const isToday = dayKey === todayKey;
-              const dayItems = weekItems.filter(
-                (item) => spDayKey(getItemDate(item)) === dayKey,
-              );
-
-              return (
-                <div
-                  key={dayKey}
-                  className={cn(
-                    "flex min-h-[140px] flex-col rounded-xl border",
-                    isToday
-                      ? "border-[color:var(--accent-border)] bg-[color:var(--accent-surface)]/40"
-                      : "border-[color:var(--border)] bg-[color:var(--field)]",
-                  )}
-                >
-                  {/* Cabeçalho do dia */}
-                  <div
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_330px]">
+          {/* Grade do mês */}
+          <div className="report-neon-card flex flex-col rounded-2xl border p-3">
+            <div className="reports-month-dow">
+              {[1, 2, 3, 4, 5, 6, 0].map((i) => (
+                <span key={i}>{DAY_NAMES[i]}</span>
+              ))}
+            </div>
+            <div className="reports-month-grid">
+              {gridDays.map((dayKey) => {
+                const inMonth = dayKey.slice(0, 7) === monthYm;
+                const isToday = dayKey === todayKey;
+                const isSelected = dayKey === selectedKey;
+                const dayItems = visibleHistory
+                  .filter((it) => spDayKey(getItemDate(it)) === dayKey)
+                  .sort(
+                    (a, b) => getItemDate(a).getTime() - getItemDate(b).getTime(),
+                  );
+                const count = dayItems.length;
+                const previewItems = dayItems.slice(0, 2);
+                const extraCount = Math.max(0, count - previewItems.length);
+                const hasExample = dayItems.some((it) => it.example);
+                const countLabel = hasExample ? "ex" : String(count);
+                return (
+                  <button
+                    key={dayKey}
+                    type="button"
+                    onClick={() => setSelectedKey(dayKey)}
                     className={cn(
-                      "flex items-baseline justify-between border-b px-2.5 py-2",
-                      isToday
-                        ? "border-[color:var(--accent-border)]"
-                        : "border-[color:var(--border)]",
+                      "reports-day-cell",
+                      !inMonth && "reports-day-cell-out",
+                      isToday && "reports-day-cell-today",
+                      (isSelected || dayKey === effectiveSelectedKey) &&
+                        "reports-day-cell-selected",
                     )}
                   >
-                    <span
-                      className={cn(
-                        "text-[10px] font-bold uppercase",
-                        isToday
-                          ? "text-[color:var(--accent)]"
-                          : "text-[color:var(--muted)]",
-                      )}
-                    >
-                      {DAY_NAMES[dow]}
-                    </span>
-                    <span
-                      className={cn(
-                        "text-sm font-bold tabular-nums",
-                        isToday
-                          ? "text-[color:var(--accent)]"
-                          : "text-[color:var(--text)]",
-                      )}
-                    >
-                      {dayNumber(dayKey)}
-                    </span>
-                  </div>
-
-                  {/* Posts do dia */}
-                  <div className="flex flex-1 flex-col gap-1 p-1.5">
-                    {dayItems.length === 0 ? (
-                      <span className="m-auto text-[11px] text-[color:var(--muted-soft)]">
-                        —
-                      </span>
-                    ) : (
-                      dayItems.map((item, i) => {
-                        const scheduled = isScheduled(item);
-                        const time = spTime(getItemDate(item));
-                        const channel = item.channelTitle ?? "";
-                        const tooltip = [time, item.title, channel]
-                          .filter(Boolean)
-                          .join(" · ");
-                        const Inner = (
-                          <>
-                            <span className="flex items-center gap-1">
-                              <span
-                                className={cn(
-                                  "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
-                                  scheduled
-                                    ? "bg-[color:var(--accent)]"
-                                    : "bg-emerald-500",
-                                )}
-                              />
-                              <span className="font-mono text-[11px] font-semibold tabular-nums text-[color:var(--text)]">
-                                {time}
+                    <span className="reports-day-num">{dayNumber(dayKey)}</span>
+                    {count > 0 && (
+                      <>
+                        <span className="reports-day-posts">
+                          {previewItems.map((item, i) => (
+                            <span
+                              key={`${item.videoId ?? "item"}-${i}`}
+                              role="button"
+                              tabIndex={0}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setSelectedEvent(item);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  setSelectedEvent(item);
+                                }
+                              }}
+                              className={cn(
+                                "reports-day-post-pill",
+                                item.example && "reports-day-post-pill-example",
+                              )}
+                            >
+                              <span className="reports-day-post-time">
+                                {spTime(getItemDate(item))}
+                              </span>
+                              <span className="reports-day-post-title">
+                                {item.example ? "Exemplo" : item.title}
                               </span>
                             </span>
-                            <span className="mt-0.5 block truncate text-[11px] leading-tight text-[color:var(--text)]">
-                              {item.title}
-                            </span>
-                            {channel && (
-                              <span className="block truncate text-[10px] leading-tight text-[color:var(--muted)]">
-                                {channel}
-                              </span>
-                            )}
-                          </>
-                        );
-                        const cls = cn(
-                          "block rounded-lg border px-2 py-1.5 text-left transition-colors",
-                          scheduled
-                            ? "border-[color:var(--accent-border)] bg-[color:var(--accent-surface)] hover:bg-[color:var(--accent-surface)]"
-                            : "border-[color:var(--border)] bg-[color:var(--surface-soft)] hover:border-[color:var(--accent-border)]",
-                        );
-                        return item.videoId ? (
-                          <a
-                            key={`${item.videoId}-${i}`}
-                            href={`https://studio.youtube.com/video/${item.videoId}/edit`}
-                            target="_blank"
-                            rel="noreferrer"
-                            title={tooltip}
-                            className={cls}
-                          >
-                            {Inner}
-                          </a>
-                        ) : (
-                          <div key={i} title={tooltip} className={cls}>
-                            {Inner}
-                          </div>
-                        );
-                      })
+                          ))}
+                        </span>
+                        <span className="reports-day-count-badge">{countLabel}</span>
+                        {extraCount > 0 && (
+                          <span className="reports-day-extra">+{extraCount}</span>
+                        )}
+                      </>
                     )}
-                  </div>
-                </div>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Detalhe do dia selecionado */}
+          <aside className="report-neon-card flex flex-col rounded-2xl border">
+            <div className="border-b border-[color:var(--accent-border)] px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
+                {effectiveSelectedKey === todayKey ? "Hoje" : "Dia selecionado"}
+              </p>
+              <p className="mt-1 text-base font-bold capitalize text-[color:var(--text)]">
+                {weekdayDay(keyToNoon(effectiveSelectedKey))}
+              </p>
+            </div>
+            <div className="flex flex-1 flex-col gap-2 p-3">
+              {selectedItems.length === 0 ? (
+                <span className="m-auto py-8 text-[12px] text-[color:var(--muted-soft)]">
+                  Nenhum post neste dia.
+                </span>
+              ) : (
+                selectedItems.map((item, i) => {
+                  const scheduled = isScheduled(item);
+                  const time = spTime(getItemDate(item));
+                  const channel = item.channelTitle ?? "";
+                  const Inner = (
+                    <>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
+                            scheduled
+                              ? "bg-[color:var(--accent)]"
+                              : "bg-emerald-500",
+                          )}
+                        />
+                        <span className="font-mono text-[12px] font-semibold tabular-nums text-[color:var(--text)]">
+                          {time}
+                        </span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--muted-soft)]">
+                          {scheduled ? "agendado" : "postado"}
+                          {item.example ? " · exemplo" : ""}
+                        </span>
+                      </span>
+                      <span className="mt-1 block text-[13px] font-medium leading-snug text-[color:var(--text)]">
+                        {item.title}
+                      </span>
+                      {channel && (
+                        <span className="mt-0.5 block truncate text-[11px] text-[color:var(--muted)]">
+                          {channel}
+                        </span>
+                      )}
+                    </>
+                  );
+                  const cls =
+                    "block w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-soft)] px-3 py-2.5 text-left transition-colors hover:border-[color:var(--accent-border)]";
+                  return (
+                    <button
+                      key={`${item.videoId ?? "event"}-${i}`}
+                      type="button"
+                      className={cls}
+                      onClick={() => setSelectedEvent(item)}
+                    >
+                      {Inner}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* Preview dos próximos meses. */}
+      {!loading && (
+        <div className="flex flex-col gap-2">
+          <p className="flex items-center gap-2 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-soft)]">
+            <CalendarDays className="h-3.5 w-3.5" />
+            Próximos meses
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {monthPreviews.map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => {
+                  setAnchorKey(m.key);
+                  setSelectedKey(monthTargetKey(m.key, todayKey));
+                }}
+                className="month-preview-card group flex flex-col items-start gap-1.5 rounded-xl border px-4 py-4 text-left"
+              >
+                <span className="text-sm font-semibold capitalize text-[color:var(--text)]">
+                  {m.label}
+                </span>
+                <span className="text-[11px] text-[color:var(--muted)]">
+                  {m.count > 0
+                    ? `${m.count} agendado${m.count > 1 ? "s" : ""}`
+                    : "Sem agendamentos"}
+                </span>
+                <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[color:var(--accent)] opacity-0 transition-opacity group-hover:opacity-100">
+                  Ver mês
+                  <ChevronRight className="h-3 w-3" />
+                </span>
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -439,6 +564,124 @@ export function ReportsPanel() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {selectedEvent && (
+        <div
+          className="reports-event-modal-backdrop"
+          role="presentation"
+          onClick={() => setSelectedEvent(null)}
+        >
+          <section
+            className="reports-event-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Detalhes do post"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="reports-event-modal-head">
+              <div>
+                <p className="reports-event-kicker">
+                  {selectedEvent.example ? "Evento de exemplo" : "Post programado"}
+                </p>
+                <h3>{selectedEvent.title}</h3>
+              </div>
+              <button
+                type="button"
+                className="reports-event-close"
+                aria-label="Fechar"
+                onClick={() => setSelectedEvent(null)}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="reports-event-body">
+              <div className="reports-event-video">
+                {selectedEvent.videoId ? (
+                  <iframe
+                    title={selectedEvent.title}
+                    src={`https://www.youtube.com/embed/${selectedEvent.videoId}`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                ) : selectedEvent.thumbnailUrl ? (
+                  <img src={selectedEvent.thumbnailUrl} alt="" />
+                ) : (
+                  <div className="reports-event-video-placeholder">
+                    <CalendarClock className="h-8 w-8" />
+                    <span>Prévia do vídeo</span>
+                    <strong>{selectedEvent.example ? "Exemplo" : "Sem preview"}</strong>
+                  </div>
+                )}
+              </div>
+
+              <div className="reports-event-info">
+                <div className="reports-event-meta-grid">
+                  <div>
+                    <span>Data</span>
+                    <strong>{weekdayDay(getItemDate(selectedEvent))}</strong>
+                  </div>
+                  <div>
+                    <span>Horário</span>
+                    <strong>{spTime(getItemDate(selectedEvent))}</strong>
+                  </div>
+                  <div>
+                    <span>Status</span>
+                    <strong>
+                      {isScheduled(selectedEvent) ? "Agendado" : "Postado"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Canal</span>
+                    <strong>{selectedEvent.channelTitle ?? "Sem canal"}</strong>
+                  </div>
+                  <div>
+                    <span>Visibilidade</span>
+                    <strong>{selectedEvent.privacyStatus ?? "Não informado"}</strong>
+                  </div>
+                  <div>
+                    <span>ID do vídeo</span>
+                    <strong>{selectedEvent.videoId ?? "Indisponível"}</strong>
+                  </div>
+                </div>
+
+                {selectedEvent.example && (
+                  <p className="reports-event-note">
+                    Esse item é uma prévia visual. Em um post real, essa área
+                    mostra o player/thumbnail, ID, status e atalhos do vídeo.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="reports-event-actions">
+              <button type="button" onClick={() => setSelectedEvent(null)}>
+                Fechar
+              </button>
+              {selectedEvent.videoId && (
+                <>
+                  <a
+                    href={watchUrl(selectedEvent.videoId)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Ver no YouTube
+                  </a>
+                  <a
+                    href={studioUrl(selectedEvent.videoId)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Abrir no Studio
+                  </a>
+                </>
+              )}
+            </div>
+          </section>
         </div>
       )}
     </div>

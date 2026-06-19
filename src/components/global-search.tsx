@@ -5,7 +5,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { Search, X, CornerDownLeft, Layers } from "lucide-react";
+import { Search, X, CornerDownLeft, Layers, Mail } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../lib/utils";
 import { Spinner } from "./ui/spinner";
@@ -60,8 +60,65 @@ function PlatformIcon({
     case "youtube":   return <YouTubeIcon   className={cls} />;
     case "tiktok":    return <TikTokIcon    className={cls} />;
     case "kwai":      return <KwaiIcon      className={cls} />;
+    case "email":     return <Mail          className={cls} />;
     default:          return <Layers        className={cls} />;
   }
+}
+
+function platformTileStyle(platform: string | undefined) {
+  switch (platform?.toLowerCase()) {
+    case "instagram":
+      return {
+        background:
+          "linear-gradient(45deg,#F58529 0%,#FEDA77 20%,#DD2A7B 50%,#8134AF 75%,#515BD4 100%)",
+        boxShadow: "0 8px 18px -10px rgba(225, 48, 108, 0.8)",
+      };
+    case "facebook":
+      return {
+        background: "linear-gradient(140deg,#1877F2,#1877F2cc)",
+        boxShadow: "0 8px 18px -10px rgba(24, 119, 242, 0.8)",
+      };
+    case "youtube":
+      return {
+        background: "linear-gradient(140deg,#FF0000,#FF3B30)",
+        boxShadow: "0 8px 18px -10px rgba(255, 0, 0, 0.8)",
+      };
+    case "tiktok":
+      return {
+        background: "linear-gradient(140deg,#27272b,#0a0a0c)",
+        boxShadow: "0 8px 18px -10px rgba(15, 23, 42, 0.9)",
+      };
+    case "kwai":
+      return {
+        background: "linear-gradient(140deg,#FF6A00,#FF8A00)",
+        boxShadow: "0 8px 18px -10px rgba(255, 106, 0, 0.8)",
+      };
+    case "email":
+      return {
+        background: "linear-gradient(140deg,#3B82F6,#2563EB)",
+        boxShadow: "0 8px 18px -10px rgba(59, 130, 246, 0.8)",
+      };
+    default:
+      return {
+        background: "linear-gradient(140deg,var(--accent),var(--accent-hover))",
+        boxShadow: "0 8px 18px -10px var(--accent-glow)",
+      };
+  }
+}
+
+function SearchingLoader() {
+  return (
+    <div className="search-loader-wrapper">
+      <div className="search-loader" />
+      <div className="search-letter-wrapper" aria-label="Buscando">
+        {"Buscando".split("").map((ch, i) => (
+          <span key={i} className="search-loader-letter">
+            {ch}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function GlobalSearch({ onClose, onNavigate }: Props) {
@@ -145,6 +202,7 @@ export function GlobalSearch({ onClose, onNavigate }: Props) {
   }
 
   const hasResults = results.length > 0;
+  const showLoader = loading && query.trim().length > 0;
   const showEmpty = !loading && query.trim().length > 0 && !hasResults;
 
   return (
@@ -161,7 +219,7 @@ export function GlobalSearch({ onClose, onNavigate }: Props) {
     >
       <div
         className={cn(
-          "global-search-panel w-full max-w-[680px] overflow-hidden transition-[transform,opacity] duration-300",
+          "global-search-panel w-full max-w-[680px] overflow-visible transition-[transform,opacity] duration-300",
           visible
             ? "translate-y-0 opacity-100"
             : "-translate-y-2 opacity-0",
@@ -200,14 +258,12 @@ export function GlobalSearch({ onClose, onNavigate }: Props) {
               >
                 <X className="icon-crisp close-glyph h-[18px] w-[18px]" />
               </button>
-            ) : (
-              <kbd className="global-search-esc hidden sm:inline-flex">ESC</kbd>
-            )}
+            ) : null}
           </div>
         </div>
 
         {/* divider */}
-        {(hasResults || showEmpty) && (
+        {(hasResults || showEmpty || showLoader) && (
           <div
             className="mx-5"
             style={{
@@ -217,8 +273,15 @@ export function GlobalSearch({ onClose, onNavigate }: Props) {
           />
         )}
 
+        {/* loading */}
+        {showLoader && (
+          <div className="px-5 py-10">
+            <SearchingLoader />
+          </div>
+        )}
+
         {/* results list */}
-        {hasResults && (
+        {hasResults && !showLoader && (
           <ul
             ref={listRef}
             className="max-h-[352px] overflow-y-auto px-2.5 py-2"
@@ -242,14 +305,15 @@ export function GlobalSearch({ onClose, onNavigate }: Props) {
                 <span
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px]"
                   style={{
-                    background: i === cursor
-                      ? "color-mix(in srgb, var(--panel) 88%, white 12%)"
-                      : "var(--surface-soft)",
-                    color: i === cursor ? "var(--text)" : "var(--muted)",
+                    ...platformTileStyle(r.platform),
+                    color: "#fff",
                     transition: "background 150ms, color 150ms",
                   }}
                 >
-                  <PlatformIcon platform={r.platform} />
+                  <PlatformIcon
+                    platform={r.platform}
+                    className="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]"
+                  />
                 </span>
 
                 {/* text */}
@@ -302,42 +366,6 @@ export function GlobalSearch({ onClose, onNavigate }: Props) {
           </div>
         )}
 
-        {/* footer */}
-        {hasResults && (
-          <div
-            className="flex items-center gap-4 px-5 py-3"
-            style={{
-              borderTop: "1px solid color-mix(in srgb, var(--border) 72%, transparent)",
-              opacity: 0.5,
-            }}
-          >
-            {[
-              { keys: ["↑", "↓"], label: "navegar" },
-              { keys: ["↵"], label: "ir" },
-              { keys: ["ESC"], label: "fechar" },
-            ].map(({ keys, label }) => (
-              <span
-                key={label}
-                className="flex items-center gap-1 text-[10px]"
-                style={{ color: "var(--text)" }}
-              >
-                {keys.map((k) => (
-                  <kbd
-                    key={k}
-                    className="rounded px-1 py-px text-[10px]"
-                    style={{
-                      background: "var(--surface)",
-                      border: "1px solid var(--border)",
-                    }}
-                  >
-                    {k}
-                  </kbd>
-                ))}
-                <span className="ml-0.5">{label}</span>
-              </span>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

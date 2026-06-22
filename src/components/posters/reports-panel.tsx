@@ -472,7 +472,6 @@ export function ReportsPanel() {
                 const count = dayItems.length;
                 const previewItems = dayItems.slice(0, 2);
                 const extraCount = Math.max(0, count - previewItems.length);
-                const countLabel = String(count);
                 return (
                   <button
                     key={dayKey}
@@ -516,9 +515,10 @@ export function ReportsPanel() {
                             </span>
                           ))}
                         </span>
-                        <span className="reports-day-count-badge">{countLabel}</span>
                         {extraCount > 0 && (
-                          <span className="reports-day-extra">+{extraCount}</span>
+                          <span className="reports-day-extra">
+                            +{extraCount} mais
+                          </span>
                         )}
                       </>
                     )}

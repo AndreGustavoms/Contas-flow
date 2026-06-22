@@ -6164,11 +6164,11 @@ select:hover {
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: flex-start;
-  min-height: 78px;
-  padding: 8px 9px;
-  border-radius: 12px;
+  min-height: 96px;
+  padding: 9px 10px 11px;
+  border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   background: color-mix(in srgb, var(--surface-soft) 60%, transparent);
   color: var(--text);
@@ -6185,26 +6185,29 @@ select:hover {
   align-self: flex-end;
   font-size: 13px;
   font-weight: 700;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .reports-day-cell-out {
   opacity: 0.32;
 }
 .reports-day-cell-today {
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent-surface) 26%, transparent);
 }
 /* "Hoje" vira uma pílula verde no número do dia — marcador inequívoco. */
 .reports-day-cell-today .reports-day-num {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;
-  height: 22px;
+  min-width: 23px;
+  height: 23px;
   padding-inline: 5px;
   border-radius: 999px;
   background: var(--accent);
   color: #04140a;
   font-weight: 800;
+  box-shadow: 0 2px 10px -2px color-mix(in srgb, var(--accent) 70%, transparent);
 }
 .reports-day-cell-selected {
   border-color: var(--accent);
@@ -6232,23 +6235,23 @@ select:hover {
 }
 
 .reports-day-posts {
-  margin-top: 8px;
+  margin-top: 7px;
   display: grid;
   width: 100%;
   gap: 4px;
-  padding-right: 2px;
 }
 
 .reports-day-post-pill {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   min-width: 0;
-  border-radius: 7px;
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
-  background: color-mix(in srgb, var(--accent-surface) 22%, transparent);
-  padding: 3px 5px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  border-left: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent-surface) 24%, transparent);
+  padding: 4px 6px;
   color: var(--text);
   text-align: left;
   cursor: pointer;
@@ -6268,7 +6271,7 @@ select:hover {
 
 .reports-day-post-time {
   font-family: "Courier New", Courier, monospace;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
@@ -6279,17 +6282,16 @@ select:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text);
 }
 
 .reports-day-extra {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
+  margin-top: 4px;
+  padding-left: 2px;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--muted-soft);
 }
 

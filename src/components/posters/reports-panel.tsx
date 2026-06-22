@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import {
   CalendarClock,
   CalendarDays,
+  Check,
   ChevronLeft,
   ChevronRight,
+  Copy,
+  EyeOff,
   ExternalLink,
+  Globe,
+  Lock,
   PlayCircle,
   X,
 } from "lucide-react";
@@ -129,6 +134,89 @@ function thumbnailCandidates(item: HistoryItem): string[] {
     );
   }
   return Array.from(new Set(urls));
+}
+// Duração legível, ou "—" quando o YouTube não informou (mais limpo que texto).
+function durationLabel(seconds?: number | null): string {
+  const d = formatDuration(seconds);
+  return d === "Nao informado" ? "—" : d;
+}
+function privacyMeta(privacy?: string): { label: string; Icon: typeof Lock } {
+  switch ((privacy ?? "").toLowerCase()) {
+    case "public":
+      return { label: "Público", Icon: Globe };
+    case "unlisted":
+      return { label: "Não listado", Icon: EyeOff };
+    case "private":
+      return { label: "Privado", Icon: Lock };
+    default:
+      return { label: privacy || "—", Icon: Lock };
+  }
+}
+
+// ── Componentes do modal de detalhes ──
+
+function StatusBadge({ scheduled }: { scheduled: boolean }) {
+  if (scheduled) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-soft)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--muted)]">
+        <CalendarClock className="h-3 w-3" />
+        Agendado
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--accent-border)] bg-[color:var(--accent-surface)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--accent-soft)]">
+      <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]" />
+      Postado
+    </span>
+  );
+}
+
+function VisibilityBadge({ privacy }: { privacy?: string }) {
+  const { label, Icon } = privacyMeta(privacy);
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-soft)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--muted)]">
+      <Icon className="h-3 w-3" />
+      {label}
+    </span>
+  );
+}
+
+function InfoRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2.5">
+      <span className="shrink-0 text-[12px] text-[color:var(--muted)]">
+        {label}
+      </span>
+      <span className="min-w-0 truncate text-right text-[13px] font-medium text-[color:var(--text)]">
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function CopyableId({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard?.writeText(id).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        });
+      }}
+      title="Copiar ID"
+      className="inline-flex items-center gap-1.5 rounded-md bg-[color:var(--surface-soft)] px-2 py-1 font-mono text-[11px] text-[color:var(--text)] transition hover:bg-[color:var(--accent-surface)]"
+    >
+      {id}
+      {copied ? (
+        <Check className="h-3 w-3 text-[color:var(--accent)]" />
+      ) : (
+        <Copy className="h-3 w-3 text-[color:var(--muted-soft)]" />
+      )}
+    </button>
+  );
 }
 
 export function ReportsPanel() {
@@ -588,6 +676,12 @@ export function ReportsPanel() {
                   {isScheduled(selectedEvent) ? "Post agendado" : "Post publicado"}
                 </p>
                 <h3>{selectedEvent.title}</h3>
+                <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                  <StatusBadge scheduled={isScheduled(selectedEvent)} />
+                  {selectedEvent.privacyStatus && (
+                    <VisibilityBadge privacy={selectedEvent.privacyStatus} />
+                  )}
+                </div>
               </div>
               <button
                 type="button"
@@ -657,43 +751,35 @@ export function ReportsPanel() {
               </div>
 
               <div className="reports-event-info">
-                <div className="reports-event-meta-grid">
-                  <div>
-                    <span>Data</span>
-                    <strong>{weekdayDay(getItemDate(selectedEvent))}</strong>
-                  </div>
-                  <div>
-                    <span>Horário</span>
-                    <strong>{spTime(getItemDate(selectedEvent))}</strong>
-                  </div>
-                  <div>
-                    <span>Status</span>
-                    <strong>
-                      {isScheduled(selectedEvent) ? "Agendado" : "Postado"}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>Canal</span>
-                    <strong>{selectedEvent.channelTitle ?? "Sem canal"}</strong>
-                  </div>
-                  <div>
-                    <span>Visibilidade</span>
-                    <strong>{selectedEvent.privacyStatus ?? "Não informado"}</strong>
-                  </div>
-                  <div>
-                    <span>ID do vídeo</span>
-                    <strong>{selectedEvent.videoId ?? "Indisponível"}</strong>
-                  </div>
-                  <div>
-                    <span>Duração</span>
-                    <strong>{formatDuration(selectedEvent.durationSeconds)}</strong>
-                  </div>
+                <div className="flex flex-col divide-y divide-[color:var(--border)]">
+                  <InfoRow
+                    label={
+                      isScheduled(selectedEvent) ? "Agendado para" : "Publicado em"
+                    }
+                  >
+                    {`${weekdayDay(getItemDate(selectedEvent))} às ${spTime(getItemDate(selectedEvent))}`}
+                  </InfoRow>
+                  <InfoRow label="Canal">
+                    {selectedEvent.channelTitle ?? "Sem canal"}
+                  </InfoRow>
+                  {selectedEvent.videoId && (
+                    <InfoRow label="ID do vídeo">
+                      <CopyableId id={selectedEvent.videoId} />
+                    </InfoRow>
+                  )}
+                  <InfoRow label="Duração">
+                    {durationLabel(selectedEvent.durationSeconds)}
+                  </InfoRow>
                 </div>
 
                 {selectedEvent.description?.trim() ? (
-                  <div className="reports-event-description">
-                    <span>Descrição</span>
-                    <p>{selectedEvent.description}</p>
+                  <div className="mt-4">
+                    <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-[color:var(--muted-soft)]">
+                      Descrição
+                    </span>
+                    <p className="whitespace-pre-wrap break-words rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-soft)] p-3 text-[13px] leading-relaxed text-[color:var(--muted)]">
+                      {selectedEvent.description}
+                    </p>
                   </div>
                 ) : null}
               </div>

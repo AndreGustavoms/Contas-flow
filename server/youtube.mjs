@@ -874,6 +874,8 @@ const YOUTUBE_REASON_EXPLANATIONS = {
     "A conexao com o YouTube nao tem permissao suficiente para publicar. Conecte o canal novamente.",
   authenticatedUserNotChannel:
     "A conta Google conectada nao possui um canal do YouTube valido para receber o upload.",
+  youtubeSignupRequired:
+    "A conta Google conectada nao tem um canal do YouTube. Reconecte escolhendo a conta que e dona do canal (ou crie um canal nessa conta) e tente de novo.",
   authenticatedUserAccountClosed:
     "A conta do YouTube conectada esta encerrada.",
   authenticatedUserAccountSuspended:

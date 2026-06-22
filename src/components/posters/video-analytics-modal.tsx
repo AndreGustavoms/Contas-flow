@@ -152,11 +152,11 @@ export function VideoAnalyticsModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm sm:p-6"
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[rgba(2,6,23,0.78)] p-4 backdrop-blur-lg sm:p-6"
       onClick={onClose}
     >
       <div
-        className="relative flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--page-bg)] shadow-[0_24px_80px_-16px_rgba(0,0,0,.8)]"
+        className="relative flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-[color:var(--accent-border)] bg-[color:var(--panel-strong)] shadow-[0_28px_76px_-40px_rgba(0,0,0,0.9),0_0_0_1px_rgba(34,197,94,0.14),inset_0_1px_0_rgba(255,255,255,0.06)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

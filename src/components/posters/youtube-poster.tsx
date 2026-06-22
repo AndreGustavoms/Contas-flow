@@ -1059,6 +1059,19 @@ export function YouTubePoster() {
                                 });
                               if (Number.isFinite(v.duration))
                                 setVideoDuration(v.duration);
+                              // Força o browser a decodificar/pintar o 1º frame:
+                              // alguns players ficam num quadro preto até dar play
+                              // ou seek. Um seek mínimo garante o thumbnail.
+                              if (v.currentTime === 0) {
+                                try {
+                                  v.currentTime = Math.min(
+                                    0.1,
+                                    (v.duration || 1) / 2,
+                                  );
+                                } catch {
+                                  /* alguns formatos não permitem seek imediato */
+                                }
+                              }
                             }}
                           />
                           {(videoDim || videoDuration !== null) && (

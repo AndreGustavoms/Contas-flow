@@ -1030,31 +1030,26 @@ export function YouTubePoster() {
                     const ratio = videoDim ? videoDim.w / videoDim.h : null;
                     const vertical =
                       ratio !== null ? ratio < 1 : videoType === "short";
-                    let displayW: number;
-                    let displayH: number;
-                    if (ratio) {
-                      if (vertical) {
-                        displayH = 260;
-                        displayW = Math.round(260 * ratio);
-                      } else {
-                        displayW = 300;
-                        displayH = Math.round(300 / ratio);
-                      }
-                    } else {
-                      displayW = vertical ? 146 : 300;
-                      displayH = vertical ? 260 : 169;
-                    }
                     return (
-                      <div className="mt-4 flex flex-col items-center gap-2">
+                      <div className="mt-4 flex flex-col items-center gap-3">
                         <div
-                          className="relative overflow-hidden rounded-xl border border-[color:var(--accent-border)] bg-black shadow-[0_8px_32px_-8px_var(--accent-glow)]"
-                          style={{ width: displayW, height: displayH }}
+                          className={cn(
+                            "relative w-full overflow-hidden rounded-xl border border-[color:var(--accent-border)] bg-black shadow-[0_8px_32px_-8px_var(--accent-glow)]",
+                            vertical ? "max-w-[340px]" : "max-w-[640px]",
+                          )}
+                          style={{
+                            aspectRatio: ratio ?? (vertical ? "9 / 16" : "16 / 9"),
+                          }}
                         >
                           <video
+                            // key força o <video> a remontar quando o arquivo muda:
+                            // sem isso o browser pode manter o frame/vídeo anterior.
+                            key={previewUrl}
                             src={previewUrl}
-                            className="h-full w-full object-contain"
+                            className="absolute inset-0 h-full w-full object-contain"
                             controls
-                            muted
+                            playsInline
+                            preload="metadata"
                             onLoadedMetadata={(e) => {
                               const v = e.currentTarget;
                               if (v.videoWidth && v.videoHeight)
@@ -1066,9 +1061,16 @@ export function YouTubePoster() {
                                 setVideoDuration(v.duration);
                             }}
                           />
-                          {videoDim && (
-                            <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[9px] text-white/70">
-                              {videoDim.w}×{videoDim.h}
+                          {(videoDim || videoDuration !== null) && (
+                            <span className="pointer-events-none absolute bottom-1.5 left-1.5 flex items-center gap-1.5 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[10px] text-white/80 backdrop-blur-sm">
+                              {videoDim && (
+                                <span>
+                                  {videoDim.w}×{videoDim.h}
+                                </span>
+                              )}
+                              {videoDuration !== null && (
+                                <span>{fmtDuration(Math.round(videoDuration))}</span>
+                              )}
                             </span>
                           )}
                         </div>

@@ -33,6 +33,11 @@ import {
   initiateResumableUpload,
   reconcileHistory,
   channelAnalytics,
+  videoAnalytics,
+  listVideoComments,
+  replyToComment,
+  addVideoComment,
+  moderateComment,
   recordUpload,
   updateVideo,
   uploadVideo,
@@ -2533,6 +2538,143 @@ async function handleApi(request, response, url, user, session) {
       sendJson(response, 200, { videos });
     } catch {
       sendJson(response, 500, { error: "analytics_failed" });
+    }
+    return;
+  }
+
+  // Análise individual de um vídeo: snapshot + série temporal (Analytics API).
+  // GET /api/youtube/video/<videoId>/analytics?channelId=...&days=28
+  const vaMatch = url.pathname.match(
+    /^\/api\/youtube\/video\/([^/]+)\/analytics$/,
+  );
+  if (vaMatch && request.method === "GET") {
+    const videoId = decodeURIComponent(vaMatch[1]);
+    const channelId = url.searchParams.get("channelId") || "";
+    const days = Number(url.searchParams.get("days")) || 28;
+    if (!channelId) {
+      sendJson(response, 400, { error: "missing_channel" });
+      return;
+    }
+    try {
+      const data = await videoAnalytics(user.id, channelId, videoId, { days });
+      sendJson(response, 200, data);
+    } catch (error) {
+      if (error?.message === "channel_not_connected") {
+        sendJson(response, 409, { error: "channel_not_connected" });
+        return;
+      }
+      sendJson(response, 500, { error: "video_analytics_failed" });
+    }
+    return;
+  }
+
+  // Comentários de um vídeo (threads + respostas).
+  // GET /api/youtube/video/<videoId>/comments?channelId=...&order=time|relevance
+  const vcMatch = url.pathname.match(
+    /^\/api\/youtube\/video\/([^/]+)\/comments$/,
+  );
+  if (vcMatch && request.method === "GET") {
+    const videoId = decodeURIComponent(vcMatch[1]);
+    const channelId = url.searchParams.get("channelId") || "";
+    if (!channelId) {
+      sendJson(response, 400, { error: "missing_channel" });
+      return;
+    }
+    try {
+      const data = await listVideoComments(user.id, channelId, videoId, {
+        order: url.searchParams.get("order") || "time",
+        pageToken: url.searchParams.get("pageToken") || undefined,
+      });
+      sendJson(response, 200, data);
+    } catch (error) {
+      if (error?.message === "channel_not_connected") {
+        sendJson(response, 409, { error: "channel_not_connected" });
+        return;
+      }
+      // commentThreads.list devolve 403 quando os comentários estão desativados.
+      const status = Number(error?.response?.status ?? error?.code);
+      if (status === 403) {
+        sendJson(response, 200, { threads: [], nextPageToken: null, disabled: true });
+        return;
+      }
+      sendJson(response, 500, { error: "comments_failed" });
+    }
+    return;
+  }
+
+  // POST /api/youtube/video/<videoId>/comments — novo comentário (top-level).
+  if (vcMatch && request.method === "POST") {
+    const videoId = decodeURIComponent(vcMatch[1]);
+    const body = await readBody(request).catch(() => null);
+    const channelId = body?.channelId || "";
+    const text = String(body?.text ?? "").trim();
+    if (!channelId || !text) {
+      sendJson(response, 400, { error: "missing_fields" });
+      return;
+    }
+    try {
+      const thread = await addVideoComment(user.id, channelId, videoId, text);
+      sendJson(response, 200, { thread });
+    } catch (error) {
+      if (error?.message === "channel_not_connected") {
+        sendJson(response, 409, { error: "channel_not_connected" });
+        return;
+      }
+      sendJson(response, 500, { error: "comment_failed" });
+    }
+    return;
+  }
+
+  // POST /api/youtube/comments/reply — responde a um comentário.
+  if (url.pathname === "/api/youtube/comments/reply" && request.method === "POST") {
+    const body = await readBody(request).catch(() => null);
+    const channelId = body?.channelId || "";
+    const parentId = body?.parentId || "";
+    const text = String(body?.text ?? "").trim();
+    if (!channelId || !parentId || !text) {
+      sendJson(response, 400, { error: "missing_fields" });
+      return;
+    }
+    try {
+      const comment = await replyToComment(user.id, channelId, parentId, text);
+      sendJson(response, 200, { comment });
+    } catch (error) {
+      if (error?.message === "channel_not_connected") {
+        sendJson(response, 409, { error: "channel_not_connected" });
+        return;
+      }
+      sendJson(response, 500, { error: "reply_failed" });
+    }
+    return;
+  }
+
+  // POST /api/youtube/comments/moderate — modera um comentário.
+  // body: { channelId, commentId, action: heldForReview|published|rejected|spam|delete }
+  if (url.pathname === "/api/youtube/comments/moderate" && request.method === "POST") {
+    const body = await readBody(request).catch(() => null);
+    const channelId = body?.channelId || "";
+    const commentId = body?.commentId || "";
+    const action = body?.action || "";
+    if (!channelId || !commentId || !action) {
+      sendJson(response, 400, { error: "missing_fields" });
+      return;
+    }
+    try {
+      await moderateComment(user.id, channelId, commentId, action);
+      void logEvent(storageDir, {
+        userId: user.id,
+        username: user.username,
+        action: "youtube_comment_moderated",
+        target: `${commentId}:${action}`,
+        ip: clientIp(request),
+      });
+      sendJson(response, 200, { ok: true });
+    } catch (error) {
+      if (error?.message === "channel_not_connected") {
+        sendJson(response, 409, { error: "channel_not_connected" });
+        return;
+      }
+      sendJson(response, 500, { error: "moderate_failed" });
     }
     return;
   }

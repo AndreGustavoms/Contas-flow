@@ -68,6 +68,9 @@ const historyFile =
 const SCOPES = [
   "https://www.googleapis.com/auth/youtube.force-ssl",
   "https://www.googleapis.com/auth/youtube.readonly",
+  // Série temporal real (views/dia, tempo de exibição) por vídeo. Canais
+  // conectados antes desta linha precisam reconectar uma vez para concedê-la.
+  "https://www.googleapis.com/auth/yt-analytics.readonly",
 ];
 
 function requireEnv(name) {
@@ -749,6 +752,193 @@ export async function channelAnalytics(ownerId) {
   }
 
   return out.sort((a, b) => (b.views ?? -1) - (a.views ?? -1));
+}
+
+// ==================== ANÁLISE INDIVIDUAL DE VÍDEO ====================
+
+function ymd(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+// Snapshot atual (statistics) + série temporal (YouTube Analytics API) de um
+// vídeo. `analyticsAvailable=false` quando o canal foi conectado antes do escopo
+// yt-analytics.readonly — o front mostra um aviso pra reconectar.
+export async function videoAnalytics(ownerId, channelId, videoId, opts = {}) {
+  const days = Number.isFinite(opts.days) ? Math.max(1, Math.min(365, opts.days)) : 28;
+  const safeOwnerId = safeStorageKey(ownerId);
+  const auth = await clientForChannel(channelId, safeOwnerId); // throws channel_not_connected
+  const youtube = google.youtube({ version: "v3", auth });
+  const analytics = google.youtubeAnalytics({ version: "v2", auth });
+
+  // Totais atuais + metadados do vídeo.
+  let snapshot = null;
+  try {
+    const vres = await youtube.videos.list({
+      part: ["statistics", "snippet", "contentDetails"],
+      id: [videoId],
+    });
+    const v = vres.data.items?.[0];
+    if (v) {
+      const s = v.statistics ?? {};
+      snapshot = {
+        videoId: v.id,
+        title: v.snippet?.title ?? "",
+        thumbnailUrl:
+          v.snippet?.thumbnails?.medium?.url ??
+          v.snippet?.thumbnails?.default?.url ??
+          null,
+        publishedAt: v.snippet?.publishedAt ?? null,
+        views: Number(s.viewCount ?? 0),
+        likes: Number(s.likeCount ?? 0),
+        comments: Number(s.commentCount ?? 0),
+        commentsDisabled: s.commentCount === undefined,
+        durationSeconds: parseIsoDuration(v.contentDetails?.duration ?? ""),
+      };
+    }
+  } catch {
+    /* sem snapshot — segue só com a série */
+  }
+
+  // Janela: últimos `days` dias, mas nunca antes da publicação.
+  const end = new Date();
+  let start = new Date(end.getTime() - (days - 1) * 86400000);
+  if (snapshot?.publishedAt) {
+    const pub = new Date(snapshot.publishedAt);
+    if (pub > start) start = pub;
+  }
+
+  let series = [];
+  let totals = null;
+  let analyticsAvailable = true;
+  try {
+    const res = await analytics.reports.query({
+      ids: "channel==MINE",
+      startDate: ymd(start),
+      endDate: ymd(end),
+      metrics: "views,estimatedMinutesWatched,likes,comments,subscribersGained",
+      dimensions: "day",
+      filters: `video==${videoId}`,
+      sort: "day",
+    });
+    const rows = res.data.rows ?? [];
+    series = rows.map((r) => ({
+      day: r[0],
+      views: Number(r[1] ?? 0),
+      minutesWatched: Number(r[2] ?? 0),
+      likes: Number(r[3] ?? 0),
+      comments: Number(r[4] ?? 0),
+      subscribersGained: Number(r[5] ?? 0),
+    }));
+    totals = series.reduce(
+      (acc, d) => ({
+        views: acc.views + d.views,
+        minutesWatched: acc.minutesWatched + d.minutesWatched,
+        likes: acc.likes + d.likes,
+        comments: acc.comments + d.comments,
+        subscribersGained: acc.subscribersGained + d.subscribersGained,
+      }),
+      { views: 0, minutesWatched: 0, likes: 0, comments: 0, subscribersGained: 0 },
+    );
+  } catch {
+    // Provável falta do escopo yt-analytics (canal conectado antes da permissão).
+    analyticsAvailable = false;
+  }
+
+  return { snapshot, series, totals, analyticsAvailable, rangeDays: days };
+}
+
+// ==================== COMENTÁRIOS ====================
+
+function mapComment(c) {
+  const s = c?.snippet ?? {};
+  return {
+    id: c?.id ?? null,
+    text: s.textOriginal ?? s.textDisplay ?? "",
+    author: s.authorDisplayName ?? "",
+    authorAvatar: s.authorProfileImageUrl ?? null,
+    authorChannelId: s.authorChannelId?.value ?? null,
+    authorChannelUrl: s.authorChannelUrl ?? null,
+    likeCount: Number(s.likeCount ?? 0),
+    publishedAt: s.publishedAt ?? null,
+    updatedAt: s.updatedAt ?? null,
+  };
+}
+
+function mapThread(item) {
+  const top = item?.snippet?.topLevelComment;
+  return {
+    threadId: item?.id ?? null,
+    ...mapComment(top),
+    canReply: item?.snippet?.canReply ?? true,
+    totalReplyCount: Number(item?.snippet?.totalReplyCount ?? 0),
+    replies: (item?.replies?.comments ?? []).map(mapComment),
+  };
+}
+
+// Lista threads de comentários (top-level + respostas carregadas) de um vídeo.
+export async function listVideoComments(ownerId, channelId, videoId, opts = {}) {
+  const safeOwnerId = safeStorageKey(ownerId);
+  const auth = await clientForChannel(channelId, safeOwnerId);
+  const youtube = google.youtube({ version: "v3", auth });
+  const res = await youtube.commentThreads.list({
+    part: ["snippet", "replies"],
+    videoId,
+    maxResults: 50,
+    order: opts.order === "relevance" ? "relevance" : "time",
+    pageToken: opts.pageToken || undefined,
+    textFormat: "plainText",
+  });
+  return {
+    threads: (res.data.items ?? []).map(mapThread),
+    nextPageToken: res.data.nextPageToken ?? null,
+  };
+}
+
+// Responde a um comentário (parentId = id do comentário ou da thread).
+export async function replyToComment(ownerId, channelId, parentId, text) {
+  const safeOwnerId = safeStorageKey(ownerId);
+  const auth = await clientForChannel(channelId, safeOwnerId);
+  const youtube = google.youtube({ version: "v3", auth });
+  const res = await youtube.comments.insert({
+    part: ["snippet"],
+    requestBody: { snippet: { parentId, textOriginal: text } },
+  });
+  return mapComment(res.data);
+}
+
+// Cria um comentário novo (top-level) no vídeo, como o canal conectado.
+export async function addVideoComment(ownerId, channelId, videoId, text) {
+  const safeOwnerId = safeStorageKey(ownerId);
+  const auth = await clientForChannel(channelId, safeOwnerId);
+  const youtube = google.youtube({ version: "v3", auth });
+  const res = await youtube.commentThreads.insert({
+    part: ["snippet"],
+    requestBody: {
+      snippet: { videoId, topLevelComment: { snippet: { textOriginal: text } } },
+    },
+  });
+  return mapThread(res.data);
+}
+
+// Moderação de comentário. action: "heldForReview" | "published" | "rejected"
+// | "spam" | "delete". Requer ser dono do vídeo/canal.
+export async function moderateComment(ownerId, channelId, commentId, action) {
+  const safeOwnerId = safeStorageKey(ownerId);
+  const auth = await clientForChannel(channelId, safeOwnerId);
+  const youtube = google.youtube({ version: "v3", auth });
+  if (action === "delete") {
+    await youtube.comments.delete({ id: commentId });
+  } else if (action === "spam") {
+    await youtube.comments.markAsSpam({ id: [commentId] });
+  } else if (["heldForReview", "published", "rejected"].includes(action)) {
+    await youtube.comments.setModerationStatus({
+      id: [commentId],
+      moderationStatus: action,
+    });
+  } else {
+    throw new Error("invalid_moderation_action");
+  }
+  return { ok: true };
 }
 
 // Aplica um patch (título/descrição/privacidade) ao item do histórico, para a
